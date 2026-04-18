@@ -1,31 +1,34 @@
 # patchwork-core
 
-Standalone Patchwork tools, extracted from
-[`patchwork-next`](https://github.com/inkandswitch/patchwork-next)'s `tools/`
-directory with full git history preserved.
+A collection of the core tools that comprise the Patchwork system.
 
-Each top-level folder is an independent package with its own `package.json`,
-build, and lockfile. No root workspace — `cd` into a tool and run its scripts.
+## Engineering Notes
 
-## Tools
+Tools in this collection should be reliable and maintained: these are the core tools, after all.
 
-```
-account-history             frame-configurator
-account-picker              history-view
-add-doc-to-sidebar-button   latex
-back-link-button            module-settings-manager
-codemirror-base             orionmark
-codemirror-embed            patchwork-frame
-codemirror-markdown         sidebar-toggles
-commands                    sideboard
-comments-view               space-frame
-contact                     spacer
-context-sidebar             sync-indicator
-context-view                tenfold
-doc-title                   tldraw4
-```
+Within a given distribution, it is reasonable to assume these tools exist, however tools in this collection should never assume the existence of other tools.
 
-## Building a tool
+Regardless, these tools should not depend on each other's implementations or their internal structure.
+
+Each directory in this collection can be built completely independently. Tools do not share lockfiles, node modules, or even necessarily build systems or web frameworks.
+
+Please be careful not to violate these isolation principles.
+
+## Dependencies
+
+- External deps (`@inkandswitch/patchwork-*`, `solid-js`, etc.) are pinned to
+  normal published npm versions.
+
+## Caveat
+
+- A few tools depend on sibling tools in this repo
+  (`codemirror-markdown` → `codemirror-base`, `tenfold` → `codemirror-base` and
+  `codemirror-markdown`, `account-picker` → `contact`). Those are referenced as
+  `link:../<sibling>` in the sibling's `package.json`, which creates a live
+  symlink into `node_modules`. Building the sibling is enough — no publish
+  step, no `workspace:*` protocol.
+
+## Building one tool
 
 ```sh
 cd history-view
@@ -33,5 +36,28 @@ pnpm install
 pnpm build
 ```
 
-Tools depend on published `@inkandswitch/patchwork-*` and related npm
-packages rather than workspace siblings.
+For tools that `link:` to a sibling, build the sibling first so its `dist/`
+exists (e.g. `codemirror-base` before `tenfold`). Running `pnpm -r build` at
+the root happens to go in alphabetical order, which puts dependencies ahead of
+dependents for the current set of links.
+
+## Building everything
+
+From the repo root:
+
+```sh
+pnpm -r install   # install in every tool
+pnpm -r build     # build every tool that has a build script
+```
+
+## Installing modules
+
+Right now this is a bit janky, but once you have the pushwork and the patchwork-modules CLI tool installed, you should be able to run:
+
+```sh
+export MODULE_SETTINGS_DOC_URL=automerge:$A_RELEVANT_URL
+pnpm -r exec pushwork init --sub
+pnpm -r register
+```
+
+NB: The --sub is because as of this writing, we're using a prerelease of subduction support for pushwork.
