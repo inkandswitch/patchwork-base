@@ -9,11 +9,11 @@
     "sync": "vite build && pushwork sync"
   },
   "dependencies": {
-    "@automerge/automerge-repo": "catalog:",
-    "@inkandswitch/patchwork-plugins": "workspace:^"
+    "@automerge/automerge-repo": "^2.6.0-subduction.9",
+    "@inkandswitch/patchwork-plugins": "^0.0.5"
   },
   "devDependencies": {
-    "@inkandswitch/patchwork-bootloader": "workspace:^",
+    "@inkandswitch/patchwork-bootloader": "^0.0.4",
     "vite": "^7.1.9",
     "vite-plugin-css-injected-by-js": "^3.5.2"
   }

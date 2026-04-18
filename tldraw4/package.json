@@ -28,11 +28,11 @@
     "pushwatch": "pnpm dev pushwork"
   },
   "dependencies": {
-    "@automerge/automerge-repo-react-hooks": "catalog:",
-    "@automerge/react": "catalog:",
-    "@inkandswitch/patchwork-bootloader": "workspace:^",
-    "@inkandswitch/patchwork-filesystem": "workspace:^",
-    "@inkandswitch/patchwork-plugins": "workspace:^",
+    "@automerge/automerge-repo-react-hooks": "^2.6.0-subduction.9",
+    "@automerge/react": "^2.6.0-subduction.9",
+    "@inkandswitch/patchwork-bootloader": "^0.0.4",
+    "@inkandswitch/patchwork-filesystem": "^0.0.3",
+    "@inkandswitch/patchwork-plugins": "^0.0.5",
     "@tldraw/tldraw": "4.3.1",
     "@types/lodash": "^4.17.20",
     "lodash": "^4.17.21",
@@ -42,12 +42,12 @@
     "vite-plugin-wasm": "^3.5.0"
   },
   "devDependencies": {
-    "@automerge/automerge": "catalog:",
-    "@automerge/automerge-repo": "catalog:",
+    "@automerge/automerge": "^3.2.5",
+    "@automerge/automerge-repo": "^2.6.0-subduction.9",
     "@eslint/js": "^9.36.0",
     "@types/node": "^24.6.0",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "19.1.0-rc.3",
     "esbuild": "^0.23.1",

@@ -12,13 +12,13 @@
     "sync": "vite build && pushwork sync"
   },
   "dependencies": {
-    "@automerge/automerge": "catalog:",
-    "@automerge/automerge-repo": "catalog:",
-    "@inkandswitch/patchwork-plugins": "workspace:^"
+    "@automerge/automerge": "^3.2.5",
+    "@automerge/automerge-repo": "^2.6.0-subduction.9",
+    "@inkandswitch/patchwork-plugins": "^0.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
-    "@inkandswitch/patchwork-bootloader": "workspace:^",
+    "@inkandswitch/patchwork-bootloader": "^0.0.4",
     "@typescript-eslint/parser": "^8.40.0",
     "eslint": "^9.34.0",
     "globals": "^16.4.0",
