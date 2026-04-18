@@ -1,0 +1,6 @@
+{
+  "name": "patchwork-core",
+  "private": true,
+  "description": "Collection of independent Patchwork tools. Each tool manages its own dependencies, lockfile, and build; this root package.json exists only so `pnpm -r <script>` finds them.",
+  "packageManager": "pnpm@10.32.1"
+}
