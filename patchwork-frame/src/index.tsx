@@ -15,17 +15,6 @@ export const plugins: Plugin<any>[] = [
     },
   },
   {
-    type: "patchwork:datatype",
-    id: "folder",
-    name: "Folder",
-    icon: "Folder",
-    unlisted: true,
-    async load() {
-      const { FolderDatatype } = await import("./datatypes");
-      return FolderDatatype;
-    },
-  },
-  {
     type: "patchwork:tool",
     id: "patchwork-frame",
     tags: ["frame-tool"],

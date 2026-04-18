@@ -1,5 +1,4 @@
 import type { DatatypeImplementation } from "@inkandswitch/patchwork-plugins";
-import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import type { AccountDoc } from "./types";
 
 /**
@@ -21,15 +20,4 @@ export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
     ];
   },
   getTitle: () => "Patchwork Account",
-};
-
-export const FolderDatatype: DatatypeImplementation<FolderDoc> = {
-  init(doc) {
-    doc.title = "";
-    doc.docs = [];
-  },
-  getTitle: (doc) => doc.title || "Untitled Folder",
-  setTitle: (doc, title) => {
-    doc.title = title;
-  },
 };
