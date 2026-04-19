@@ -20,7 +20,8 @@
   "scripts": {
     "build": "node esbuild/build.ts",
     "dev": "node esbuild/watch.ts",
-    "pushwatch": "pnpm dev pushwork"
+    "pushwatch": "pnpm dev pushwork",
+    "register": "patchwork-register-module \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
   },
   "dependencies": {
     "@codemirror/language": "^6.11.3",
