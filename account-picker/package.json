@@ -29,7 +29,9 @@
     "@inkandswitch/patchwork-filesystem": "^0.0.4",
     "@inkandswitch/patchwork-plugins": "^0.0.6",
     "@kobalte/core": "^0.13.11",
-    "solid-js": "^1.9.9"
+    "clsx": "^2.1.1",
+    "solid-js": "^1.9.9",
+    "tailwind-merge": "^1.14.0"
   },
   "devDependencies": {
     "@babel/core": "7.28.4",
