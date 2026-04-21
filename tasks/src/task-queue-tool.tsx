@@ -67,8 +67,6 @@ const ITaskQueueBrowserTool: React.FC<any> = ({ docUrl }) => {
   return (
     <div className="task-browser h-full overflow-y-auto">
       <div className="flex flex-col items-left h-full overflow-y-auto">
-        <h1>title: {title}</h1>
-        <h2 className="text-2xl font-bold mb-4">{title ?? 'Task Queue'}</h2>
         <div className="mb-4 flex flex-col">
           <div className="grow">
             <textarea
