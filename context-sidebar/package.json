@@ -2,9 +2,6 @@
   "name": "@tiny-patchwork/context-sidebar",
   "type": "module",
   "private": true,
-  "pushwork": {
-    "url": "automerge:AhXeZ47JAkL2L4YejkvHLmhHdmB"
-  },
   "main": "./dist/index.js",
   "scripts": {
     "dev": "vite build --watch",

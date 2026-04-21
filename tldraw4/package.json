@@ -1,8 +1,5 @@
 {
   "name": "@patchwork/tldraw4",
-  "pushwork": {
-    "url": "automerge:Qq3G9LB5bNHwSVJ6m29Tz8zgb4E"
-  },
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -25,7 +22,9 @@
   "scripts": {
     "build": "node esbuild/build.ts",
     "dev": "node esbuild/watch.ts",
-    "pushwatch": "pnpm dev pushwork"
+    "pushwatch": "pnpm dev pushwork",
+    "sync": "pnpm build && pushwork sync",
+    "register": "patchwork-register-module \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
   },
   "dependencies": {
     "@automerge/automerge-repo-react-hooks": "^2.6.0-subduction.9",

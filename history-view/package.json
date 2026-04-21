@@ -3,9 +3,6 @@
   "type": "module",
   "private": true,
   "main": "./dist/index.js",
-  "pushwork": {
-    "url": "automerge:3c61tPPwick8v75Sv9G33WjTji3R"
-  },
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",

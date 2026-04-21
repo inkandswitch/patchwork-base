@@ -4,9 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
-  "pushwork": {
-    "url": "automerge:C7F6yua1W3LX3Pp6jSnQx53Byv3"
-  },
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
