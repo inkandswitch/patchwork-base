@@ -9,8 +9,8 @@ export const plugins: Plugin<any>[] = [
     icon: "Tabs",
     supportedDatatypes: ["account"],
     async load() {
-      const { renderTabbedView } = await import("./ContextSidebar");
-      return renderTabbedView;
+      const { renderContextSidebar } = await import("./ContextSidebar");
+      return renderContextSidebar;
     },
   },
 ];

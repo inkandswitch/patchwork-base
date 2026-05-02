@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm approve-builds *)",
+      "Bash(pnpm exec *)",
+      "Bash(npx vite *)"
+    ]
+  }
+}
