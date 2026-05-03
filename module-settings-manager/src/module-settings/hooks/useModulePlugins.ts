@@ -4,7 +4,10 @@ import {
   type AutomergeUrl,
   type Repo,
 } from "@automerge/automerge-repo";
-import { importModuleFromFolderDocUrl } from "@inkandswitch/patchwork-filesystem";
+import {
+  importModuleFromFolderDocUrl,
+  automergeUrlToServiceWorkerUrl,
+} from "@inkandswitch/patchwork-filesystem";
 import {
   extractUniqueDatatypes,
   matchesDatatype,
@@ -35,6 +38,8 @@ interface UseModulePluginsParams {
 export type EnrichedPlugin = Plugin<PluginDescription> & {
   isValidUrl: boolean;
   datatypesDisplay: DatatypesDisplay;
+  packageName?: string;
+  packageTitle?: string;
 };
 
 export function useModulePlugins(params: UseModulePluginsParams) {
@@ -68,7 +73,33 @@ export function useModulePlugins(params: UseModulePluginsParams) {
           if (!folderUrl) return [];
           const module = await importModuleFromFolderDocUrl(folderUrl);
           const plugins = (module?.plugins || []) as Plugin<PluginDescription>[];
-          return plugins.map((plugin) => ({ ...plugin, importUrl: url }));
+
+          let packageName: string | undefined;
+          let packageTitle: string | undefined;
+          try {
+            const pkgJsonUrl = new URL(
+              "package.json",
+              new URL(
+                automergeUrlToServiceWorkerUrl(folderUrl),
+                window.location.origin
+              )
+            ).href;
+            const res = await fetch(pkgJsonUrl);
+            if (res.ok) {
+              const pkg = await res.json();
+              packageName = pkg.name;
+              packageTitle = pkg.title;
+            }
+          } catch {
+            // ignore — package.json is optional metadata for filtering
+          }
+
+          return plugins.map((plugin) => ({
+            ...plugin,
+            importUrl: url,
+            packageName,
+            packageTitle,
+          }));
         } catch (error) {
           console.error(`Failed to load plugins for ${url}`, error);
           return [];
@@ -137,10 +168,16 @@ export function useModulePlugins(params: UseModulePluginsParams) {
     return plugins.filter((plugin) => {
       // Apply search query filter
       if (query) {
+        const ext = plugin as Plugin<PluginDescription> & {
+          packageName?: string;
+          packageTitle?: string;
+        };
         const matchesQuery =
           plugin.name.toLowerCase().includes(query) ||
           plugin.type.toLowerCase().includes(query) ||
-          plugin.id?.toLowerCase().includes(query);
+          plugin.id?.toLowerCase().includes(query) ||
+          ext.packageName?.toLowerCase().includes(query) ||
+          ext.packageTitle?.toLowerCase().includes(query);
         if (!matchesQuery) return false;
       }
 
