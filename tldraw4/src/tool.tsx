@@ -1,5 +1,10 @@
 import type { AutomergeUrl, DocHandle } from "@automerge/automerge-repo";
-import { useDocHandle, useDocument, useRepo } from "@automerge/react";
+import {
+  RepoContext,
+  useDocHandle,
+  useDocument,
+  useRepo,
+} from "@automerge/react";
 import {
   Tldraw,
   useEditor,
@@ -17,6 +22,7 @@ import type { TLDrawDoc } from "./datatype.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UnixFileEntry } from "@inkandswitch/patchwork-filesystem";
 import { automergeUrlToServiceWorkerUrl } from "@inkandswitch/patchwork-filesystem";
+import { createRoot } from "react-dom/client";
 
 const MIME_TO_EXT: Record<string, string> = {
   "image/png": "png",
@@ -46,9 +52,9 @@ function useContactInfo() {
   const [contactUrl, setContactUrl] = useState<AutomergeUrl | undefined>();
 
   useEffect(() => {
-    const accountDocHandle = (
-      window as any
-    ).accountDocHandle as DocHandle<{ contactUrl: AutomergeUrl }> | undefined;
+    const accountDocHandle = (window as any).accountDocHandle as
+      | DocHandle<{ contactUrl: AutomergeUrl }>
+      | undefined;
     if (!accountDocHandle) return;
     accountDocHandle.whenReady().then(() => {
       const doc = accountDocHandle.doc();
@@ -191,4 +197,14 @@ function TldrawInner(props: { docUrl: AutomergeUrl }) {
     return () => void editor.off("change", onChange);
   }, [editor]);
   return null;
+}
+
+export function render(handle: any, element: any) {
+  const root = createRoot(element);
+  root.render(
+    <RepoContext.Provider value={element.repo}>
+      <TldrawTool docUrl={handle.url} />
+    </RepoContext.Provider>
+  );
+  return () => root.unmount();
 }
