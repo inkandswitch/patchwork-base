@@ -1,90 +1,19 @@
-/* styles are copied from sideboard styles but renamed to avoid clash and in case of future changes */
 :root {
-  --module-settings-manager-fill: oklch(0.86 0.16 87.44 / 1);
-  --module-settings-manager-fill-offset: color-mix(
-    in oklab,
-    var(--module-settings-manager-fill),
-    oklch(1 0 0 / 1) 10%
-  );
-
   --module-settings-manager-line: black;
   --module-settings-manager-widget-fill: white;
   --module-settings-manager-widget-line: var(--module-settings-manager-line);
-
-  --module-settings-manager-padding-x: 0.5rem;
-
   --module-settings-manager-radius: 0.275rem;
-  --placeholder-line: #808e80;
-  --module-settings-manager-search-line: #000;
-
-  --module-settings-manager-fill: oklch(from #99eeff l c h);
   --module-settings-manager-primary: oklch(from #d9f4ff l c h);
 
-  --module-settings-manager-create-new-fill: white;
-  --module-settings-manager-create-new-line: color-mix(
-    in oklch,
-    var(--module-settings-manager-primary),
-    black 30%
-  );
-  --module-settings-manager-create-new-border-line: color-mix(
-    in oklch,
-    var(--module-settings-manager-primary),
-    var(--module-settings-manager-create-new-fill) 50%
-  );
-  --module-settings-manager-create-new-shadow-color: color-mix(
-    in oklch,
-    var(--module-settings-manager-fill),
-    var(--module-settings-manager-line) 10%
-  );
+  --msm-widget-darken-3: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 3%);
+  --msm-widget-darken-5: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 5%);
+  --msm-widget-darken-8: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 8%);
+  --msm-widget-darken-10: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 10%);
+  --msm-widget-darken-12: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 12%);
+  --msm-widget-darken-15: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 15%);
+  --msm-widget-darken-16: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 16%);
+  --msm-widget-darken-20: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 20%);
 
-  /* Common widget-fill variations (light mode) */
-  --msm-widget-darken-3: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 3%
-  );
-  --msm-widget-darken-5: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 5%
-  );
-  --msm-widget-darken-8: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 8%
-  );
-  --msm-widget-darken-10: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 10%
-  );
-  --msm-widget-darken-12: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 12%
-  );
-  --msm-widget-darken-15: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 15%
-  );
-  --msm-widget-darken-16: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 16%
-  );
-  --msm-widget-darken-20: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 20%
-  );
-  --msm-widget-darken-30: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    black 30%
-  );
-
-  /* Common color variations (light mode) */
   --msm-blue-light-10: color-mix(in oklab, #3b82f6, white 10%);
   --msm-blue-light-20: color-mix(in oklab, #3b82f6, white 20%);
   --msm-blue-light-40: color-mix(in oklab, #3b82f6, white 40%);
@@ -96,22 +25,11 @@
   --msm-blue-dark-40: color-mix(in oklab, #3b82f6, black 40%);
   --msm-blue-dark-50: color-mix(in oklab, #3b82f6, black 50%);
 
-  --msm-green-light-40: color-mix(in oklab, #22c55e, white 40%);
   --msm-green-light-85: color-mix(in oklab, #22c55e, white 85%);
-  --msm-green-dark-20: color-mix(in oklab, #22c55e, black 20%);
-  --msm-green-dark-30: color-mix(in oklab, #22c55e, black 30%);
-  --msm-green-dark-40: color-mix(in oklab, #22c55e, black 40%);
-  --msm-green-dark-50: color-mix(in oklab, #22c55e, black 50%);
-  --msm-green-dark-70: color-mix(in oklab, #22c55e, black 70%);
 
-  --msm-red-light-20: color-mix(in oklab, #ef4444, white 20%);
   --msm-red-light-40: color-mix(in oklab, #ef4444, white 40%);
   --msm-red-light-60: color-mix(in oklab, #ef4444, white 60%);
   --msm-red-light-80: color-mix(in oklab, #ef4444, white 80%);
-  --msm-red-dark-5: color-mix(in oklab, #ef4444, black 5%);
-  --msm-red-dark-10: color-mix(in oklab, #ef4444, black 10%);
-  --msm-red-dark-20: color-mix(in oklab, #ef4444, black 20%);
-  --msm-red-dark-30: color-mix(in oklab, #ef4444, black 30%);
   --msm-red-dark-50: color-mix(in oklab, #ef4444, black 50%);
   --msm-red-dark-70: color-mix(in oklab, #ef4444, black 70%);
 
@@ -121,12 +39,6 @@
   --msm-yellow-dark-50: color-mix(in oklab, #eab308, black 50%);
   --msm-yellow-dark-60: color-mix(in oklab, #eab308, black 60%);
 
-  --msm-pink-light-50: color-mix(in oklab, #ff009d, white 50%);
-  --msm-pink-light-70: color-mix(in oklab, #ff009d, white 70%);
-  --msm-pink-dark-40: color-mix(in oklab, #ff009d, black 40%);
-  --msm-pink-dark-50: color-mix(in oklab, #ff009d, black 50%);
-
-  /* Semantic colors */
   --msm-text-error-light: #991b1b;
   --msm-text-error-dark: #fca5a5;
   --msm-text-warning-light: #854d0e;
@@ -135,69 +47,23 @@
   --msm-text-blue-dark: #93c5fd;
   --msm-text-green-light: #166534;
   --msm-text-green-dark: #86efac;
-  --msm-text-pink-light: #ff009d;
-  --msm-text-pink-dark: #fc80cd;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --module-settings-manager-fill: black;
     --module-settings-manager-line: white;
     --module-settings-manager-widget-fill: rgba(255, 255, 255, 0.86);
-    --module-settings-manager-create-new-fill: #333;
-    --module-settings-manager-create-new-line: #ccc;
-    --module-settings-manager-create-new-shadow-color: #111;
-    --module-settings-manager-create-new-border-line: #555;
     --module-settings-manager-primary: #0099cc;
 
-    /* Common widget-fill variations (dark mode) */
-    --msm-widget-darken-3: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 3%
-    );
-    --msm-widget-darken-5: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 5%
-    );
-    --msm-widget-darken-8: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 8%
-    );
-    --msm-widget-darken-10: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 10%
-    );
-    --msm-widget-darken-12: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 12%
-    );
-    --msm-widget-darken-15: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 15%
-    );
-    --msm-widget-darken-16: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 16%
-    );
-    --msm-widget-darken-20: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 20%
-    );
-    --msm-widget-darken-30: color-mix(
-      in oklab,
-      var(--module-settings-manager-widget-fill),
-      white 30%
-    );
+    --msm-widget-darken-3: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 3%);
+    --msm-widget-darken-5: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 5%);
+    --msm-widget-darken-8: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 8%);
+    --msm-widget-darken-10: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 10%);
+    --msm-widget-darken-12: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 12%);
+    --msm-widget-darken-15: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 15%);
+    --msm-widget-darken-16: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 16%);
+    --msm-widget-darken-20: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 20%);
 
-    /* Common color variations (dark mode) */
     --msm-blue-light-10: color-mix(in oklab, #3b82f6, black 10%);
     --msm-blue-light-20: color-mix(in oklab, #3b82f6, black 20%);
     --msm-blue-light-40: color-mix(in oklab, #3b82f6, black 50%);
@@ -209,30 +75,17 @@
     --msm-blue-dark-40: color-mix(in oklab, #3b82f6, black 40%);
     --msm-blue-dark-50: color-mix(in oklab, #3b82f6, black 50%);
 
-    --msm-green-light-40: color-mix(in oklab, #22c55e, black 20%);
     --msm-green-light-85: color-mix(in oklab, #22c55e, black 70%);
-    --msm-green-dark-20: color-mix(in oklab, #22c55e, black 20%);
-    --msm-green-dark-30: color-mix(in oklab, #22c55e, black 30%);
-    --msm-green-dark-70: color-mix(in oklab, #22c55e, black 70%);
 
-    --msm-red-light-20: color-mix(in oklab, #ef4444, black 20%);
     --msm-red-light-40: color-mix(in oklab, #ef4444, black 30%);
     --msm-red-light-60: color-mix(in oklab, #ef4444, black 50%);
     --msm-red-light-80: color-mix(in oklab, #ef4444, black 70%);
-    --msm-red-dark-5: color-mix(in oklab, #ef4444, white 5%);
-    --msm-red-dark-10: color-mix(in oklab, #ef4444, white 10%);
-    --msm-red-dark-20: color-mix(in oklab, #ef4444, black 20%);
-    --msm-red-dark-30: color-mix(in oklab, #ef4444, black 30%);
     --msm-red-dark-50: color-mix(in oklab, #ef4444, black 50%);
     --msm-red-dark-70: color-mix(in oklab, #ef4444, black 70%);
 
     --msm-yellow-light-50: color-mix(in oklab, #eab308, black 40%);
     --msm-yellow-light-70: color-mix(in oklab, #eab308, black 60%);
-    --msm-yellow-dark-40: color-mix(in oklab, #eab308, black 40%);
-    --msm-yellow-dark-50: color-mix(in oklab, #eab308, black 50%);
-    --msm-yellow-dark-60: color-mix(in oklab, #eab308, black 60%);
 
-    /* Semantic colors */
     --msm-text-error-light: #fca5a5;
     --msm-text-warning-light: #fef08a;
     --msm-text-blue-light: #93c5fd;
@@ -246,9 +99,7 @@
   overflow-x: hidden;
   padding: 0.25rem;
   box-sizing: border-box;
-  background-repeat: repeat;
   width: 100%;
-  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -270,13 +121,6 @@
   }
 }
 
-.module-settings-manager__header {
-  margin-bottom: 1rem;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
 .module-settings-manager__title {
   font-size: clamp(1rem, 4vw, 1.2rem);
   margin-bottom: 0.75rem;
@@ -288,9 +132,6 @@
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-
   border-radius: 0.25rem;
 }
 
@@ -299,9 +140,6 @@
   flex-direction: column;
   gap: 0.5rem;
   align-items: stretch;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0);
-  transition: box-shadow 0.2s ease;
-  margin-bottom: 0em;
   border: 1px solid var(--msm-widget-darken-5);
   background: white;
 }
@@ -319,38 +157,37 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  box-sizing: border-box;
 }
 
-@media (max-width: 767px) {
-  .module-settings-manager__search-container {
-    width: 100%;
-    max-width: 100%;
-  }
-}
-
-.module-settings-manager__search-icon {
+.module-settings-manager__search-icon,
+.module-settings-manager__clear-icon,
+.module-settings-module-input__install-icon,
+.module-settings-module-input__clear-icon {
   position: absolute;
-  left: 0.75rem;
   color: var(--module-settings-manager-line);
   opacity: 0.4;
+}
+
+.module-settings-manager__search-icon,
+.module-settings-module-input__install-icon {
+  left: 0.75rem;
   pointer-events: none;
 }
 
-.module-settings-manager__clear-icon {
-  position: absolute;
+.module-settings-manager__clear-icon,
+.module-settings-module-input__clear-icon {
   right: 0.75rem;
-  color: var(--module-settings-manager-line);
-  opacity: 0.4;
   cursor: pointer;
   transition: opacity 0.15s ease;
 }
 
-.module-settings-manager__clear-icon:hover {
+.module-settings-manager__clear-icon:hover,
+.module-settings-module-input__clear-icon:hover {
   opacity: 0.7;
 }
 
-.module-settings-manager__search {
+.module-settings-manager__search,
+.module-settings-manager__filter-select {
   flex: 1;
   min-width: 0;
   padding: 0.5rem 2.5rem;
@@ -359,42 +196,13 @@
   font-family: inherit;
   font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
   line-height: 1.5;
-  margin-bottom: 0;
   box-sizing: border-box;
-}
-
-@media (max-width: 767px) {
-  .module-settings-manager__search {
-    width: 100%;
-    max-width: 100%;
-  }
 }
 
 .module-settings-manager__filter-select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--msm-widget-darken-15);
-  border-top-width: 0;
-  border: 0;
-  background: var(--module-settings-manager-widget-fill);
-  font-family: inherit;
-  font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
-  line-height: 1.5;
+  flex: none;
   cursor: pointer;
-  box-sizing: border-box;
-}
-
-@media (max-width: 767px) {
-  .module-settings-manager__filter-select {
-    width: 100%;
-    max-width: 100%;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-manager__search,
-  .module-settings-manager__filter-select {
-    border-color: var(--msm-widget-darken-15);
-  }
 }
 
 .module-settings-manager__search::placeholder {
@@ -407,18 +215,10 @@
   outline-offset: 1px;
 }
 
-.module-settings-manager__type-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
-
 .module-settings-module-input {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
 .module-settings-module-input__input-container {
@@ -426,34 +226,10 @@
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.module-settings-module-input__install-icon {
-  position: absolute;
-  left: 0.75rem;
-  color: var(--module-settings-manager-line);
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.module-settings-module-input__clear-icon {
-  position: absolute;
-  right: 0.75rem;
-  color: var(--module-settings-manager-line);
-  opacity: 0.4;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.module-settings-module-input__clear-icon:hover {
-  opacity: 0.7;
 }
 
 .module-settings-module-input__field {
   width: 100%;
-  max-width: 100%;
   padding: 0.5rem 2.5rem;
   border: 1px solid var(--msm-widget-darken-15);
   border-radius: 4px;
@@ -462,25 +238,6 @@
   font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
-}
-
-@media (min-width: 769px) {
-  .module-settings-module-input__field {
-    padding: 0.5rem 2.5rem;
-  }
-}
-
-.module-settings-module-input__field--has-validation {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  border-bottom-color: transparent;
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__field {
-    border-color: var(--msm-widget-darken-15);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
 }
 
 .module-settings-module-input__field::placeholder {
@@ -496,20 +253,12 @@
   background: var(--module-settings-manager-widget-fill);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
 }
 
 @media (min-width: 769px) {
   .module-settings-module-input__validation {
     padding: 1rem;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__validation {
-    border-color: var(--msm-widget-darken-15);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -544,18 +293,6 @@
   cursor: not-allowed;
 }
 
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__add-button {
-    background: var(--msm-blue-dark-20);
-    border-color: var(--msm-blue-dark-5);
-  }
-
-  .module-settings-module-input__add-button:hover:not(:disabled) {
-    background: var(--msm-blue-dark-10);
-    border-color: var(--msm-blue-light-10);
-  }
-}
-
 .module-settings-module-input__error {
   padding: 0.5rem 0.75rem;
   background: var(--msm-red-light-80);
@@ -563,14 +300,6 @@
   border-radius: 4px;
   color: var(--msm-text-error-light);
   font-size: 0.875rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__error {
-    background: var(--msm-red-dark-70);
-    border-color: var(--msm-red-dark-50);
-    color: var(--msm-text-error-dark);
-  }
 }
 
 .module-settings-module-input__loading {
@@ -589,26 +318,12 @@
   font-size: 0.875rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__preview-error {
-    background: var(--msm-yellow-dark-60);
-    border-color: var(--msm-yellow-dark-40);
-    color: var(--msm-text-warning-dark);
-  }
-}
-
 .module-settings-module-input__package-info {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--msm-widget-darken-10);
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__package-info {
-    border-bottom-color: var(--msm-widget-darken-10);
-  }
 }
 
 .module-settings-module-input__package-row {
@@ -624,17 +339,11 @@
 }
 
 .module-settings-module-input__package-value {
-  font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+  font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
   padding: 0.25rem 0.5rem;
   background: var(--msm-widget-darken-5);
   border-radius: 3px;
   font-size: 0.8125rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__package-value {
-    background: var(--msm-widget-darken-8);
-  }
 }
 
 .module-settings-module-input__plugins {
@@ -643,29 +352,10 @@
   gap: 0.375rem;
 }
 
-.module-settings-module-input__plugin-pill {
-  display: inline-block;
-  padding: 0.25rem 1rem;
-  background: var(--msm-blue-light-40);
-  border: 1px solid var(--msm-blue-light-20);
-  border-radius: 3px;
-  font-size: 0.75rem;
-  color: var(--msm-text-blue-light);
-  font-weight: 500;
-}
-
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__plugin-pill {
-    background: var(--msm-blue-dark-50);
-    border-color: var(--msm-blue-dark-40);
-    color: var(--msm-text-blue-dark);
-  }
-}
-
+.module-settings-module-input__plugin-pill,
 .module-settings-module-input__installed-pill {
   display: inline-flex;
   align-items: center;
-  font-size: 0.875rem;
   padding: 0.25rem 1rem;
   background: var(--msm-blue-light-40);
   border: 1px solid var(--msm-blue-light-20);
@@ -674,12 +364,12 @@
   font-weight: 500;
 }
 
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__installed-pill {
-    background: var(--msm-blue-dark-50);
-    border-color: var(--msm-blue-dark-40);
-    color: var(--msm-text-blue-dark);
-  }
+.module-settings-module-input__plugin-pill {
+  font-size: 0.75rem;
+}
+
+.module-settings-module-input__installed-pill {
+  font-size: 0.875rem;
 }
 
 .module-settings-module-input__no-package {
@@ -691,24 +381,15 @@
   margin-bottom: 0.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__no-package {
-    background: var(--msm-widget-darken-8);
-  }
-}
-
-/* Debug Toggle */
 .module-settings-debug-toggle {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.5rem 0rem;
-  border: 1px solid transparent;
+  padding: 0.5rem 0;
   cursor: pointer;
   white-space: nowrap;
   font-size: 0.9375rem;
   line-height: 1.5;
-  box-sizing: border-box;
 }
 
 .module-settings-debug-toggle input[type="checkbox"] {
@@ -720,13 +401,11 @@
 
 .module-settings-debug-toggle__label {
   font-size: 0.8125rem;
-  font-weight: 400;
   user-select: none;
   cursor: pointer;
   opacity: 0.8;
 }
 
-/* Package list — typographic, restrained, list of cards (one per package) */
 .msm-cards {
   list-style: none;
   margin: 0;
@@ -786,65 +465,17 @@
 .msm-card__url:hover {
   color: var(--module-settings-manager-widget-line);
 }
-.msm-card__url--copied {
+.msm-card__url--copied,
+.msm-plugin__id--copied {
   color: var(--msm-text-green-light);
 }
 
-/* Label + value rows inside a card */
-.msm-card__row {
-  display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.875rem;
-}
-
-.msm-card__row--top {
-  align-items: start;
-}
-
-.msm-card__row-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgb(0 0 0 / 0.45);
-}
-
-.msm-card__row-value {
-  min-width: 0;
-}
-
-.msm-card__module {
+.msm-card__contributes {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-/* Pills (data-type chips) */
-.msm-card__pill {
-  display: inline-block;
-  padding: 0.0625rem 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  border-radius: 9999px;
-  background: var(--msm-widget-darken-5);
-  border: 1px solid var(--msm-widget-darken-10);
-  color: var(--module-settings-manager-widget-line);
-}
-.msm-card__pill--any {
-  background: var(--msm-blue-light-70);
-  border-color: var(--msm-blue-light-50);
-  color: var(--msm-text-blue-light);
-}
-.msm-card__pill--none {
-  background: var(--msm-yellow-light-70);
-  border-color: var(--msm-yellow-light-50);
-  color: var(--msm-text-warning-light);
-}
-
-/* Plugins list inside a package card */
 .msm-card__plugins {
   list-style: none;
   margin: 0;
@@ -858,18 +489,27 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem 0.5rem 0;
   background: transparent;
-
-  padding-left: 0;
 }
 
-.msm-plugin__row {
+.msm-plugin__row,
+.msm-plugin__field,
+.msm-plugin__supports {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.5rem;
   min-width: 0;
+}
+
+.msm-plugin__row {
+  gap: 0.5rem;
+}
+
+.msm-plugin__field,
+.msm-plugin__supports {
+  gap: 0.375rem;
+  font-size: 0.75rem;
 }
 
 .msm-plugin__name {
@@ -902,9 +542,6 @@
 }
 .msm-plugin__id:hover {
   color: var(--module-settings-manager-widget-line);
-}
-.msm-plugin__id--copied {
-  color: var(--msm-text-green-light);
 }
 
 .msm-plugin__status {
@@ -941,30 +578,6 @@
   background: var(--msm-widget-darken-5);
 }
 
-.msm-plugin__field {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-}
-
-.msm-plugin__field-label {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-  font-size: 0.625rem;
-  color: rgb(0 0 0 / 0.4);
-}
-
-.msm-plugin__supports {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-}
-
 .msm-plugin__supports-label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -991,17 +604,6 @@
   margin-left: -0.25rem;
 }
 
-/* Contributes — label stacked above the plugin list */
-.msm-card__contributes {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  > .msm-card__row-label {
-    color: transparent;
-  }
-}
-
-/* Footer row — module controls on the left, text actions on the right */
 .msm-card__action-row {
   display: flex;
   justify-content: space-between;
@@ -1048,94 +650,12 @@
   opacity: 1;
 }
 
-@media (prefers-color-scheme: dark) {
-  .msm-card {
-    background: var(--msm-widget-darken-3);
-    border-color: var(--msm-widget-darken-15);
-  }
-  .msm-card__meta {
-    color: rgb(255 255 255 / 0.55);
-  }
-  .msm-card__url {
-    color: rgb(255 255 255 / 0.55);
-  }
-  .msm-card__row-label {
-    color: rgb(255 255 255 / 0.45);
-  }
-  .msm-card__pill {
-    background: var(--msm-widget-darken-8);
-    border-color: var(--msm-widget-darken-15);
-  }
-  .msm-card__pill--any {
-    background: var(--msm-blue-dark-50);
-    border-color: var(--msm-blue-dark-40);
-    color: var(--msm-text-blue-dark);
-  }
-  .msm-card__pill--none {
-    background: var(--msm-yellow-dark-50);
-    border-color: var(--msm-yellow-dark-40);
-    color: var(--msm-text-warning-dark);
-  }
-  .msm-plugin {
-    background: var(--msm-widget-darken-8);
-  }
-  .msm-plugin__type {
-    color: rgb(255 255 255 / 0.5);
-  }
-  .msm-plugin__type--datatype {
-    color: var(--msm-text-blue-dark);
-  }
-  .msm-plugin__type--tool {
-    color: var(--msm-text-green-dark);
-  }
-  .msm-plugin__id {
-    color: rgb(255 255 255 / 0.45);
-  }
-  .msm-plugin__supports-label,
-  .msm-plugin__field-label {
-    color: rgb(255 255 255 / 0.4);
-  }
-  .msm-plugin__status--active {
-    background: var(--msm-text-green-dark);
-  }
-  .msm-plugin__status--shadowed {
-    background: var(--msm-text-warning-dark);
-  }
-  .msm-plugin__activate {
-    color: var(--msm-text-warning-dark);
-    border-color: var(--msm-widget-darken-20);
-  }
-  .msm-plugin__supports-item {
-    color: rgb(255 255 255 / 0.7);
-  }
-  .msm-plugin__supports-item--any {
-    color: var(--msm-text-blue-dark);
-  }
-  .msm-plugin__supports-item--none {
-    color: var(--msm-text-warning-dark);
-  }
-  .msm-plugin__supports-sep {
-    color: rgb(255 255 255 / 0.3);
-  }
-  .msm-card__text-btn {
-    color: rgb(255 255 255 / 0.6);
-  }
-  .msm-card__text-btn--danger {
-    color: var(--msm-text-error-dark);
-  }
-}
-
 @media (max-width: 540px) {
   .msm-card {
     padding: 1rem;
   }
-  .msm-card__row {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
-  }
 }
 
-/* Used by the add-module preview panel — kept for ModuleFilters' ViewRaw. */
 .module-settings-module-input__view-raw-button {
   padding: 0.5rem 1rem;
   min-height: 2rem;
@@ -1160,63 +680,17 @@
   display: block;
   flex-shrink: 0;
 }
-@media (prefers-color-scheme: dark) {
-  .module-settings-module-input__view-raw-button {
-    background: var(--msm-widget-darken-8);
-    border-color: var(--msm-widget-darken-12);
-  }
-  .module-settings-module-input__view-raw-button:hover {
-    background: var(--msm-widget-darken-12);
-    border-color: var(--msm-widget-darken-16);
-  }
-}
 
 .module-settings-manager__footer {
   margin-top: auto;
-}
-
-/* Kind pill (folder / directory / branches) shown inside the Name cell. */
-.module-settings-manager__kind-pill {
-  display: inline-block;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.6875rem;
-  font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
-  border-radius: 4px;
-  border: 1px solid var(--msm-widget-darken-15);
-  background: var(--msm-widget-darken-5);
-  text-transform: lowercase;
-}
-
-.module-settings-manager__kind-pill--folder {
-  background: var(--msm-pink-light-70);
-  border-color: var(--msm-pink-light-50);
-  color: var(--msm-text-pink-light);
-}
-
-.module-settings-manager__kind-pill--directory {
-  background: var(--msm-blue-light-70);
-  border-color: var(--msm-blue-light-50);
-  color: var(--msm-text-blue-light);
-}
-
-.module-settings-manager__kind-pill--branches {
-  background: var(--msm-green-light-85);
-  border-color: var(--msm-green-light-40);
-  color: var(--msm-text-green-light);
-}
-
-/* Branch picker */
-.module-settings-manager__branch-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .module-settings-manager__branch-picker {
   position: relative;
 }
 
-.module-settings-manager__branch-picker-button {
+.module-settings-manager__branch-picker-button,
+.module-settings-manager__convert-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -1229,7 +703,8 @@
   font-size: 0.875rem;
 }
 
-.module-settings-manager__branch-picker-button:hover {
+.module-settings-manager__branch-picker-button:hover,
+.module-settings-manager__convert-btn:hover {
   background: var(--msm-widget-darken-5);
 }
 
@@ -1307,40 +782,108 @@
   font-style: italic;
 }
 
-.module-settings-manager__add-branch-btn,
-.module-settings-manager__convert-btn {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--msm-widget-darken-12);
-  border-radius: var(--module-settings-manager-radius);
-  background: var(--msm-widget-darken-3);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.875rem;
-}
-
-.module-settings-manager__add-branch-btn:hover,
-.module-settings-manager__convert-btn:hover {
-  background: var(--msm-widget-darken-8);
-}
-
 @media (prefers-color-scheme: dark) {
-  .module-settings-manager__module-row {
-    background: var(--msm-widget-darken-5);
+  .module-settings-module-input__field,
+  .module-settings-module-input__validation {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  .module-settings-module-input__add-button {
+    background: var(--msm-blue-dark-20);
+    border-color: var(--msm-blue-dark-5);
+  }
+  .module-settings-module-input__add-button:hover:not(:disabled) {
+    background: var(--msm-blue-dark-10);
+    border-color: var(--msm-blue-light-10);
+  }
+  .module-settings-module-input__error {
+    background: var(--msm-red-dark-70);
+    border-color: var(--msm-red-dark-50);
+    color: var(--msm-text-error-dark);
+  }
+  .module-settings-module-input__preview-error {
+    background: var(--msm-yellow-dark-60);
+    border-color: var(--msm-yellow-dark-40);
+    color: var(--msm-text-warning-dark);
+  }
+  .module-settings-module-input__package-value,
+  .module-settings-module-input__no-package,
+  .msm-plugin {
+    background: var(--msm-widget-darken-8);
+  }
+  .module-settings-module-input__plugin-pill,
+  .module-settings-module-input__installed-pill {
+    background: var(--msm-blue-dark-50);
+    border-color: var(--msm-blue-dark-40);
+    color: var(--msm-text-blue-dark);
+  }
+  .msm-card {
+    background: var(--msm-widget-darken-3);
     border-color: var(--msm-widget-darken-15);
   }
-
+  .msm-card__meta,
+  .msm-card__url {
+    color: rgb(255 255 255 / 0.55);
+  }
+  .msm-plugin__type {
+    color: rgb(255 255 255 / 0.5);
+  }
+  .msm-plugin__type--datatype {
+    color: var(--msm-text-blue-dark);
+  }
+  .msm-plugin__type--tool {
+    color: var(--msm-text-green-dark);
+  }
+  .msm-plugin__id {
+    color: rgb(255 255 255 / 0.45);
+  }
+  .msm-plugin__supports-label {
+    color: rgb(255 255 255 / 0.4);
+  }
+  .msm-plugin__status--active {
+    background: var(--msm-text-green-dark);
+  }
+  .msm-plugin__status--shadowed {
+    background: var(--msm-text-warning-dark);
+  }
+  .msm-plugin__activate {
+    color: var(--msm-text-warning-dark);
+    border-color: var(--msm-widget-darken-20);
+  }
+  .msm-plugin__supports-item {
+    color: rgb(255 255 255 / 0.7);
+  }
+  .msm-plugin__supports-item--any {
+    color: var(--msm-text-blue-dark);
+  }
+  .msm-plugin__supports-item--none {
+    color: var(--msm-text-warning-dark);
+  }
+  .msm-plugin__supports-sep {
+    color: rgb(255 255 255 / 0.3);
+  }
+  .msm-card__text-btn {
+    color: rgb(255 255 255 / 0.6);
+  }
+  .msm-card__text-btn--danger {
+    color: var(--msm-text-error-dark);
+  }
+  .module-settings-module-input__view-raw-button {
+    background: var(--msm-widget-darken-8);
+    border-color: var(--msm-widget-darken-12);
+  }
+  .module-settings-module-input__view-raw-button:hover {
+    background: var(--msm-widget-darken-12);
+    border-color: var(--msm-widget-darken-16);
+  }
   .module-settings-manager__branch-picker-button,
-  .module-settings-manager__add-branch-btn,
   .module-settings-manager__convert-btn {
     background: var(--msm-widget-darken-8);
     border-color: var(--msm-widget-darken-15);
   }
-
   .module-settings-manager__branch-picker-popup {
     background: var(--msm-widget-darken-5);
     border-color: var(--msm-widget-darken-20);
   }
-
   .module-settings-manager__branch-picker-button--missing {
     color: var(--msm-text-error-dark);
   }
