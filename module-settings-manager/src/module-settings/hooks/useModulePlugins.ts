@@ -1,4 +1,10 @@
-import { createMemo, createResource, mapArray, type Accessor } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  mapArray,
+  type Accessor,
+} from "solid-js";
 import {
   isValidAutomergeUrl,
   type AutomergeUrl,
@@ -35,12 +41,33 @@ interface UseModulePluginsParams {
   >;
 }
 
+export interface PackageInfo {
+  title?: string;
+  name?: string;
+  version?: string;
+}
+
 export type EnrichedPlugin = Plugin<PluginDescription> & {
   isValidUrl: boolean;
   datatypesDisplay: DatatypesDisplay;
   packageName?: string;
   packageTitle?: string;
 };
+
+export interface ModuleLoadState {
+  url: AutomergeUrl;
+  loading: boolean;
+  error: unknown;
+  folderUrl?: AutomergeUrl;
+  pkgInfo?: PackageInfo;
+  plugins: EnrichedPlugin[];
+}
+
+interface ModulePayload {
+  folderUrl: AutomergeUrl;
+  pkgInfo?: PackageInfo;
+  plugins: EnrichedPlugin[];
+}
 
 export function useModulePlugins(params: UseModulePluginsParams) {
   const {
@@ -53,29 +80,31 @@ export function useModulePlugins(params: UseModulePluginsParams) {
     sortOrder,
   } = params;
 
-  // Load all plugins from user's modules. A module URL may point to a
-  // branches doc; resolve it to the chosen branch's folder/directory URL
-  // before importing. We attach the original module URL as importUrl so
-  // the table reflects what's actually listed in the settings doc.
-  const modulePlugins = mapArray(
+  // Per-URL load state. The resource throws on failure so the state carries
+  // the error and the UI can render an entry for every module — including
+  // ones that fail to resolve, import, or that produce no plugins.
+  const moduleStateAccessors = mapArray(
     () => modules,
     (url) => {
-      // String key keeps createResource stable; only re-fetches when the URL
-      // or the chosen branch (when applicable) actually changes.
       const sourceKey = () => `${url}|${settingsDoc.branches?.[url] ?? ""}`;
-      const [plugins] = createResource(sourceKey, async () => {
-        try {
+      const [resource] = createResource<ModulePayload, string>(
+        sourceKey,
+        async () => {
           const folderUrl = await resolveModuleEntryToFolderUrl(
             repo,
             url,
             settingsDoc
           );
-          if (!folderUrl) return [];
+          if (!folderUrl) {
+            throw new Error(
+              "Could not resolve module entry to a folder URL"
+            );
+          }
           const module = await importModuleFromFolderDocUrl(folderUrl);
-          const plugins = (module?.plugins || []) as Plugin<PluginDescription>[];
+          const plugins = (module?.plugins ||
+            []) as Plugin<PluginDescription>[];
 
-          let packageName: string | undefined;
-          let packageTitle: string | undefined;
+          let pkgInfo: PackageInfo | undefined;
           try {
             const pkgJsonUrl = new URL(
               "package.json",
@@ -87,55 +116,82 @@ export function useModulePlugins(params: UseModulePluginsParams) {
             const res = await fetch(pkgJsonUrl);
             if (res.ok) {
               const pkg = await res.json();
-              packageName = pkg.name;
-              packageTitle = pkg.title;
+              pkgInfo = {
+                title: pkg.title,
+                name: pkg.name,
+                version: pkg.version,
+              };
             }
           } catch {
-            // ignore — package.json is optional metadata for filtering
+            // package.json is optional metadata
           }
 
-          return plugins.map((plugin) => ({
+          const enriched = plugins.map((plugin): EnrichedPlugin => ({
             ...plugin,
             importUrl: url,
-            packageName,
-            packageTitle,
+            packageName: pkgInfo?.name,
+            packageTitle: pkgInfo?.title,
+            isValidUrl: isValidAutomergeUrl(url),
+            datatypesDisplay: getSupportedDatatypesDisplay(
+              "supportedDatatypes" in plugin
+                ? (plugin.supportedDatatypes as
+                    | string[]
+                    | string
+                    | undefined)
+                : undefined
+            ),
           }));
-        } catch (error) {
-          console.error(`Failed to load plugins for ${url}`, error);
-          return [];
+
+          return { folderUrl, pkgInfo, plugins: enriched };
+        }
+      );
+
+      createEffect(() => {
+        if (resource.error) {
+          console.error(`Failed to load plugins for ${url}`, resource.error);
         }
       });
-      return plugins;
+
+      return (): ModuleLoadState => {
+        const payload = resource.error ? undefined : resource.latest;
+        return {
+          url,
+          loading: resource.loading,
+          error: resource.error,
+          folderUrl: payload?.folderUrl,
+          pkgInfo: payload?.pkgInfo,
+          plugins: payload?.plugins ?? [],
+        };
+      };
     }
   );
 
-  // Flatten all plugin accessors into a single array
-  const allPlugins = createMemo(() => {
-    return modulePlugins().flatMap(
-      (pluginsAccessor) => pluginsAccessor() || []
-    );
+  const moduleStateMap = createMemo(() => {
+    const map = new Map<string, ModuleLoadState>();
+    for (const get of moduleStateAccessors()) {
+      const state = get();
+      map.set(String(state.url), state);
+    }
+    return map;
   });
 
-  // Get unique plugin types for filter dropdown
+  const allPlugins = createMemo(() => {
+    const out: EnrichedPlugin[] = [];
+    for (const state of moduleStateMap().values()) {
+      out.push(...state.plugins);
+    }
+    return out;
+  });
+
   const uniquePluginTypes = createMemo(() => {
-    const plugins = allPlugins();
-    if (!plugins) return [];
-    const types = new Set(plugins.map((p) => p.type));
+    const types = new Set(allPlugins().map((p) => p.type));
     return Array.from(types).sort();
   });
 
-  // Get unique data types for filter dropdown
-  const uniqueDataTypes = createMemo(() => {
-    const plugins = allPlugins();
-    if (!plugins) return [];
-    return extractUniqueDatatypes(plugins);
-  });
+  const uniqueDataTypes = createMemo(() => extractUniqueDatatypes(allPlugins()));
 
-  // Sort plugins first (only re-runs when allPlugins or sortOrder changes)
   const sortedPlugins = createMemo(() => {
     const plugins = allPlugins();
-    if (!plugins) return [];
-
     const order = sortOrder();
     return [...plugins].sort((a, b) => {
       if (order === "type-asc" || order === "type-desc") {
@@ -156,61 +212,62 @@ export function useModulePlugins(params: UseModulePluginsParams) {
     });
   });
 
-  // Filter sorted plugins (re-runs when search/filters change, but not on sort)
   const filteredPlugins = createMemo(() => {
     const plugins = sortedPlugins();
-
     const query = searchQuery().toLowerCase();
     const pluginTypeFilter = filterPluginType();
     const dataTypeFilter = filterDataType();
 
-    // Filter plugins by search query, plugin type, and data type
     return plugins.filter((plugin) => {
-      // Apply search query filter
       if (query) {
-        const ext = plugin as Plugin<PluginDescription> & {
-          packageName?: string;
-          packageTitle?: string;
-        };
         const matchesQuery =
           plugin.name.toLowerCase().includes(query) ||
           plugin.type.toLowerCase().includes(query) ||
           plugin.id?.toLowerCase().includes(query) ||
-          ext.packageName?.toLowerCase().includes(query) ||
-          ext.packageTitle?.toLowerCase().includes(query);
+          plugin.packageName?.toLowerCase().includes(query) ||
+          plugin.packageTitle?.toLowerCase().includes(query) ||
+          String(plugin.importUrl ?? "").toLowerCase().includes(query);
         if (!matchesQuery) return false;
       }
 
-      // Apply plugin type filter
-      if (pluginTypeFilter && plugin.type !== pluginTypeFilter) {
+      if (pluginTypeFilter && plugin.type !== pluginTypeFilter) return false;
+      if (dataTypeFilter && !matchesDatatype(plugin, dataTypeFilter))
         return false;
-      }
-
-      // Apply data type filter
-      if (dataTypeFilter && !matchesDatatype(plugin, dataTypeFilter)) {
-        return false;
-      }
 
       return true;
     });
   });
 
-  // Pre-compute plugin metadata to avoid expensive render-time computations
-  const enrichedPlugins = createMemo((): EnrichedPlugin[] => {
-    return filteredPlugins().map((plugin) => ({
-      ...plugin,
-      isValidUrl: isValidAutomergeUrl(plugin.importUrl),
-      datatypesDisplay: getSupportedDatatypesDisplay(
-        "supportedDatatypes" in plugin
-          ? (plugin.supportedDatatypes as string[] | string | undefined)
-          : undefined
-      ),
-    }));
+  const visibleModuleUrls = createMemo(() => {
+    const query = searchQuery().toLowerCase();
+    const pluginTypeFilter = filterPluginType();
+    const dataTypeFilter = filterDataType();
+    const hasFilter = Boolean(query || pluginTypeFilter || dataTypeFilter);
+    if (!hasFilter) return modules;
+
+    const matchedUrls = new Set<string>();
+    for (const plugin of filteredPlugins()) {
+      if (plugin.importUrl) matchedUrls.add(String(plugin.importUrl));
+    }
+
+    const states = moduleStateMap();
+    return modules.filter((url) => {
+      const key = String(url);
+      if (matchedUrls.has(key)) return true;
+      if (query) {
+        if (key.toLowerCase().includes(query)) return true;
+        const pkgInfo = states.get(key)?.pkgInfo;
+        if (pkgInfo?.title?.toLowerCase().includes(query)) return true;
+        if (pkgInfo?.name?.toLowerCase().includes(query)) return true;
+      }
+      return false;
+    });
   });
 
   return {
-    allPlugins,
-    filteredPlugins: enrichedPlugins,
+    moduleStateMap,
+    filteredPlugins,
+    visibleModuleUrls,
     uniquePluginTypes,
     uniqueDataTypes,
   };

@@ -40,8 +40,13 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
   });
 
   // Load and filter plugins
-  const { filteredPlugins, uniquePluginTypes, uniqueDataTypes } =
-    useModulePlugins({
+  const {
+    moduleStateMap,
+    filteredPlugins,
+    visibleModuleUrls,
+    uniquePluginTypes,
+    uniqueDataTypes,
+  } = useModulePlugins({
       modules: doc.modules,
       settingsDoc: doc,
       repo: props.repo,
@@ -93,8 +98,9 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
             isInstalled={isModuleInstalled}
           />
           <PackageList
-            moduleUrls={doc.modules}
-            plugins={filteredPlugins()}
+            moduleUrls={visibleModuleUrls()}
+            moduleStateMap={moduleStateMap()}
+            filteredPlugins={filteredPlugins()}
             onRemoveModule={handleRemoveModule}
             repo={props.repo}
             settingsHandle={settingsHandle}

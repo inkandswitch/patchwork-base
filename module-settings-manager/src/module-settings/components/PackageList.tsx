@@ -1,19 +1,17 @@
-import { For, Show, createMemo, createResource } from "solid-js";
-import { makeDocumentProjection } from "solid-automerge";
+import { ErrorBoundary, For, Show, createMemo } from "solid-js";
 import {
   type AutomergeUrl,
   type DocHandle,
   type Repo,
 } from "@automerge/automerge-repo";
-import { automergeUrlToServiceWorkerUrl } from "@inkandswitch/patchwork-filesystem";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import { ModuleControls } from "./ModuleControls.tsx";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard.ts";
-import type { EnrichedPlugin } from "../hooks/useModulePlugins.ts";
-import {
-  resolveModuleEntryToFolderUrl,
-  type ModuleSettingsDocWithBranches,
-} from "../utils/module-types.ts";
+import type {
+  EnrichedPlugin,
+  ModuleLoadState,
+} from "../hooks/useModulePlugins.ts";
+import type { ModuleSettingsDocWithBranches } from "../utils/module-types.ts";
 import {
   forceActivatePlugin,
   sameAutomergeDoc,
@@ -22,43 +20,58 @@ import {
 
 interface PackageListProps {
   moduleUrls: AutomergeUrl[];
-  plugins: EnrichedPlugin[];
+  moduleStateMap: Map<string, ModuleLoadState>;
+  filteredPlugins: EnrichedPlugin[];
   onRemoveModule: (url: AutomergeUrl) => void;
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
 }
 
+function defaultState(url: AutomergeUrl): ModuleLoadState {
+  return { url, loading: true, error: undefined, plugins: [] };
+}
+
 export function PackageList(props: PackageListProps) {
-  const pluginsByModule = createMemo(() => {
+  const filteredByModule = createMemo(() => {
     const map = new Map<string, EnrichedPlugin[]>();
-    for (const plugin of props.plugins) {
+    for (const plugin of props.filteredPlugins) {
       if (!plugin.importUrl) continue;
-      const url = String(plugin.importUrl);
-      const list = map.get(url);
+      const key = String(plugin.importUrl);
+      const list = map.get(key);
       if (list) list.push(plugin);
-      else map.set(url, [plugin]);
+      else map.set(key, [plugin]);
     }
     return map;
   });
 
-  // Preserve module order from settings doc; only show modules whose
-  // plugin list is non-empty after filtering.
-  const visiblePackages = createMemo(() => {
-    const grouped = pluginsByModule();
-    return props.moduleUrls.filter((url) => grouped.has(String(url)));
-  });
+  const lookupState = (url: AutomergeUrl): ModuleLoadState =>
+    props.moduleStateMap.get(String(url)) ?? defaultState(url);
+
+  const lookupPlugins = (url: AutomergeUrl): EnrichedPlugin[] =>
+    filteredByModule().get(String(url)) ?? [];
 
   return (
     <ul class="msm-cards">
-      <For each={visiblePackages()}>
+      <For each={props.moduleUrls}>
         {(url) => (
-          <PackageCard
-            url={url}
-            plugins={pluginsByModule().get(String(url))!}
-            repo={props.repo}
-            settingsHandle={props.settingsHandle}
-            onRemove={() => props.onRemoveModule(url)}
-          />
+          <ErrorBoundary
+            fallback={(err, reset) => (
+              <PackageCardError
+                url={url}
+                error={err}
+                onReset={reset}
+                onRemove={() => props.onRemoveModule(url)}
+              />
+            )}
+          >
+            <PackageCard
+              state={lookupState(url)}
+              plugins={lookupPlugins(url)}
+              repo={props.repo}
+              settingsHandle={props.settingsHandle}
+              onRemove={() => props.onRemoveModule(url)}
+            />
+          </ErrorBoundary>
         )}
       </For>
     </ul>
@@ -66,7 +79,7 @@ export function PackageList(props: PackageListProps) {
 }
 
 interface PackageCardProps {
-  url: AutomergeUrl;
+  state: ModuleLoadState;
   plugins: EnrichedPlugin[];
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
@@ -75,47 +88,14 @@ interface PackageCardProps {
 
 function PackageCard(props: PackageCardProps) {
   const [copiedUrl, copyUrl] = useCopyToClipboard();
-  const settingsDoc = makeDocumentProjection(props.settingsHandle);
 
-  // Re-fetch when URL or chosen branch (if branches doc) changes.
-  const sourceKey = () =>
-    `${String(props.url)}|${settingsDoc.branches?.[props.url] ?? ""}`;
-
-  const [folderUrl] = createResource(sourceKey, async () => {
-    try {
-      return await resolveModuleEntryToFolderUrl(
-        props.repo,
-        props.url,
-        settingsDoc
-      );
-    } catch {
-      return undefined;
-    }
-  });
-
-  const [pkgInfo] = createResource(folderUrl, async (url) => {
-    try {
-      if (!url) return null;
-      const pkgJsonUrl = new URL(
-        "package.json",
-        new URL(automergeUrlToServiceWorkerUrl(url), window.location.origin)
-      ).href;
-      const res = await fetch(pkgJsonUrl);
-      if (!res.ok) return null;
-      const pkg = await res.json();
-      return {
-        title: pkg.title as string | undefined,
-        name: pkg.name as string | undefined,
-        version: pkg.version as string | undefined,
-      };
-    } catch {
-      return null;
-    }
-  });
+  const url = () => props.state.url;
+  const pkgInfo = () => props.state.pkgInfo;
+  const folderUrl = () => props.state.folderUrl;
 
   const handleViewSource = (e: MouseEvent) => {
     const detail: OpenDocumentEventDetail = {
-      url: props.url,
+      url: url(),
       toolId: "raw",
     };
     (e.currentTarget as HTMLButtonElement).dispatchEvent(
@@ -127,12 +107,27 @@ function PackageCard(props: PackageCardProps) {
     );
   };
 
+  const errorMessage = () => formatError(props.state.error);
+
+  const displayName = () => {
+    const info = pkgInfo();
+    if (info?.title) return info.title;
+    if (info?.name) return info.name;
+    if (props.state.error) return "(failed to load)";
+    if (props.state.loading) return "(loading…)";
+    return "(unnamed package)";
+  };
+
   return (
-    <li class="msm-card">
+    <li
+      class="msm-card"
+      classList={{
+        "msm-card--loading": props.state.loading && !props.state.pkgInfo,
+        "msm-card--error": Boolean(props.state.error),
+      }}
+    >
       <header class="msm-card__heading">
-        <h3 class="msm-card__name">
-          {pkgInfo()?.title ?? pkgInfo()?.name ?? "(unnamed package)"}
-        </h3>
+        <h3 class="msm-card__name">{displayName()}</h3>
         <Show when={pkgInfo()?.version}>
           <div class="msm-card__meta">v{pkgInfo()?.version}</div>
         </Show>
@@ -140,16 +135,35 @@ function PackageCard(props: PackageCardProps) {
 
       <code
         class="msm-card__url"
-        classList={{ "msm-card__url--copied": copiedUrl() === props.url }}
-        onClick={() => copyUrl(props.url)}
+        classList={{ "msm-card__url--copied": copiedUrl() === url() }}
+        onClick={() => copyUrl(url())}
         title="Click to copy URL"
       >
-        {copiedUrl() === props.url ? "copied" : props.url}
+        {copiedUrl() === url() ? "copied" : url()}
       </code>
+
+      <Show when={errorMessage()}>
+        <div class="msm-card__error">
+          <strong>Failed to load:</strong> {errorMessage()}
+        </div>
+      </Show>
+
+      <Show when={props.state.loading && !props.state.error && !pkgInfo()}>
+        <div class="msm-card__loading">Loading…</div>
+      </Show>
+
+      <Show
+        when={
+          !props.state.loading &&
+          !props.state.error &&
+          props.state.plugins.length === 0
+        }
+      >
+        <div class="msm-card__empty">No plugins contributed</div>
+      </Show>
 
       <Show when={props.plugins.length > 0}>
         <div class="msm-card__contributes">
-          {/* <span class="msm-card__row-label">Contributes</span> */}
           <ul class="msm-card__plugins">
             <For each={props.plugins}>
               {(plugin) => (
@@ -163,7 +177,7 @@ function PackageCard(props: PackageCardProps) {
       <div class="msm-card__action-row">
         <div class="msm-card__action-row-left">
           <ModuleControls
-            url={props.url}
+            url={url()}
             repo={props.repo}
             settingsHandle={props.settingsHandle}
             plugins={props.plugins}
@@ -183,6 +197,54 @@ function PackageCard(props: PackageCardProps) {
       </div>
     </li>
   );
+}
+
+function PackageCardError(props: {
+  url: AutomergeUrl;
+  error: unknown;
+  onReset: () => void;
+  onRemove: () => void;
+}) {
+  const [copiedUrl, copyUrl] = useCopyToClipboard();
+  const message = () => formatError(props.error) ?? "unknown error";
+
+  return (
+    <li class="msm-card msm-card--error">
+      <header class="msm-card__heading">
+        <h3 class="msm-card__name">(failed to render)</h3>
+      </header>
+      <code
+        class="msm-card__url"
+        classList={{ "msm-card__url--copied": copiedUrl() === props.url }}
+        onClick={() => copyUrl(props.url)}
+        title="Click to copy URL"
+      >
+        {copiedUrl() === props.url ? "copied" : props.url}
+      </code>
+      <div class="msm-card__error">
+        <strong>Render error:</strong> {message()}
+      </div>
+      <div class="msm-card__action-row">
+        <div class="msm-card__action-row-right">
+          <button class="msm-card__text-btn" onClick={props.onReset}>
+            Try again
+          </button>
+          <button
+            class="msm-card__text-btn msm-card__text-btn--danger"
+            onClick={props.onRemove}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function formatError(error: unknown): string | undefined {
+  if (!error) return undefined;
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function PluginItem(props: {
