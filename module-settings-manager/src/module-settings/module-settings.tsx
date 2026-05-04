@@ -1,4 +1,3 @@
-import "../index.css";
 import { createSignal, onCleanup } from "solid-js";
 import { makeDocumentProjection } from "solid-automerge";
 import type { AutomergeUrl, DocHandle } from "@automerge/automerge-repo";

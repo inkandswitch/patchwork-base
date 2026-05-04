@@ -5,10 +5,24 @@
   "type": "module",
   "private": true,
   "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "source": "./src/index.tsx"
+    },
+    "./datatype": {
+      "import": "./dist/datatype.js",
+      "source": "./src/datatype.ts"
+    },
+    "./tools/module-settings": {
+      "import": "./dist/module-settings/module-settings.js",
+      "source": "./src/module-settings/module-settings.tsx"
+    }
+  },
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
-    "sync": "vite build && pushwork sync",
+    "build": "node esbuild/build.ts",
+    "dev": "node esbuild/watch.ts",
+    "pushwatch": "pnpm dev pushwork",
     "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
   },
   "dependencies": {
@@ -19,13 +33,13 @@
   "devDependencies": {
     "@automerge/automerge": "^3.2.5",
     "@automerge/automerge-repo": "^2.6.0-subduction.9",
+    "@babel/core": "7.28.4",
+    "@babel/parser": "7.28.4",
     "@inkandswitch/patchwork-filesystem": "^0.0.4",
     "@inkandswitch/patchwork-plugins": "^0.0.6",
-    "@node-types/node": "npm:@types/node@^24.9.1",
+    "babel-preset-solid": "^1.9.9",
+    "esbuild": "^0.23.1",
     "solid-js": "^1.9.10",
-    "typescript": "~5.9.3",
-    "vite": "^7.2.4",
-    "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vite-plugin-solid": "^2.11.10"
+    "typescript": "~5.9.3"
   }
 }

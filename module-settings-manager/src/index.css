@@ -254,7 +254,7 @@
   gap: 0.5rem;
   container-type: inline-size;
   container-name: msm;
-  background: #ffffee;
+  background: #fff;
 }
 
 @media (min-width: 769px) {
