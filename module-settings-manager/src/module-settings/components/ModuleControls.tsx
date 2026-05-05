@@ -201,7 +201,7 @@ function FilterableBranchPicker(props: FilterableBranchPickerProps) {
 
   return (
     <div class="module-settings-manager__branch-picker" ref={containerRef}>
-      <span class="module-settings-manager__branch-picker-label">branch</span>
+      <span class="module-settings-manager__branch-picker-label">Branch</span>
       <button
         class="module-settings-manager__branch-picker-button"
         classList={{
@@ -215,7 +215,7 @@ function FilterableBranchPicker(props: FilterableBranchPickerProps) {
         }
       >
         <span>{props.value}</span>
-        <span class="module-settings-manager__branch-picker-caret">▾</span>
+        <span class="module-settings-manager__branch-picker-caret">▼</span>
       </button>
       <Show when={open()}>
         <div class="module-settings-manager__branch-picker-popup">

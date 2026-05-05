@@ -752,9 +752,34 @@
 
 .module-settings-manager__branch-picker {
   position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
 }
 
-.module-settings-manager__branch-picker-button,
+.module-settings-manager__branch-picker-label {
+  opacity: 0.6;
+  font-size: 0.8125rem;
+}
+
+.module-settings-manager__branch-picker-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--module-settings-manager-line);
+  margin-left: 0.25rem;
+}
+
+.module-settings-manager__branch-picker-button:hover {
+  text-decoration: underline;
+}
+
 .module-settings-manager__convert-btn {
   display: inline-flex;
   align-items: center;
@@ -768,19 +793,43 @@
   font-size: 0.875rem;
 }
 
-.module-settings-manager__branch-picker-button:hover,
 .module-settings-manager__convert-btn:hover {
   background: var(--msm-widget-darken-5);
 }
 
+.module-settings-manager__convert {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.module-settings-manager__convert-label {
+  opacity: 0.6;
+}
+
+.module-settings-manager__convert-action {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  color: var(--msm-text-blue-light);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.module-settings-manager__convert-action:hover {
+  text-decoration: underline;
+}
+
 .module-settings-manager__branch-picker-button--missing {
-  border-color: var(--msm-red-light-40);
   color: var(--msm-text-error-light);
 }
 
 .module-settings-manager__branch-picker-caret {
-  font-size: 0.75rem;
-  opacity: 0.6;
+  font-size: 0.5rem;
+  opacity: 0.7;
 }
 
 .module-settings-manager__branch-picker-popup {
@@ -940,7 +989,6 @@
     background: var(--msm-widget-darken-12);
     border-color: var(--msm-widget-darken-16);
   }
-  .module-settings-manager__branch-picker-button,
   .module-settings-manager__convert-btn {
     background: var(--msm-widget-darken-8);
     border-color: var(--msm-widget-darken-15);
@@ -951,6 +999,9 @@
   }
   .module-settings-manager__branch-picker-button--missing {
     color: var(--msm-text-error-dark);
+  }
+  .module-settings-manager__convert-action {
+    color: var(--msm-text-blue-dark);
   }
   .module-settings-manager {
     background: #1a1a1a;
