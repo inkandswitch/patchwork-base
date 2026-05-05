@@ -1,18 +1,51 @@
 :root {
+  color-scheme: light dark;
   --module-settings-manager-line: black;
   --module-settings-manager-widget-fill: white;
   --module-settings-manager-widget-line: var(--module-settings-manager-line);
   --module-settings-manager-radius: 0.275rem;
   --module-settings-manager-primary: oklch(from #d9f4ff l c h);
 
-  --msm-widget-darken-3: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 3%);
-  --msm-widget-darken-5: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 5%);
-  --msm-widget-darken-8: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 8%);
-  --msm-widget-darken-10: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 10%);
-  --msm-widget-darken-12: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 12%);
-  --msm-widget-darken-15: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 15%);
-  --msm-widget-darken-16: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 16%);
-  --msm-widget-darken-20: color-mix(in oklab, var(--module-settings-manager-widget-fill), black 20%);
+  --msm-widget-darken-3: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 3%
+  );
+  --msm-widget-darken-5: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 5%
+  );
+  --msm-widget-darken-8: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 8%
+  );
+  --msm-widget-darken-10: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 10%
+  );
+  --msm-widget-darken-12: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 12%
+  );
+  --msm-widget-darken-15: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 15%
+  );
+  --msm-widget-darken-16: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 16%
+  );
+  --msm-widget-darken-20: color-mix(
+    in oklab,
+    var(--module-settings-manager-widget-fill),
+    black 20%
+  );
 
   --msm-blue-light-10: color-mix(in oklab, #3b82f6, white 10%);
   --msm-blue-light-20: color-mix(in oklab, #3b82f6, white 20%);
@@ -52,17 +85,49 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --module-settings-manager-line: white;
-    --module-settings-manager-widget-fill: rgba(255, 255, 255, 0.86);
+    --module-settings-manager-widget-fill: #2a2a2a;
     --module-settings-manager-primary: #0099cc;
 
-    --msm-widget-darken-3: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 3%);
-    --msm-widget-darken-5: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 5%);
-    --msm-widget-darken-8: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 8%);
-    --msm-widget-darken-10: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 10%);
-    --msm-widget-darken-12: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 12%);
-    --msm-widget-darken-15: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 15%);
-    --msm-widget-darken-16: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 16%);
-    --msm-widget-darken-20: color-mix(in oklab, var(--module-settings-manager-widget-fill), white 20%);
+    --msm-widget-darken-3: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 3%
+    );
+    --msm-widget-darken-5: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 5%
+    );
+    --msm-widget-darken-8: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 8%
+    );
+    --msm-widget-darken-10: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 10%
+    );
+    --msm-widget-darken-12: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 12%
+    );
+    --msm-widget-darken-15: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 15%
+    );
+    --msm-widget-darken-16: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 16%
+    );
+    --msm-widget-darken-20: color-mix(
+      in oklab,
+      var(--module-settings-manager-widget-fill),
+      white 20%
+    );
 
     --msm-blue-light-10: color-mix(in oklab, #3b82f6, black 10%);
     --msm-blue-light-20: color-mix(in oklab, #3b82f6, black 20%);
@@ -105,7 +170,7 @@
   gap: 0.5rem;
   container-type: inline-size;
   container-name: msm;
-  background: #fff;
+  background: #fefeee;
 }
 
 @media (min-width: 769px) {
@@ -808,7 +873,7 @@
   .module-settings-module-input__package-value,
   .module-settings-module-input__no-package,
   .msm-plugin {
-    background: var(--msm-widget-darken-8);
+    background: transparent;
   }
   .module-settings-module-input__plugin-pill,
   .module-settings-module-input__installed-pill {
@@ -886,5 +951,11 @@
   }
   .module-settings-manager__branch-picker-button--missing {
     color: var(--msm-text-error-dark);
+  }
+  .module-settings-manager {
+    background: #1a1a1a;
+  }
+  .module-settings-manager__filter-bar {
+    background: var(--module-settings-manager-widget-fill);
   }
 }

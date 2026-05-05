@@ -243,7 +243,7 @@ export function useModulePlugins(params: UseModulePluginsParams) {
     const pluginTypeFilter = filterPluginType();
     const dataTypeFilter = filterDataType();
     const hasFilter = Boolean(query || pluginTypeFilter || dataTypeFilter);
-    if (!hasFilter) return modules;
+    if (!hasFilter) return [...modules];
 
     const matchedUrls = new Set<string>();
     for (const plugin of filteredPlugins()) {

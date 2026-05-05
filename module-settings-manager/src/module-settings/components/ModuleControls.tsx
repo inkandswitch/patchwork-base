@@ -68,6 +68,7 @@ export function ModuleControls(props: ModuleControlsProps) {
           moduleUrl={props.url}
           repo={props.repo}
           settingsHandle={props.settingsHandle}
+          kind={kind() as "folder" | "directory"}
         />
       </Show>
     </>
@@ -200,6 +201,7 @@ function FilterableBranchPicker(props: FilterableBranchPickerProps) {
 
   return (
     <div class="module-settings-manager__branch-picker" ref={containerRef}>
+      <span class="module-settings-manager__branch-picker-label">branch</span>
       <button
         class="module-settings-manager__branch-picker-button"
         classList={{
@@ -277,6 +279,7 @@ interface ConvertToBranchesButtonProps {
   moduleUrl: AutomergeUrl;
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  kind: "folder" | "directory";
 }
 
 function ConvertToBranchesButton(props: ConvertToBranchesButtonProps) {
@@ -307,12 +310,17 @@ function ConvertToBranchesButton(props: ConvertToBranchesButtonProps) {
   };
 
   return (
-    <button
-      class="module-settings-manager__convert-btn"
-      onClick={handleClick}
-      title="Wrap this module in a new branches doc with this URL as the default branch"
-    >
-      Make branchable
-    </button>
+    <span class="module-settings-manager__convert">
+      <span class="module-settings-manager__convert-label">
+        {props.kind === "folder" ? "Folder" : "Directory"}
+      </span>
+      <button
+        class="module-settings-manager__convert-action"
+        onClick={handleClick}
+        title="Wrap this module in a new branches doc with this URL as the default branch"
+      >
+        Add branches
+      </button>
+    </span>
   );
 }
