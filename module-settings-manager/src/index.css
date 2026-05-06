@@ -746,8 +746,48 @@
   flex-shrink: 0;
 }
 
+.module-settings-manager--foreign {
+  border: 2px solid red;
+}
+
+.module-settings-manager__foreign-warning {
+  padding: 0.5rem 0.75rem;
+  background: var(--msm-red-light-80);
+  border: 1px solid red;
+  border-radius: 4px;
+  color: var(--msm-text-error-light);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .module-settings-manager__foreign-warning {
+    background: var(--msm-red-dark-70);
+    border-color: red;
+    color: var(--msm-text-error-dark);
+  }
+}
+
 .module-settings-manager__footer {
   margin-top: auto;
+}
+
+.module-settings-manager__branch-control {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.module-settings-manager__branch-url {
+  font-family: SF Mono, Monaco, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .module-settings-manager__branch-picker {

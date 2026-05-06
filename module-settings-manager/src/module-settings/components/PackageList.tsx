@@ -25,6 +25,12 @@ interface PackageListProps {
   onRemoveModule: (url: AutomergeUrl) => void;
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  /**
+   * The current user's own module-settings doc, when it differs from
+   * `settingsHandle` (i.e. when viewing a foreign settings doc). Lets each
+   * card render a second "My branch" picker that writes user-local overrides.
+   */
+  userSettingsHandle?: DocHandle<ModuleSettingsDocWithBranches>;
 }
 
 function defaultState(url: AutomergeUrl): ModuleLoadState {
@@ -69,6 +75,7 @@ export function PackageList(props: PackageListProps) {
               plugins={lookupPlugins(url)}
               repo={props.repo}
               settingsHandle={props.settingsHandle}
+              userSettingsHandle={props.userSettingsHandle}
               onRemove={() => props.onRemoveModule(url)}
             />
           </ErrorBoundary>
@@ -83,6 +90,7 @@ interface PackageCardProps {
   plugins: EnrichedPlugin[];
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  userSettingsHandle?: DocHandle<ModuleSettingsDocWithBranches>;
   onRemove: () => void;
 }
 
@@ -180,6 +188,7 @@ function PackageCard(props: PackageCardProps) {
             url={url()}
             repo={props.repo}
             settingsHandle={props.settingsHandle}
+            userSettingsHandle={props.userSettingsHandle}
             plugins={props.plugins}
           />
         </div>

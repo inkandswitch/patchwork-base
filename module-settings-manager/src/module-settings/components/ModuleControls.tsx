@@ -31,6 +31,12 @@ interface ModuleControlsProps {
   url: AutomergeUrl;
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  /**
+   * The current user's own module-settings handle, when it differs from
+   * `settingsHandle` (i.e. when viewing a foreign settings doc). Renders a
+   * second "My branch" picker that writes a user-local override.
+   */
+  userSettingsHandle?: DocHandle<ModuleSettingsDocWithBranches>;
   plugins: ContributedPlugin[];
 }
 
@@ -60,6 +66,7 @@ export function ModuleControls(props: ModuleControlsProps) {
           branchesDoc={moduleDoc() as BranchesDoc | undefined}
           repo={props.repo}
           settingsHandle={props.settingsHandle}
+          userSettingsHandle={props.userSettingsHandle}
           plugins={props.plugins}
         />
       </Show>
@@ -80,29 +87,82 @@ interface BranchControlsProps {
   branchesDoc: BranchesDoc | undefined;
   repo: Repo;
   settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  userSettingsHandle?: DocHandle<ModuleSettingsDocWithBranches>;
   plugins: ContributedPlugin[];
 }
 
 function BranchControls(props: BranchControlsProps) {
-  const settingsDoc = makeDocumentProjection(props.settingsHandle);
+  const branches = () => props.branchesDoc?.branches;
 
-  const branchNames = createMemo(() => {
-    const branches = props.branchesDoc?.branches;
-    if (!branches) return [];
-    return Object.keys(branches).sort();
-  });
+  const showSplit = () =>
+    !!props.userSettingsHandle &&
+    props.userSettingsHandle.url !== props.settingsHandle.url;
+
+  return (
+    <Show
+      when={showSplit()}
+      fallback={
+        <BranchControl
+          label="Branch"
+          branchesDocUrl={props.branchesDocUrl}
+          targetHandle={props.settingsHandle}
+          repo={props.repo}
+          branches={branches()}
+          plugins={props.plugins}
+        />
+      }
+    >
+      <BranchControl
+        label="Module settings branch"
+        branchesDocUrl={props.branchesDocUrl}
+        targetHandle={props.settingsHandle}
+        repo={props.repo}
+        branches={branches()}
+        plugins={props.plugins}
+      />
+      <BranchControl
+        label="My branch"
+        branchesDocUrl={props.branchesDocUrl}
+        targetHandle={props.userSettingsHandle!}
+        repo={props.repo}
+        branches={branches()}
+        plugins={props.plugins}
+      />
+    </Show>
+  );
+}
+
+interface BranchControlProps {
+  label: string;
+  branchesDocUrl: AutomergeUrl;
+  targetHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  repo: Repo;
+  branches: Record<string, AutomergeUrl> | undefined;
+  plugins: ContributedPlugin[];
+}
+
+function BranchControl(props: BranchControlProps) {
+  const targetDoc = makeDocumentProjection(props.targetHandle);
 
   const currentBranch = createMemo(() =>
-    chosenBranchFor(settingsDoc, props.branchesDocUrl)
+    chosenBranchFor(targetDoc, props.branchesDocUrl)
+  );
+
+  const branchNames = createMemo(() =>
+    props.branches ? Object.keys(props.branches).sort() : []
+  );
+
+  const currentBranchUrl = createMemo(
+    () => props.branches?.[currentBranch()]
   );
 
   const setBranch = (name: string) => {
     unregisterContributions(props.plugins);
     unregisterPlugins(
-      settingsDoc.branches?.[props.branchesDocUrl] ?? props.branchesDocUrl
+      targetDoc.branches?.[props.branchesDocUrl] ?? props.branchesDocUrl
     );
 
-    props.settingsHandle.change((doc) => {
+    props.targetHandle.change((doc) => {
       if (!doc.branches) doc.branches = {} as Record<AutomergeUrl, string>;
       doc.branches[props.branchesDocUrl] = name;
     });
@@ -127,23 +187,32 @@ function BranchControls(props: BranchControlsProps) {
       doc.branches[name] = url as AutomergeUrl;
     });
 
-    props.settingsHandle.change((doc) => {
+    props.targetHandle.change((doc) => {
       if (!doc.branches) doc.branches = {} as Record<AutomergeUrl, string>;
       doc.branches[props.branchesDocUrl] = name;
     });
   };
 
   return (
-    <FilterableBranchPicker
-      branches={branchNames()}
-      value={currentBranch()}
-      onChange={setBranch}
-      onAdd={addBranch}
-    />
+    <div class="module-settings-manager__branch-control">
+      <FilterableBranchPicker
+        label={props.label}
+        branches={branchNames()}
+        value={currentBranch()}
+        onChange={setBranch}
+        onAdd={addBranch}
+      />
+      <Show when={currentBranchUrl()}>
+        <code class="module-settings-manager__branch-url">
+          {currentBranchUrl()}
+        </code>
+      </Show>
+    </div>
   );
 }
 
 interface FilterableBranchPickerProps {
+  label?: string;
   branches: string[];
   value: string;
   onChange: (value: string) => void;
@@ -201,7 +270,9 @@ function FilterableBranchPicker(props: FilterableBranchPickerProps) {
 
   return (
     <div class="module-settings-manager__branch-picker" ref={containerRef}>
-      <span class="module-settings-manager__branch-picker-label">Branch</span>
+      <span class="module-settings-manager__branch-picker-label">
+        {props.label ?? "Branch"}
+      </span>
       <button
         class="module-settings-manager__branch-picker-button"
         classList={{

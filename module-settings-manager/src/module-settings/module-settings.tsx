@@ -1,6 +1,14 @@
-import { createSignal, onCleanup } from "solid-js";
-import { makeDocumentProjection } from "solid-automerge";
-import type { AutomergeUrl, DocHandle } from "@automerge/automerge-repo";
+import { createSignal, onCleanup, Show } from "solid-js";
+import {
+  makeDocumentProjection,
+  useDocHandle,
+  useDocument,
+} from "solid-automerge";
+import {
+  isValidAutomergeUrl,
+  type AutomergeUrl,
+  type DocHandle,
+} from "@automerge/automerge-repo";
 import type { ModuleSettingsDoc } from "@inkandswitch/patchwork-filesystem";
 import type { PatchworkToolProps } from "../types.ts";
 import { ModuleFilters, PackageList } from "./components";
@@ -9,6 +17,8 @@ import { MODULE_FETCH_DEBOUNCE } from "./constants.ts";
 import { DebugToggle } from "./components/DebugToggle.tsx";
 import { unregisterPlugins } from "@inkandswitch/patchwork-plugins";
 import type { ModuleSettingsDocWithBranches } from "./utils/module-types.ts";
+
+type AccountDocLike = { moduleSettingsUrl?: AutomergeUrl };
 
 export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
   const [searchInputValue, setSearchInputValue] = createSignal("");
@@ -21,6 +31,23 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
   const settingsHandle =
     props.handle as DocHandle<ModuleSettingsDocWithBranches>;
   const doc = makeDocumentProjection(settingsHandle);
+
+  const accountUrl = localStorage.getItem("tinyPatchworkAccountUrl");
+  const [accountDoc] = useDocument<AccountDocLike>(
+    isValidAutomergeUrl(accountUrl ?? "")
+      ? (accountUrl as AutomergeUrl)
+      : undefined,
+    { repo: props.repo }
+  );
+  const ownModuleSettingsUrl = () => accountDoc()?.moduleSettingsUrl;
+  const isForeignSettingsDoc = () => {
+    const ownUrl = ownModuleSettingsUrl();
+    return !!ownUrl && ownUrl !== props.handle.url;
+  };
+  const ownSettingsHandle = useDocHandle<ModuleSettingsDocWithBranches>(
+    () => (isForeignSettingsDoc() ? ownModuleSettingsUrl() : undefined),
+    { repo: props.repo }
+  );
 
   // Debounce search to avoid expensive filtering on every keystroke
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -79,7 +106,17 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
   };
 
   return (
-    <div class="module-settings-manager">
+    <div
+      class="module-settings-manager"
+      classList={{
+        "module-settings-manager--foreign": isForeignSettingsDoc(),
+      }}
+    >
+      <Show when={isForeignSettingsDoc()}>
+        <div class="module-settings-manager__foreign-warning">
+          Viewing a module settings doc that is not your own
+        </div>
+      </Show>
       <div class="module-settings-manager__content-container">
         <h2 class="module-settings-manager__title">Packages</h2>
 
@@ -104,6 +141,7 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
             onRemoveModule={handleRemoveModule}
             repo={props.repo}
             settingsHandle={settingsHandle}
+            userSettingsHandle={ownSettingsHandle()}
           />
         </div>
       </div>
