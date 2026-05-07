@@ -8,13 +8,7 @@ import path from 'path';
 
 import patchworkExternals from '@inkandswitch/patchwork-bootloader/externals';
 
-const external = [
-  ...patchworkExternals,
-  '@automerge/automerge-repo-network-messagechannel',
-  '@automerge/automerge-repo-storage-indexeddb',
-  '@automerge/automerge-subduction',
-  '@automerge/automerge-subduction/slim',
-];
+const external = [...patchworkExternals];
 
 export default defineConfig({
   base: './',

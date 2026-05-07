@@ -1,7 +1,7 @@
 import type { AutomergeUrl } from '@automerge/automerge-repo';
-import type { Repo } from '@automerge/automerge-repo';
 import type { MessageToRouter, MessageToWorker, MessageToWorkerPool } from './protocol';
 
+import { IndexedDBStorageAdapter, MessageChannelNetworkAdapter, Repo } from '@automerge/vanillajs';
 import { getAccountHandle, getTaskQueues } from './helpers';
 
 import WorkerPool from './worker-pool.ts?sharedworker';
@@ -63,10 +63,7 @@ export class WorkerPoolProxy {
 
     // forward messages from the worker (type 'add worker') to the worker pool
     worker.port.onmessage = (e: any) => {
-      log(
-        'received message from worker that i will forward to the pool',
-        e.data,
-      );
+      log('received message from worker that i will forward to the pool', e.data);
       this.workerPool.port.postMessage(e.data);
     };
 
@@ -125,7 +122,7 @@ export class WorkerPoolProxy {
         taskQueues: getTaskQueues(accountDoc),
       });
 
-    const accountHandle = await getAccountHandle(await this.getRepo() as any);
+    const accountHandle = await getAccountHandle((await this.getRepo()) as any);
     accountHandle.on('change', (payload) => updateTaskQueues(payload.handle.doc()));
     updateTaskQueues(accountHandle.doc());
   }
@@ -136,7 +133,6 @@ export class WorkerPoolProxy {
 
   async getRepo() {
     if (!this._repo) {
-      const { IndexedDBStorageAdapter, MessageChannelNetworkAdapter, Repo } = await importRepoModules();
       this._repo = new Repo({
         storage: new IndexedDBStorageAdapter(),
         network: [new MessageChannelNetworkAdapter((window as any).getRepoChannel())],
@@ -146,23 +142,6 @@ export class WorkerPoolProxy {
     }
     return this._repo;
   }
-}
-
-async function importRepoModules(): Promise<any> {
-  const repoSpecifier = '@automerge/automerge-repo';
-  const networkSpecifier = '@automerge/automerge-repo-network-messagechannel';
-  const storageSpecifier = '@automerge/automerge-repo-storage-indexeddb';
-  const [repo, network, storage] = await Promise.all([
-    import(/* @vite-ignore */ repoSpecifier),
-    import(/* @vite-ignore */ networkSpecifier),
-    import(/* @vite-ignore */ storageSpecifier),
-  ]);
-
-  return {
-    Repo: repo.Repo,
-    MessageChannelNetworkAdapter: network.MessageChannelNetworkAdapter,
-    IndexedDBStorageAdapter: storage.IndexedDBStorageAdapter,
-  };
 }
 
 function log(...args: any) {

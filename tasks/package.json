@@ -1,6 +1,6 @@
 {
   "name": "@patchwork/tasks",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Task-Related Datatypes and Tools",
   "type": "module",
   "main": "src/index.ts",
@@ -20,7 +20,7 @@
     "@automerge/automerge-repo": "2.6.0-subduction.16",
     "@automerge/automerge-repo-react-hooks": "2.6.0-subduction.16",
     "@automerge/vanillajs": "^2.6.0-subduction.16",
-    "@inkandswitch/patchwork-bootloader": "^0.0.3",
+    "@inkandswitch/patchwork-bootloader": "^0.0.9",
     "@inkandswitch/patchwork-elements": "^0.0.3",
     "@inkandswitch/patchwork-plugins": "^0.0.2",
     "@awarth/tasklib": "^0.0.3",
