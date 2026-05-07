@@ -78,15 +78,23 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
     uniquePluginTypes,
     uniqueDataTypes,
   } = useModulePlugins({
-      modules: doc.modules,
-      settingsDoc: doc,
-      userSettingsDoc: ownSettingsDoc(),
-      repo: props.repo,
-      searchQuery: debouncedSearch,
-      filterPluginType,
-      filterDataType,
-      sortOrder,
-    });
+    modules: doc.modules,
+    settingsDoc: doc,
+    // Getter so the hook sees the user's settings doc once `useDocHandle`
+    // finishes resolving. Passing the unwrapped value here freezes in the
+    // initial `undefined` snapshot, so the package list keeps resolving to
+    // the system-doc folder while the watcher (which sees user-first) has
+    // already registered the user-doc folder — status reads "shadowed" and
+    // the activate button never clears.
+    get userSettingsDoc() {
+      return ownSettingsDoc();
+    },
+    repo: props.repo,
+    searchQuery: debouncedSearch,
+    filterPluginType,
+    filterDataType,
+    sortOrder,
+  });
 
   const handleAddModule = (url: AutomergeUrl) => {
     props.handle.change((doc) => {
@@ -119,7 +127,7 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
     >
       <Show when={isForeignSettingsDoc()}>
         <div class="module-settings-manager__foreign-warning">
-          Viewing a module settings doc that is not your own
+          This packages list is not your own
         </div>
       </Show>
       <div class="module-settings-manager__content-container">

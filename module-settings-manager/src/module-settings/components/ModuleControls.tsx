@@ -26,6 +26,7 @@ import {
   unregisterContributions,
   type ContributedPlugin,
 } from "../utils/plugin-registry.ts";
+import { BranchIcon, CopyIcon } from "../icons";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard.ts";
 
 interface ModuleControlsProps {
@@ -93,82 +94,34 @@ interface BranchControlsProps {
 }
 
 function BranchControls(props: BranchControlsProps) {
-  const branches = () => props.branchesDoc?.branches;
+  // Always write to the user's own settings doc so branch choices are
+  // user-local. When viewing your own settings doc, that's the same handle.
+  const targetHandle = () => props.userSettingsHandle ?? props.settingsHandle;
+  const targetDoc = createMemo(() => makeDocumentProjection(targetHandle()));
 
-  const showSplit = () =>
-    !!props.userSettingsHandle &&
-    props.userSettingsHandle.url !== props.settingsHandle.url;
-
-  return (
-    <Show
-      when={showSplit()}
-      fallback={
-        <BranchControl
-          label="Branch"
-          branchesDocUrl={props.branchesDocUrl}
-          targetHandle={props.settingsHandle}
-          repo={props.repo}
-          branches={branches()}
-          plugins={props.plugins}
-        />
-      }
-    >
-      <div class="module-settings-manager__branch-controls">
-        <BranchControl
-          label="Module settings branch"
-          branchesDocUrl={props.branchesDocUrl}
-          targetHandle={props.settingsHandle}
-          repo={props.repo}
-          branches={branches()}
-          plugins={props.plugins}
-        />
-        <BranchControl
-          label="My branch"
-          branchesDocUrl={props.branchesDocUrl}
-          targetHandle={props.userSettingsHandle!}
-          repo={props.repo}
-          branches={branches()}
-          plugins={props.plugins}
-        />
-      </div>
-    </Show>
-  );
-}
-
-interface BranchControlProps {
-  label: string;
-  branchesDocUrl: AutomergeUrl;
-  targetHandle: DocHandle<ModuleSettingsDocWithBranches>;
-  repo: Repo;
-  branches: Record<string, AutomergeUrl> | undefined;
-  plugins: ContributedPlugin[];
-}
-
-function BranchControl(props: BranchControlProps) {
-  const targetDoc = makeDocumentProjection(props.targetHandle);
-  const [copiedUrl, copyUrl] = useCopyToClipboard();
+  const branchNames = createMemo(() => {
+    const branches = props.branchesDoc?.branches;
+    return branches ? Object.keys(branches).sort() : [];
+  });
 
   const currentBranch = createMemo(() =>
-    chosenBranchFor([targetDoc], props.branchesDocUrl)
-  );
-
-  const branchNames = createMemo(() =>
-    props.branches ? Object.keys(props.branches).sort() : []
-  );
-
-  const currentBranchUrl = createMemo(
-    () => props.branches?.[currentBranch()]
+    chosenBranchFor([targetDoc()], props.branchesDocUrl)
   );
 
   const setBranch = (name: string) => {
+    // Re-selecting the current branch is a no-op — the cleanup below would
+    // unregister the live plugins and the doc.change wouldn't trigger a
+    // reload (no diff), leaving the registry empty until the next change.
+    if (name === currentBranch()) return;
+    const handle = targetHandle();
+    const doc = targetDoc();
     unregisterContributions(props.plugins);
     unregisterPlugins(
-      targetDoc.branches?.[props.branchesDocUrl] ?? props.branchesDocUrl
+      doc.branches?.[props.branchesDocUrl] ?? props.branchesDocUrl
     );
-
-    props.targetHandle.change((doc) => {
-      if (!doc.branches) doc.branches = {} as Record<AutomergeUrl, string>;
-      doc.branches[props.branchesDocUrl] = name;
+    handle.change((d) => {
+      if (!d.branches) d.branches = {} as Record<AutomergeUrl, string>;
+      d.branches[props.branchesDocUrl] = name;
     });
   };
 
@@ -191,43 +144,36 @@ function BranchControl(props: BranchControlProps) {
       doc.branches[name] = url as AutomergeUrl;
     });
 
-    props.targetHandle.change((doc) => {
-      if (!doc.branches) doc.branches = {} as Record<AutomergeUrl, string>;
-      doc.branches[props.branchesDocUrl] = name;
+    targetHandle().change((d) => {
+      if (!d.branches) d.branches = {} as Record<AutomergeUrl, string>;
+      d.branches[props.branchesDocUrl] = name;
     });
   };
 
+  // True when the branch choice we're writing belongs to the user but they're
+  // looking at someone else's settings doc — flag it so the user knows the
+  // override is theirs alone, not part of the doc on screen.
+  const isPersonal = () =>
+    !!props.userSettingsHandle &&
+    props.userSettingsHandle.url !== props.settingsHandle.url;
+
   return (
-    <div class="module-settings-manager__branch-control">
-      <FilterableBranchPicker
-        branches={branchNames()}
-        value={currentBranch()}
-        onChange={setBranch}
-        onAdd={addBranch}
-      />
-      <span class="module-settings-manager__branch-context">{props.label}</span>
-      <Show when={currentBranchUrl()}>
-        <code
-          class="module-settings-manager__branch-url"
-          classList={{
-            "module-settings-manager__branch-url--copied":
-              copiedUrl() === currentBranchUrl(),
-          }}
-          onClick={() => copyUrl(currentBranchUrl()!)}
-          title="Click to copy URL"
-        >
-          {copiedUrl() === currentBranchUrl()
-            ? "copied"
-            : currentBranchUrl()}
-        </code>
-      </Show>
-    </div>
+    <FilterableBranchPicker
+      branches={branchNames()}
+      branchUrls={props.branchesDoc?.branches}
+      value={currentBranch()}
+      personal={isPersonal()}
+      onChange={setBranch}
+      onAdd={addBranch}
+    />
   );
 }
 
 interface FilterableBranchPickerProps {
   branches: string[];
+  branchUrls?: Record<string, AutomergeUrl>;
   value: string;
+  personal?: boolean;
   onChange: (value: string) => void;
   onAdd: (name: string) => void | Promise<void>;
 }
@@ -235,6 +181,7 @@ interface FilterableBranchPickerProps {
 function FilterableBranchPicker(props: FilterableBranchPickerProps) {
   const [open, setOpen] = createSignal(false);
   const [filter, setFilter] = createSignal("");
+  const [, copy] = useCopyToClipboard();
   let containerRef: HTMLDivElement | undefined;
 
   const filtered = createMemo(() => {
@@ -295,9 +242,15 @@ function FilterableBranchPicker(props: FilterableBranchPickerProps) {
             : `Current branch: ${props.value}`
         }
       >
+        <BranchIcon />
         <span>{props.value}</span>
         <span class="module-settings-manager__branch-picker-caret">▼</span>
       </button>
+      <Show when={props.personal}>
+        <em class="module-settings-manager__branch-picker-personal">
+          (personal)
+        </em>
+      </Show>
       <Show when={open()}>
         <div class="module-settings-manager__branch-picker-popup">
           <input
@@ -331,7 +284,21 @@ function FilterableBranchPicker(props: FilterableBranchPickerProps) {
                   }}
                   onClick={() => select(name)}
                 >
-                  {name}
+                  <span class="module-settings-manager__branch-picker-item-name">
+                    {name}
+                  </span>
+                  <Show when={props.branchUrls?.[name]}>
+                    <button
+                      class="module-settings-manager__branch-picker-copy"
+                      title="copy url"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void copy(props.branchUrls![name]);
+                      }}
+                    >
+                      <CopyIcon />
+                    </button>
+                  </Show>
                 </li>
               )}
             </For>
