@@ -10,7 +10,6 @@ import patchworkExternals from '@inkandswitch/patchwork-bootloader/externals';
 
 const external = [
   ...patchworkExternals,
-  '@automerge/automerge-repo-react-hooks',
   '@automerge/automerge-repo-network-messagechannel',
   '@automerge/automerge-repo-storage-indexeddb',
   '@automerge/automerge-subduction',
@@ -50,14 +49,14 @@ export default defineConfig({
     alias: {
       // Direct file system path bypasses the 'exports' check
       'es-module-shims-worker': path.resolve(
-        __dirname, 
-        'node_modules/es-module-shims/dist/es-module-shims.wasm.js'
-      )
-    }
+        __dirname,
+        'node_modules/es-module-shims/dist/es-module-shims.wasm.js',
+      ),
+    },
   },
 
   optimizeDeps: {
     // Prevent Vite from pre-bundling the shim (which causes the 'window' error)
-    exclude: ['es-module-shims']
+    exclude: ['es-module-shims'],
   },
 });
