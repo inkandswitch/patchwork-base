@@ -7,7 +7,12 @@ import type {
   MessageToTaskQueueChannel,
   MessageToWorkerChannel,
 } from './protocol';
-import type { AutomergeUrl, DocHandle, DocHandleEphemeralMessagePayload, Repo } from '@automerge/automerge-repo/slim';
+import type {
+  AutomergeUrl,
+  DocHandle,
+  DocHandleEphemeralMessagePayload,
+  Repo,
+} from '@automerge/automerge-repo/slim';
 
 import { getRepo, setUpImportMap } from './webworker-lib';
 import generateName from 'boring-name-generator';
@@ -54,7 +59,14 @@ self.addEventListener('connect', (e: any) => {
   };
 });
 
-async function init(repoPort: MessagePort, _contactUrl: AutomergeUrl, importMap: any, baseURI: string) {
+const { promise: repoPromise, resolve: repoResolve } = Promise.withResolvers();
+
+async function init(
+  repoPort: MessagePort,
+  _contactUrl: AutomergeUrl,
+  importMap: any,
+  baseURI: string,
+) {
   if (contactUrl && repo && thisRouterHandle) {
     console.log('already initialized');
     return;
@@ -66,10 +78,8 @@ async function init(repoPort: MessagePort, _contactUrl: AutomergeUrl, importMap:
 
   if (!repo) {
     await setUpImportMap(importMap, baseURI);
-    repo = await getRepo(
-      repoPort,
-      `task-router-${Math.round(Math.random() * 1_000_000)}`,
-    );
+    repo = await getRepo(repoPort, `task-router-${Math.round(Math.random() * 1_000_000)}`);
+    repoResolve(repo);
   }
 
   thisRouterHandle = repo.create<RouterDoc>({ name: generateName().dashed, contactUrl });
@@ -97,7 +107,7 @@ async function pRouteTasks() {
     const taskQueuesWithPendingTasks = shuffle(
       [...taskQueueHandles.values()]
         .filter(thisIsTheActiveRouterFor)
-        .filter(taskQueue => taskQueue.doc().pending.length > 0)
+        .filter((taskQueue) => taskQueue.doc().pending.length > 0),
     );
     while (taskQueuesWithPendingTasks.length > 0) {
       const taskQueue = taskQueuesWithPendingTasks.shift()!;
@@ -140,8 +150,8 @@ async function pSendHeartbeats() {
           type: 'router heartbeat',
           routerUrl: thisRouterHandle.url,
           workerUrls: [...workers.values()]
-            .filter(worker => shouldIncludeInHeartbeat(worker, taskQueueHandle.url))
-            .map(worker => worker.handle.url)
+            .filter((worker) => shouldIncludeInHeartbeat(worker, taskQueueHandle.url))
+            .map((worker) => worker.handle.url),
         } satisfies MessageToTaskQueueChannel);
       }
     }
@@ -175,11 +185,17 @@ async function pTakeOverFromInactiveRouters() {
   while (true) {
     for (const taskQueueHandle of taskQueueHandles.values()) {
       const activeRouterUrl = taskQueueHandle.doc().activeRouter;
-      if (activeRouterUrl === thisRouterHandle.url || attemptingToTakeOverTaskQueueUrls.has(taskQueueHandle.url)) {
+      if (
+        activeRouterUrl === thisRouterHandle.url ||
+        attemptingToTakeOverTaskQueueUrls.has(taskQueueHandle.url)
+      ) {
         continue;
       }
 
-      const lastTimestamp = activeRouterUrl && lastTimestampFromRouter.has(activeRouterUrl) ? lastTimestampFromRouter.get(activeRouterUrl)! : 0;
+      const lastTimestamp =
+        activeRouterUrl && lastTimestampFromRouter.has(activeRouterUrl)
+          ? lastTimestampFromRouter.get(activeRouterUrl)!
+          : 0;
       if (lastTimestamp < Date.now() - 3 * 1_000) {
         attemptToTakeOver(taskQueueHandle);
       }
@@ -212,7 +228,7 @@ function attemptToTakeOver(taskQueueHandle: DocHandle<TaskQueueDoc>) {
 // helpers
 
 function getIdleWorkersByTaskQueueUrl() {
-  const idleWorkers = [...workers.values()].filter(worker => !worker.handle.doc().currentTask);
+  const idleWorkers = [...workers.values()].filter((worker) => !worker.handle.doc().currentTask);
   const idleWorkersByTaskQueueUrl = new Map<AutomergeUrl, Set<WorkerState>>();
   for (const worker of idleWorkers) {
     for (const taskQueueUrl of Object.keys(worker.taskQueues) as AutomergeUrl[]) {
@@ -263,6 +279,7 @@ async function updateTaskQueueSet(taskQueues: TaskQueueSet) {
 async function joinTaskQueue(taskQueueUrl: AutomergeUrl) {
   let handle: DocHandle<TaskQueueDoc>;
   try {
+    await repoPromise;
     handle = await repo.find<TaskQueueDoc>(taskQueueUrl);
   } catch (error) {
     console.error('unable to get doc handle for task queue', { taskQueueUrl, error });
@@ -305,6 +322,7 @@ async function processWorkerHeartbeat(
     state.lastTimestamp = lastTimestamp;
   } else {
     try {
+      await repoPromise;
       workers.set(workerUrl, {
         handle: await repo.find(workerUrl),
         currentTaskUrl,
@@ -318,8 +336,10 @@ async function processWorkerHeartbeat(
 }
 
 function thisIsTheActiveRouterFor(taskQueueHandle: DocHandle<TaskQueueDoc>) {
-  return taskQueueHandle.doc().activeRouter === thisRouterHandle?.url &&
-    !attemptingToTakeOverTaskQueueUrls.has(taskQueueHandle.url);
+  return (
+    taskQueueHandle.doc().activeRouter === thisRouterHandle?.url &&
+    !attemptingToTakeOverTaskQueueUrls.has(taskQueueHandle.url)
+  );
 }
 
-export { }; // to ensure this is a module
+export {}; // to ensure this is a module
