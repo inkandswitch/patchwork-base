@@ -7,7 +7,6 @@ interface UseSidebarResizeParams {
   setIsSidebarCollapsed: Setter<boolean>;
   setIsRightSidebarCollapsed: Setter<boolean>;
   minWidth: number;
-  maxWidth: number;
   dragThreshold: number;
 }
 
@@ -20,7 +19,6 @@ export function useSidebarResize({
   setIsSidebarCollapsed,
   setIsRightSidebarCollapsed,
   minWidth,
-  maxWidth,
   dragThreshold,
 }: UseSidebarResizeParams) {
   // Non-reactive refs for drag state
@@ -55,13 +53,10 @@ export function useSidebarResize({
     }
 
     if (isResizing === "left") {
-      const newWidth = Math.max(minWidth, Math.min(maxWidth, e.clientX));
+      const newWidth = Math.max(minWidth, e.clientX);
       setLeftSidebarWidth(newWidth);
     } else if (isResizing === "right") {
-      const newWidth = Math.max(
-        minWidth,
-        Math.min(maxWidth, window.innerWidth - e.clientX)
-      );
+      const newWidth = Math.max(minWidth, window.innerWidth - e.clientX);
       setRightSidebarWidth(newWidth);
     }
   };

@@ -18,19 +18,17 @@ interface SidebarProps {
 export function Sidebar(props: SidebarProps) {
   const widthStyle = () =>
     `${props.isCollapsed() ? (props.side === "right" ? 2 : 0) : props.width()}px`;
-  const flexClass = () =>
-    `flex relative ${props.side === "right" ? "bg-base-100" : ""}`;
-  const widthClass = () =>
-    props.isCollapsed() ? (props.side === "right" ? "w-0.5" : "w-0") : "";
 
   return (
     <div
-      class={`${flexClass()} ${widthClass()}`}
+      class="sidebar"
+      data-side={props.side}
+      data-collapsed={props.isCollapsed() ? "" : undefined}
       style={{ width: widthStyle() }}
     >
       {/* Sidebar content when expanded */}
       {props.side === "left" && props.toolId && !props.isCollapsed() && (
-        <patchwork-view class="h-full" doc-url={props.docUrl} tool-id={props.toolId} />
+        <patchwork-view doc-url={props.docUrl} tool-id={props.toolId} />
       )}
 
       {/* Toggle/resize button - left side shows when expanded */}

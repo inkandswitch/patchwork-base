@@ -19,8 +19,7 @@ import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
 // Sidebar dimensions
-const MIN_SIDEBAR_WIDTH = 200;
-const MAX_SIDEBAR_WIDTH = 600;
+const MIN_SIDEBAR_WIDTH = 48;
 const DRAG_THRESHOLD = 3;
 
 export const PatchworkFrame = ({
@@ -69,7 +68,6 @@ export const PatchworkFrame = ({
     setIsSidebarCollapsed: sidebarState.setIsSidebarCollapsed,
     setIsRightSidebarCollapsed: sidebarState.setIsRightSidebarCollapsed,
     minWidth: MIN_SIDEBAR_WIDTH,
-    maxWidth: MAX_SIDEBAR_WIDTH,
     dragThreshold: DRAG_THRESHOLD,
   });
 
@@ -100,7 +98,7 @@ export const PatchworkFrame = ({
   } = useDebugRegistryToast();
 
   return (
-    <div class="flex w-full h-full">
+    <div class="frame">
       <DebugRegistryToast
         events={debugEvents()}
         onDismiss={dismissEvent}
@@ -121,7 +119,7 @@ export const PatchworkFrame = ({
       )}
 
       {/* Main Content Area */}
-      <div class="flex flex-col flex-1 h-full">
+      <div class="main-area">
         <DocumentToolbar
           toolIds={() => accountDoc()?.documentToolbarToolIds}
           docUrl={selectedDoc.selectedDocUrl}

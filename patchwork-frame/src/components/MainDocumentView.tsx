@@ -17,7 +17,7 @@ export function MainDocumentView({
   toolId,
 }: MainDocumentViewProps) {
   return (
-    <div class="w-full flex-1 min-h-0">
+    <div class="document-view">
       <Show when={viewKey()} keyed>
         {(key) => {
           return (
@@ -26,7 +26,7 @@ export function MainDocumentView({
         }}
       </Show>
       {!selectedDocUrl() && (
-        <div class="flex items-center justify-center h-full text-base-content">
+        <div class="placeholder">
           Select a document in the sidebar
         </div>
       )}
