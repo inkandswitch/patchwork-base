@@ -40,6 +40,7 @@ export class WorkerPoolProxy {
     // initialize it (doesn't matter if this message is sent more than once)
     const repoPort = (window as any).getRepoChannel();
     log('sending init to worker pool');
+
     workerPool.port.postMessage(
       {
         type: 'init',
@@ -116,11 +117,17 @@ export class WorkerPoolProxy {
   }
 
   async setUpTaskQueueSetUpdates() {
-    const updateTaskQueues = (accountDoc: any) =>
-      this.sendToRouter({
+    const updateTaskQueues = (accountDoc: any) => {
+      const message: MessageToWorkerPool = {
         type: 'update task queue set',
         taskQueues: getTaskQueues(accountDoc),
-      });
+      };
+      // Router needs the set so it can join queues, run takeover, and broadcast UI heartbeats.
+      this.sendToRouter(message);
+      // Worker pool must get the same update: it forwards worker heartbeats to the active
+      // router's doc channel; without this it never joins queues and the router sees no workers.
+      this.workerPool.port.postMessage(message);
+    };
 
     const accountHandle = await getAccountHandle((await this.getRepo()) as any);
     accountHandle.on('change', (payload) => updateTaskQueues(payload.handle.doc()));

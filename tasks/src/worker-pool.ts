@@ -180,4 +180,4 @@ async function pSendWorkerStatuses() {
   }
 }
 
-export {}; // to ensure this is a module
+export { }; // to ensure this is a module

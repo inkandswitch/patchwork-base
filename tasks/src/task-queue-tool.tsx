@@ -7,8 +7,8 @@ import type { RouterDoc, RunInfo, WorkerDoc, TaskDoc, TaskQueueDoc } from './dat
 import type { MessageToTaskQueueChannel } from './protocol';
 
 const DEFAULT_INPUT_EXPR = `[
-  (Math.floor(Math.random() * 10) + 1,
-  Math.floor(Math.random() * 10) + 1)
+  Math.floor(Math.random() * 10) + 1,
+  Math.floor(Math.random() * 10) + 1
 ]`;
 
 const DEFAULT_CODE = `export default async function ([x, y]) {

@@ -48,6 +48,18 @@ async function init(
   _importMap: any,
   _baseURI: string,
 ) {
+  // SharedWorkers survive tab reloads and new Patchwork tabs open new MessagePorts.
+  // A second `init` must still announce this worker to the pool; otherwise the pool
+  // never hears `register worker` and the router gets empty worker lists.
+  if (status === 'ready') {
+    workerPoolProxyPort.postMessage({
+      type: 'register worker',
+      sharedWorkerName: self.name,
+      workerUrl: workerHandle.url,
+    } satisfies MessageToWorkerPoolProxy);
+    return;
+  }
+
   if (status !== 'not initialized') {
     return;
   }
@@ -227,8 +239,11 @@ async function execute(taskHandle: DocHandle<TaskDoc<any, any>>) {
 function moveToDone(taskUrl: AutomergeUrl, taskQueueHandle: DocHandle<TaskQueueDoc>) {
   taskQueueHandle.change((doc) => {
     const idx = doc.pending.indexOf(taskUrl);
-    doc.pending.splice(idx, 1);
-    doc.done.push(taskUrl);
+    // The task may have been removed from the pending list by another worker.
+    if (idx >= 0) {
+      doc.pending.splice(idx, 1);
+      doc.done.push(taskUrl);
+    }
   });
 }
 
@@ -244,4 +259,4 @@ async function getTaskQueueHandle(taskQueueUrl: AutomergeUrl) {
   return handle;
 }
 
-export {}; // to ensure this is a module
+export { }; // to ensure this is a module
