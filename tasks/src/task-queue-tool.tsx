@@ -54,7 +54,7 @@ const ITaskQueueBrowserTool: React.FC<any> = ({ docUrl }) => {
     const messageHandler = (m: any) => {
       const msg = m.message as MessageToTaskQueueChannel;
       if (msg) {
-        console.log('received router heartbeat', msg);
+        // console.log('received router heartbeat', msg);
         setWorkers(msg.workerUrls);
       }
     };
