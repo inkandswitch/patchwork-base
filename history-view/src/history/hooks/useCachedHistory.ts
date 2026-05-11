@@ -22,43 +22,6 @@ import type { HasPatchworkMetadata } from "@inkandswitch/patchwork-filesystem";
 import { DEFAULT_TIME_WINDOW, getStrategyKey } from "../utils";
 import * as tasklib from "@awarth/tasklib";
 
-/**
- * Same account field as `@patchwork/tasks` (`patchwork-tools/tasks/src/
- * helpers.ts`), so history grouping jobs target the user's configured task
- * queue when one is present.
- */
-const TASK_QUEUE_URLS_FIELD_NAME = "__taskQueues__";
-
-interface AccountDocShape {
-  [TASK_QUEUE_URLS_FIELD_NAME]?: Record<AutomergeUrl, boolean>;
-}
-
-/**
- * The global account doc handle is placed on `window` during app bootstrap.
- * We read it once at hook setup so `useDocument` can subscribe to it; if it
- * hasn't been installed yet, dispatches will no-op until the hook re-runs
- * with it available.
- */
-function getGlobalAccountDocUrl(): AutomergeUrl | undefined {
-  if (typeof window === "undefined") return undefined;
-  const w = window as { accountDocHandle?: { url?: AutomergeUrl } };
-  return w.accountDocHandle?.url;
-}
-
-const taskQueueClients = new Map<
-  AutomergeUrl,
-  ReturnType<typeof tasklib.queue>
->();
-
-function queueForDocUrl(url: AutomergeUrl) {
-  let q = taskQueueClients.get(url);
-  if (!q) {
-    q = tasklib.queue(url);
-    taskQueueClients.set(url, q);
-  }
-  return q;
-}
-
 // Short cooldown between consecutive dispatches to suppress duplicate enqueues
 // while a task is still in-flight / has yet to update `cachedHeads`. The
 // primary dispatch gate is the precise group-boundary condition below; this is
@@ -123,39 +86,28 @@ export function useCachedHistory(
     { repo }
   );
 
-  // Reactively resolve the task-queue doc URL from the account doc. Picks
-  // the first entry whose value is `true` (i.e. an enabled queue), matching
-  // `@patchwork/tasks`'s semantics. Returns `undefined` if no queue is set;
-  // `dispatchTask` then no-ops until one is configured.
-  const [accountDoc] = useDocument<AccountDocShape>(getGlobalAccountDocUrl(), {
-    repo,
-  });
-  const taskQueueUrl = createMemo<AutomergeUrl | undefined>(() => {
-    const doc = accountDoc();
-    if (!doc) return undefined;
-    const queues = doc[TASK_QUEUE_URLS_FIELD_NAME];
-    if (!queues) return undefined;
-    return (Object.keys(queues) as AutomergeUrl[]).find(
-      (url) => queues[url] === true
-    );
-  });
-
   let lastDispatchTime = 0;
 
   const dispatchTask = (sourceUrl: AutomergeUrl) => {
-    const queueDocUrl = taskQueueUrl();
-    if (!queueDocUrl) {
-      console.warn(
-        "History: no task queue configured on the account doc; " +
-          "skipping dispatch — will retry on next source change."
-      );
-      return;
+    console.log(
+      "localStorage.useTasks ('truthy' -> use tasks, all other values run on main thread)",
+      localStorage.useTasks
+    );
+    if (localStorage.useTasks) {
+      tasklib
+        .queue("automerge:21cbVwPwNZWXzC29AzhJGsVzSuQW" as AutomergeUrl)
+        .addTask<AutomergeUrl, void>({
+          input: sourceUrl,
+          importUrl: new URL(/* @vite-ignore */ "../task.js", import.meta.url),
+        });
+      lastDispatchTime = Date.now();
+    } else {
+      console.log("Running history task on main thread until tasks stabilize.");
+      const module = import("../task").then((m) => {
+        m.default(sourceUrl);
+        lastDispatchTime = Date.now();
+      });
     }
-    queueForDocUrl(queueDocUrl).addTask<AutomergeUrl, void>({
-      input: sourceUrl,
-      importUrl: new URL(/* @vite-ignore */ "../task.js", import.meta.url),
-    });
-    lastDispatchTime = Date.now();
   };
 
   // PART 3: Watch the source document. On every change we update
