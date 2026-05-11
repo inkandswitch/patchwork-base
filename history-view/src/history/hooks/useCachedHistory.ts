@@ -103,7 +103,11 @@ export function useCachedHistory(
       lastDispatchTime = Date.now();
     } else {
       console.log("Running history task on main thread until tasks stabilize.");
+<<<<<<< HEAD
       import("../task").then((m) => {
+=======
+      const module = import("../task").then((m) => {
+>>>>>>> bf5e26f (Make task API optional and use Alex's implementation.)
         m.default(sourceUrl);
         lastDispatchTime = Date.now();
       });
