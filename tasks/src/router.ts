@@ -28,7 +28,12 @@ const attemptingToTakeOverTaskQueueUrls = new Set<AutomergeUrl>();
 
 interface WorkerState {
   handle: DocHandle<WorkerDoc>;
+  /** Last task URL reported by the worker pool heartbeat (replica of WorkerDoc). */
   currentTaskUrl: AutomergeUrl | null;
+  /** Task URL this router assigned via broadcast but the worker doc may not reflect yet. */
+  claimedTaskUrl: AutomergeUrl | null;
+  /** When {@link claimedTaskUrl} was set; used to drop stuck claims if replicas miss the busy state. */
+  claimIssuedAt: number;
   taskQueues: TaskQueueSet;
   lastTimestamp: number;
 }
@@ -103,6 +108,7 @@ async function init(
 
 async function pRouteTasks() {
   while (true) {
+    releaseRouterClaimsAckedByWorkerDoc();
     const idleWorkersByTaskQueueUrl = getIdleWorkersByTaskQueueUrl();
     const taskQueuesWithPendingTasks = shuffle(
       [...taskQueueHandles.values()]
@@ -122,7 +128,9 @@ async function pRouteTasks() {
       }
 
       const worker = shuffle([...idleWorkers])[0];
-      worker.currentTaskUrl = nextPendingTaskUrl;
+      worker.claimedTaskUrl = nextPendingTaskUrl;
+      worker.claimIssuedAt = Date.now();
+      console.log('routing task', nextPendingTaskUrl, 'to worker', worker.handle.url);
       worker.handle.broadcast({
         type: 'work on',
         taskUrl: nextPendingTaskUrl,
@@ -227,8 +235,41 @@ function attemptToTakeOver(taskQueueHandle: DocHandle<TaskQueueDoc>) {
 
 // helpers
 
+/** Drop router-side claims once we know the worker took the task, or recover from missed replicas. */
+function releaseRouterClaimsAckedByWorkerDoc() {
+  const now = Date.now();
+  for (const worker of workers.values()) {
+    const claimed = worker.claimedTaskUrl;
+    if (!claimed) {
+      continue;
+    }
+
+    const docTask = worker.handle.doc().currentTask?.taskUrl;
+    if (docTask === claimed) {
+      worker.claimedTaskUrl = null;
+      continue;
+    }
+
+    // Pool heartbeat saw this worker busy with our claim — safe to drop claim; busy is tracked via currentTaskUrl.
+    if (worker.currentTaskUrl === claimed) {
+      worker.claimedTaskUrl = null;
+      continue;
+    }
+
+    // Fast tasks can finish between heartbeats so we never observe currentTask === claimed on this replica.
+    const idleOnRouter = !docTask && !worker.currentTaskUrl;
+    if (idleOnRouter && now - worker.claimIssuedAt > 4_000) {
+      worker.claimedTaskUrl = null;
+    }
+  }
+}
+
 function getIdleWorkersByTaskQueueUrl() {
-  const idleWorkers = [...workers.values()].filter((worker) => !worker.handle.doc().currentTask);
+  const idleWorkers = [...workers.values()].filter((worker) => {
+    const docBusy = !!worker.handle.doc().currentTask;
+    const heartbeatBusy = !!worker.currentTaskUrl;
+    return !docBusy && !heartbeatBusy && !worker.claimedTaskUrl;
+  });
   const idleWorkersByTaskQueueUrl = new Map<AutomergeUrl, Set<WorkerState>>();
   for (const worker of idleWorkers) {
     for (const taskQueueUrl of Object.keys(worker.taskQueues) as AutomergeUrl[]) {
@@ -251,9 +292,13 @@ function nextPendingTask(taskQueueHandle: DocHandle<TaskQueueDoc>) {
 }
 
 function isReallyPending(taskUrl: AutomergeUrl) {
-  for (const { handle } of workers.values()) {
-    const currentTaskUrl = handle.doc().currentTask?.taskUrl;
-    if (taskUrl === currentTaskUrl) {
+  for (const worker of workers.values()) {
+    const docTask = worker.handle.doc().currentTask?.taskUrl;
+    if (
+      taskUrl === docTask ||
+      taskUrl === worker.claimedTaskUrl ||
+      taskUrl === worker.currentTaskUrl
+    ) {
       return false;
     }
   }
@@ -320,12 +365,18 @@ async function processWorkerHeartbeat(
     state.currentTaskUrl = currentTaskUrl;
     state.taskQueues = taskQueues;
     state.lastTimestamp = lastTimestamp;
+    // Heartbeat proves the pool saw the worker pick up this assignment; router doc can still lag.
+    if (state.claimedTaskUrl && currentTaskUrl === state.claimedTaskUrl) {
+      state.claimedTaskUrl = null;
+    }
   } else {
     try {
       await repoPromise;
       workers.set(workerUrl, {
         handle: await repo.find(workerUrl),
         currentTaskUrl,
+        claimedTaskUrl: null,
+        claimIssuedAt: 0,
         taskQueues,
         lastTimestamp,
       });
@@ -342,4 +393,4 @@ function thisIsTheActiveRouterFor(taskQueueHandle: DocHandle<TaskQueueDoc>) {
   );
 }
 
-export {}; // to ensure this is a module
+export { }; // to ensure this is a module
