@@ -17,31 +17,31 @@
   "author": "Ink & Switch",
   "dependencies": {
     "@automerge/automerge": "^3.2.6",
-    "@automerge/automerge-repo": "2.6.0-subduction.16",
-    "@automerge/automerge-repo-react-hooks": "2.6.0-subduction.16",
-    "@automerge/vanillajs": "^2.6.0-subduction.16",
+    "@automerge/automerge-repo": "2.6.0-subduction.19",
+    "@automerge/automerge-repo-react-hooks": "2.6.0-subduction.19",
+    "@automerge/vanillajs": "2.6.0-subduction.19",
+    "@awarth/tasklib": "^0.0.10",
     "@inkandswitch/patchwork-bootloader": "^0.0.9",
     "@inkandswitch/patchwork-elements": "^0.0.3",
     "@inkandswitch/patchwork-plugins": "^0.0.2",
-    "@awarth/tasklib": "^0.0.3",
     "boring-name-generator": "^1.0.3",
-    "es-module-shims": "^2.8.0",
+    "es-module-shims": "^2.8.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwindcss": "^4.0.9"
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.9",
-    "@types/react": "^18.3.3",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/react": "^18.3.28",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.20",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.5.0",
     "client@^18.3.1": "link:@types/react-dom/client@^18.3.1",
-    "nodemon": "^3.1.9",
-    "vite": "^5.3.4",
+    "nodemon": "^3.1.14",
+    "vite": "^5.4.21",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vite-plugin-top-level-await": "^1.4.2",
-    "vite-plugin-wasm": "^3.3.0"
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0"
   },
   "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264"
 }

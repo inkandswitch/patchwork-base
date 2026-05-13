@@ -204,7 +204,7 @@ async function pTakeOverFromInactiveRouters() {
         activeRouterUrl && lastTimestampFromRouter.has(activeRouterUrl)
           ? lastTimestampFromRouter.get(activeRouterUrl)!
           : 0;
-      if (lastTimestamp < Date.now() - 3 * 1_000) {
+      if (lastTimestamp < Date.now() - 10 * 1_000) {
         attemptToTakeOver(taskQueueHandle);
       }
     }
