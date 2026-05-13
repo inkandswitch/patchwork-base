@@ -1,14 +1,11 @@
 import type { AutomergeUrl } from '@automerge/automerge-repo';
 import type { MessageToRouter, MessageToWorker, MessageToWorkerPool } from './protocol';
 
-import { IndexedDBStorageAdapter, MessageChannelNetworkAdapter, Repo } from '@automerge/vanillajs';
 import { getAccountHandle, getTaskQueues } from './helpers';
 
 import WorkerPool from './worker-pool.ts?sharedworker';
 import TaskWorker from './worker.ts?sharedworker';
 import TaskRouter from './router.ts?sharedworker';
-
-const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? 'dev';
 
 const NUM_WORKERS = 2;
 
@@ -16,8 +13,6 @@ export class WorkerPoolProxy {
   private readonly workerPool: SharedWorker;
   private readonly workers: SharedWorker[] = [];
   private readonly router: SharedWorker;
-  private _repo: Repo | null = null;
-  private _repoPromise: Promise<Repo> | null = null;
 
   constructor(
     readonly contactUrl: AutomergeUrl,
@@ -35,7 +30,7 @@ export class WorkerPoolProxy {
 
   private createAndInitializeWorkerPool(importMap: any, baseURI: string) {
     // create the shared worker
-    const workerPool = new WorkerPool({ name: `task-worker-pool-${BUILD_ID}` });
+    const workerPool = new WorkerPool({ name: `task-worker-pool` });
     workerPool.onerror = (error) => log(error);
 
     this.subscribeToRepoChannel('worker pool', (repoPort) => {
@@ -57,7 +52,7 @@ export class WorkerPoolProxy {
 
   private createAndInitializeWorker(id: number, importMap: any, baseURI: string) {
     // create the shared worker
-    const name = `task-worker-${BUILD_ID}-${id}`;
+    const name = `task-worker-${id}`;
     log('creating and initializing worker', name);
     const worker = new TaskWorker({ name });
     worker.onerror = (error) => log(`worker ${id} error:`, error);
@@ -93,7 +88,7 @@ export class WorkerPoolProxy {
 
   private createAndInitializeRouter(importMap: any, baseURI: string) {
     // create the shared worker
-    const router = new TaskRouter({ name: `task-router-${BUILD_ID}` });
+    const router = new TaskRouter({ name: `task-router` });
     router.onerror = (error) => log(error);
 
     this.subscribeToRepoChannel('router', (repoPort) => {
@@ -129,38 +124,13 @@ export class WorkerPoolProxy {
       this.workerPool.port.postMessage(message);
     };
 
-    const accountHandle = await getAccountHandle((await this.getRepo()) as any);
+    const accountHandle = await getAccountHandle(repo);
     accountHandle.on('change', (payload) => updateTaskQueues(payload.handle.doc()));
     updateTaskQueues(accountHandle.doc());
   }
 
   sendToRouter(message: MessageToRouter) {
     this.router.port.postMessage(message);
-  }
-
-  async getRepo() {
-    if (!this._repoPromise) {
-      this._repoPromise = (async () => {
-        const repo = new Repo({
-          storage: new IndexedDBStorageAdapter(),
-          peerId: `worker-pool-proxy-${Math.round(Math.random() * 10_000)}` as any,
-        });
-        this._repo = repo;
-
-        let activeRepoPort: MessagePort | undefined;
-        await getPatchworkSw().subscribeToRepoChannel(async (repoPort) => {
-          const previousPort = activeRepoPort;
-          activeRepoPort = repoPort;
-          const net = new MessageChannelNetworkAdapter(repoPort);
-          repo.networkSubsystem.addNetworkAdapter(net);
-          await net.whenReady();
-          previousPort?.close();
-        });
-
-        return repo;
-      })();
-    }
-    return this._repoPromise;
   }
 
   private subscribeToRepoChannel(
