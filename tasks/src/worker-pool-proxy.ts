@@ -1,7 +1,6 @@
 import type { AutomergeUrl } from '@automerge/automerge-repo';
 import type { MessageToRouter, MessageToWorker, MessageToWorkerPool } from './protocol';
 
-import { IndexedDBStorageAdapter, MessageChannelNetworkAdapter, Repo } from '@automerge/vanillajs';
 import { getAccountHandle, getTaskQueues } from './helpers';
 
 import WorkerPool from './worker-pool.ts?sharedworker';
@@ -16,7 +15,6 @@ export class WorkerPoolProxy {
   private readonly workerPool: SharedWorker;
   private readonly workers: SharedWorker[] = [];
   private readonly router: SharedWorker;
-  private _repo: Repo | null = null;
 
   constructor(
     readonly contactUrl: AutomergeUrl,
@@ -129,25 +127,13 @@ export class WorkerPoolProxy {
       this.workerPool.port.postMessage(message);
     };
 
-    const accountHandle = await getAccountHandle((await this.getRepo()) as any);
+    const accountHandle = await getAccountHandle(repo);
     accountHandle.on('change', (payload) => updateTaskQueues(payload.handle.doc()));
     updateTaskQueues(accountHandle.doc());
   }
 
   sendToRouter(message: MessageToRouter) {
     this.router.port.postMessage(message);
-  }
-
-  async getRepo() {
-    if (!this._repo) {
-      this._repo = new Repo({
-        storage: new IndexedDBStorageAdapter(),
-        network: [new MessageChannelNetworkAdapter((window as any).getRepoChannel())],
-        peerId: `worker-pool-proxy-${Math.round(Math.random() * 10_000)}` as any,
-      });
-      await this._repo.networkSubsystem.whenReady();
-    }
-    return this._repo;
   }
 }
 
