@@ -14,7 +14,7 @@ import type {
   Repo,
 } from '@automerge/automerge-repo/slim';
 
-import { getRepo, setUpImportMap } from './webworker-lib';
+import { connectRepoPort, getRepo, setUpImportMap } from './webworker-lib';
 import generateName from 'boring-name-generator';
 import { seconds, shuffle } from './helpers';
 
@@ -72,6 +72,10 @@ async function init(
   importMap: any,
   baseURI: string,
 ) {
+  if (repo) {
+    await connectRepoPort(repo, repoPort);
+  }
+
   if (contactUrl && repo && thisRouterHandle) {
     console.log('already initialized');
     return;

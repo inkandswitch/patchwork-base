@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AutomergeUrl, DocHandle } from '@automerge/automerge-repo';
 import { RepoContext, useDocument } from '@automerge/automerge-repo-react-hooks';
@@ -12,7 +12,9 @@ export const TitlebarTool = (handle: DocHandle<unknown>, element: HTMLElement) =
   const root = createRoot(element);
   root.render(
     <RepoContext.Provider value={repo}>
-      <ITitlebarTool element={element} />
+      <Suspense fallback={null}>
+        <ITitlebarTool element={element} />
+      </Suspense>
     </RepoContext.Provider>,
   );
   return () => root.unmount();
@@ -33,11 +35,12 @@ const ITitlebarTool: React.FC<{ element: HTMLElement }> = ({ element }) => {
   return (
     <div style={{ display: 'flex', gap: '0.25em', alignItems: 'center', height: '100%' }}>
       {Object.keys(taskQueueUrls).map((taskQueueUrl) => (
-        <TaskQueue
-          key={taskQueueUrl}
-          element={element}
-          taskQueueUrl={taskQueueUrl as AutomergeUrl}
-        />
+        <Suspense key={taskQueueUrl} fallback={null}>
+          <TaskQueue
+            element={element}
+            taskQueueUrl={taskQueueUrl as AutomergeUrl}
+          />
+        </Suspense>
       ))}
     </div>
   );

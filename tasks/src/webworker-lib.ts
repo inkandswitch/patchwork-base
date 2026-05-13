@@ -1,3 +1,5 @@
+import type { Repo } from '@automerge/automerge-repo/slim';
+
 const shimCodeUrl = 'https://ga.jspm.io/npm:es-module-shims@1.6.2/dist/es-module-shims.wasm.js';
 
 let importMapReady: Promise<void> | null = null;
@@ -87,12 +89,11 @@ export async function getRepo(port: MessagePort, peerId: string) {
   console.log('Automerge & Subduction WASM initialized');
 
   const repo = new Repo({
-    network: [new MessageChannelNetworkAdapter(port)],
     storage: new IndexedDBStorageAdapter(),
     peerId: peerId as any,
   });
 
-  await repo.networkSubsystem.whenReady();
+  await connectRepoPort(repo, port);
 
   return repo;
 }
@@ -121,4 +122,11 @@ async function getRepoModules() {
   }
 
   return repoModulesReady;
+}
+
+export async function connectRepoPort(repo: Repo, port: MessagePort) {
+  const { MessageChannelNetworkAdapter } = await getRepoModules();
+  const adapter = new MessageChannelNetworkAdapter(port);
+  repo.networkSubsystem.addNetworkAdapter(adapter);
+  await adapter.whenReady();
 }

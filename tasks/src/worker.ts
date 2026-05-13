@@ -7,7 +7,7 @@ import type { MessageToWorker, MessageToWorkerChannel, MessageToWorkerPoolProxy 
 import type { Repo, AutomergeUrl, DocHandle } from '@automerge/automerge-repo/slim';
 
 import generateName from 'boring-name-generator';
-import { getRepo, setUpImportMap } from './webworker-lib';
+import { connectRepoPort, getRepo, setUpImportMap } from './webworker-lib';
 
 let status: 'not initialized' | 'initializing' | 'ready' = 'not initialized';
 
@@ -52,6 +52,7 @@ async function init(
   // A second `init` must still announce this worker to the pool; otherwise the pool
   // never hears `register worker` and the router gets empty worker lists.
   if (status === 'ready') {
+    await connectRepoPort(globalThis.repo, repoPort);
     workerPoolProxyPort.postMessage({
       type: 'register worker',
       sharedWorkerName: self.name,
@@ -61,6 +62,9 @@ async function init(
   }
 
   if (status !== 'not initialized') {
+    if (globalThis.repo) {
+      await connectRepoPort(globalThis.repo, repoPort);
+    }
     return;
   }
 

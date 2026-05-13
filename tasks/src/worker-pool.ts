@@ -4,7 +4,7 @@ import type { AutomergeUrl, DocHandle, Repo } from '@automerge/automerge-repo/sl
 import type { WorkerDoc, RouterDoc, TaskQueueDoc, TaskQueueSet } from './datatype';
 import type { MessageToWorkerPool, MessageToRouterChannel } from './protocol';
 
-import { getRepo, setUpImportMap } from './webworker-lib';
+import { connectRepoPort, getRepo, setUpImportMap } from './webworker-lib';
 import { seconds } from './helpers';
 
 interface TaskQueueState {
@@ -50,6 +50,9 @@ self.addEventListener('connect', (e: any) => {
 
 async function init(port: MessagePort, importMap: any, baseURI: string) {
   if (status !== 'not initialized') {
+    if (repo) {
+      await connectRepoPort(repo, port);
+    }
     return;
   }
 

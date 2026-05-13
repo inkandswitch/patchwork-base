@@ -1,6 +1,7 @@
 import type { AutomergeUrl } from '@automerge/automerge-repo';
 import type { MessageToRouter, MessageToWorker, MessageToWorkerPool } from './protocol';
 
+import { IndexedDBStorageAdapter, MessageChannelNetworkAdapter, Repo } from '@automerge/vanillajs';
 import { getAccountHandle, getTaskQueues } from './helpers';
 
 import WorkerPool from './worker-pool.ts?sharedworker';
@@ -15,6 +16,8 @@ export class WorkerPoolProxy {
   private readonly workerPool: SharedWorker;
   private readonly workers: SharedWorker[] = [];
   private readonly router: SharedWorker;
+  private _repo: Repo | null = null;
+  private _repoPromise: Promise<Repo> | null = null;
 
   constructor(
     readonly contactUrl: AutomergeUrl,
@@ -35,20 +38,19 @@ export class WorkerPoolProxy {
     const workerPool = new WorkerPool({ name: `task-worker-pool-${BUILD_ID}` });
     workerPool.onerror = (error) => log(error);
 
-    // initialize it (doesn't matter if this message is sent more than once)
-    const repoPort = (window as any).getRepoChannel();
-    log('sending init to worker pool');
-
-    workerPool.port.postMessage(
-      {
-        type: 'init',
-        contactUrl: this.contactUrl,
-        repoPort: repoPort,
-        importMap,
-        baseURI,
-      } satisfies MessageToWorkerPool,
-      [repoPort],
-    );
+    this.subscribeToRepoChannel('worker pool', (repoPort) => {
+      log('sending init to worker pool');
+      workerPool.port.postMessage(
+        {
+          type: 'init',
+          contactUrl: this.contactUrl,
+          repoPort,
+          importMap,
+          baseURI,
+        } satisfies MessageToWorkerPool,
+        [repoPort],
+      );
+    });
 
     return workerPool;
   }
@@ -72,19 +74,19 @@ export class WorkerPoolProxy {
 
     (worker.port as any).start?.();
 
-    // initialize it (doesn't matter if this message is sent more than once)
-    log('sending init message to', name);
-    const repoPort = (window as any).getRepoChannel();
-    worker.port.postMessage(
-      {
-        type: 'init',
-        repoPort,
-        contactUrl: this.contactUrl,
-        importMap,
-        baseURI,
-      } satisfies MessageToWorker,
-      [repoPort],
-    );
+    this.subscribeToRepoChannel(name, (repoPort) => {
+      log('sending init message to', name);
+      worker.port.postMessage(
+        {
+          type: 'init',
+          repoPort,
+          contactUrl: this.contactUrl,
+          importMap,
+          baseURI,
+        } satisfies MessageToWorker,
+        [repoPort],
+      );
+    });
 
     return worker;
   }
@@ -94,19 +96,19 @@ export class WorkerPoolProxy {
     const router = new TaskRouter({ name: `task-router-${BUILD_ID}` });
     router.onerror = (error) => log(error);
 
-    // initialize it (doesn't matter if this message is sent more than once)
-    log('sending init message to router');
-    const repoPort = (window as any).getRepoChannel();
-    router.port.postMessage(
-      {
-        type: 'init',
-        repoPort,
-        contactUrl: this.contactUrl,
-        importMap,
-        baseURI,
-      } satisfies MessageToRouter,
-      [repoPort],
-    );
+    this.subscribeToRepoChannel('router', (repoPort) => {
+      log('sending init message to router');
+      router.port.postMessage(
+        {
+          type: 'init',
+          repoPort,
+          contactUrl: this.contactUrl,
+          importMap,
+          baseURI,
+        } satisfies MessageToRouter,
+        [repoPort],
+      );
+    });
 
     // note: no `await` on purpose
     this.setUpTaskQueueSetUpdates();
@@ -127,7 +129,7 @@ export class WorkerPoolProxy {
       this.workerPool.port.postMessage(message);
     };
 
-    const accountHandle = await getAccountHandle(repo);
+    const accountHandle = await getAccountHandle((await this.getRepo()) as any);
     accountHandle.on('change', (payload) => updateTaskQueues(payload.handle.doc()));
     updateTaskQueues(accountHandle.doc());
   }
@@ -135,6 +137,54 @@ export class WorkerPoolProxy {
   sendToRouter(message: MessageToRouter) {
     this.router.port.postMessage(message);
   }
+
+  async getRepo() {
+    if (!this._repoPromise) {
+      this._repoPromise = (async () => {
+        const repo = new Repo({
+          storage: new IndexedDBStorageAdapter(),
+          peerId: `worker-pool-proxy-${Math.round(Math.random() * 10_000)}` as any,
+        });
+        this._repo = repo;
+
+        let activeRepoPort: MessagePort | undefined;
+        await getPatchworkSw().subscribeToRepoChannel(async (repoPort) => {
+          const previousPort = activeRepoPort;
+          activeRepoPort = repoPort;
+          const net = new MessageChannelNetworkAdapter(repoPort);
+          repo.networkSubsystem.addNetworkAdapter(net);
+          await net.whenReady();
+          previousPort?.close();
+        });
+
+        return repo;
+      })();
+    }
+    return this._repoPromise;
+  }
+
+  private subscribeToRepoChannel(
+    label: string,
+    listener: (repoPort: MessagePort) => void,
+  ) {
+    void getPatchworkSw().subscribeToRepoChannel(async (repoPort) => {
+      listener(repoPort);
+    }).catch((error) => {
+      console.error(`failed to subscribe ${label} to repo channel`, error);
+    });
+  }
+}
+
+function getPatchworkSw() {
+  const sw = (window as any).patchwork?.sw;
+  if (!sw?.subscribeToRepoChannel) {
+    throw new Error('patchwork service worker repo channel API is unavailable');
+  }
+  return sw as {
+    subscribeToRepoChannel: (
+      listener: (repoPort: MessagePort) => void | Promise<void>,
+    ) => Promise<() => void>;
+  };
 }
 
 function log(...args: any) {
