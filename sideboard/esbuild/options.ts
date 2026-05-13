@@ -20,7 +20,7 @@ export default {
   logLevel: "debug",
   sourcemap: !pushworking,
   external: externals,
-  minify: false,
+  minify: true,
   plugins: [
     solid(),
     {
