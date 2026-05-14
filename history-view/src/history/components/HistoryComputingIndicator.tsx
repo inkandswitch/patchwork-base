@@ -6,11 +6,11 @@
 export function HistoryComputingIndicator() {
   return (
     <div
-      class="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 px-6 py-10 text-center text-base-content/60"
+      class="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 px-6 py-10 text-center text-[var(--history-muted-fg)]"
       role="status"
       aria-live="polite"
     >
-      <span class="loading loading-dots loading-md text-base-content/40" />
+      <span class="loading loading-dots loading-md text-[var(--history-muted-fg)]" />
       <div class="text-sm">Computing history…</div>
     </div>
   );

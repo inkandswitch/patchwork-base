@@ -10,11 +10,11 @@ export interface LabeledFieldProps {
  */
 export function LabeledField(props: LabeledFieldProps) {
   return (
-    <div class="mb-2">
-      <div class="text-[11px] font-medium text-base-content/50 uppercase tracking-wide mb-0.5">
+    <div>
+      <div class="text-[11px] font-medium text-[var(--history-muted-fg)] uppercase tracking-wide mb-0.5">
         {props.label}
       </div>
-      <div class="text-sm text-base-content">{props.children}</div>
+      <div class="text-sm text-[var(--history-fg)]">{props.children}</div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
-import { For } from "solid-js";
+import { Show } from "solid-js";
 import { $selectedDocUrls } from "@inkandswitch/annotations-selection";
 import { useSubscribe } from "@inkandswitch/subscribables-solid";
 import { DocHistoryView } from "./components/DocHistoryView";
@@ -10,26 +10,25 @@ export interface PatchworkToolProps {
 }
 
 /**
- * Main timeline component that renders history views for all selected
- * documents. When only a single doc is selected its title is redundant (the
- * surrounding UI already shows it), so we hide the per-doc title header in
- * that case and only render per-doc titles when multiple docs are selected.
+ * Main timeline component that renders history for the primary selected
+ * document (the first URL in the selection). Ignores additional selected URLs
+ * that may appear when interacting with the document, so that clicking in the
+ * editor never spawns a second history panel below the original.
  */
 export function HistoryTimeline(props: PatchworkToolProps) {
   const selectedDocUrls = useSubscribe($selectedDocUrls);
-  const showTitle = () => selectedDocUrls().length > 1;
+  const primaryUrl = () => selectedDocUrls()[0] as AutomergeUrl | undefined;
 
   return (
     <div class="flex flex-col h-full">
-      <For each={selectedDocUrls()}>
+      <Show when={primaryUrl()} keyed>
         {(url) => (
           <DocHistoryView
-            url={url as AutomergeUrl}
+            url={url}
             repo={props.repo}
-            showTitle={showTitle}
           />
         )}
-      </For>
+      </Show>
     </div>
   );
 }
