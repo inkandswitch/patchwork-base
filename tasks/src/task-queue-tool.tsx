@@ -40,11 +40,8 @@ export const TaskQueueTool = (handle: DocHandle<unknown>, element: HTMLElement) 
 
 const ITaskQueueBrowserTool: React.FC<any> = ({ docUrl }) => {
   const repo = useRepo();
-  const [{ title, activeRouter, pending, done }, changeDoc] = useDocument<TaskQueueDoc>(docUrl, {
-    suspense: true,
-  });
-
   const handle = useDocHandle<TaskQueueDoc>(docUrl, { suspense: true });
+  const { activeRouter, pending, done } = handle.doc();
 
   const [workers, setWorkers] = useState<AutomergeUrl[]>([]);
   const [inputExpr, setInputExpr] = useState(DEFAULT_INPUT_EXPR);
@@ -140,7 +137,7 @@ const ITaskQueueBrowserTool: React.FC<any> = ({ docUrl }) => {
     const input = eval(inputExpr);
     const importUrl = `data:application/javascript;base64,${btoa(code)}`;
     const taskDoc = repo.create<TaskDoc<any, any>>({ input, importUrl, runs: [] });
-    changeDoc((doc) => doc.pending.push(taskDoc.url));
+    handle.change((doc) => doc.pending.push(taskDoc.url));
   }
 };
 
