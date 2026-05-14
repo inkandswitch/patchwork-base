@@ -17,9 +17,9 @@
   "author": "Ink & Switch",
   "dependencies": {
     "@automerge/automerge": "^3.2.6",
-    "@automerge/automerge-repo": "2.6.0-subduction.19",
-    "@automerge/automerge-repo-react-hooks": "2.6.0-subduction.19",
-    "@automerge/vanillajs": "2.6.0-subduction.19",
+    "@automerge/automerge-repo": "2.6.0-subduction.20",
+    "@automerge/automerge-repo-react-hooks": "2.6.0-subduction.20",
+    "@automerge/vanillajs": "2.6.0-subduction.20",
     "@awarth/tasklib": "^0.0.10",
     "@inkandswitch/patchwork-bootloader": "^0.0.9",
     "@inkandswitch/patchwork-elements": "^0.0.3",
