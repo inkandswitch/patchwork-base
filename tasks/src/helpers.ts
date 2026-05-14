@@ -34,7 +34,7 @@ export async function getSelfContactUrl(repo: Repo): Promise<AutomergeUrl> {
 export type TaskQueues = { [taskQueueUrl: AutomergeUrl]: true };
 
 export function getTaskQueues(account: any): TaskQueues {
-  return account[TASK_QUEUE_URLS_FIELD_NAME] ?? { 'automerge:21cbVwPwNZWXzC29AzhJGsVzSuQW': true };
+  return account[TASK_QUEUE_URLS_FIELD_NAME] ?? { 'automerge:2xrHArq3QwSGHaeUdquP7ECTpnEL': true };
 }
 
 export function addTaskQueue(account: any, taskQueueUrl: AutomergeUrl) {
