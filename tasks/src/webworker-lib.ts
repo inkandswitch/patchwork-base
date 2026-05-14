@@ -95,6 +95,8 @@ export async function getRepo(port: MessagePort, peerId: string) {
 
   await connectRepoPort(repo, port);
 
+  (globalThis as any).repo = repo;
+
   return repo;
 }
 
