@@ -93,6 +93,7 @@ async function init(
 
   thisRouterHandle = repo.create<RouterDoc>({ name: generateName().dashed, contactUrl });
   thisRouterHandle.on('ephemeral-message', (payload) => {
+    console.log('received ephemeral message directed at me (as the active router)');
     const msg: MessageToRouterChannel = payload.message as any;
     switch (msg.type) {
       case 'worker heartbeat':
@@ -158,6 +159,7 @@ async function pSendHeartbeats() {
   while (true) {
     for (const taskQueueHandle of taskQueueHandles.values()) {
       if (thisIsTheActiveRouterFor(taskQueueHandle)) {
+        console.log('sending router heartbeat');
         taskQueueHandle.broadcast({
           type: 'router heartbeat',
           routerUrl: thisRouterHandle.url,
@@ -347,6 +349,7 @@ async function leaveTaskQueue(taskQueueUrl: AutomergeUrl) {
 
 function handleEphemeralMessages(payload: DocHandleEphemeralMessagePayload<TaskQueueDoc>) {
   const msg: MessageToTaskQueueChannel = payload.message as any;
+  console.log('received ephemeral message (directed at task queue)', msg);
   switch (msg.type) {
     case 'router heartbeat':
       processRouterHeartbeat(msg.routerUrl);

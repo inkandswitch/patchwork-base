@@ -170,7 +170,7 @@ async function pSendWorkerStatuses() {
         if (currentTask && currentTask.taskQueueUrl !== taskQueueUrl) {
           // don't bother sending the heartbeats of workers that are busy with tasks from other queues
         } else {
-          // console.log('sending worker heartbeat to', activeRouterHandle.url, { workerUrl, currentTask });
+          console.log('sending worker heartbeat to', activeRouterHandle.url, { workerUrl, currentTask });
           activeRouterHandle.broadcast({
             type: 'worker heartbeat',
             workerUrl,

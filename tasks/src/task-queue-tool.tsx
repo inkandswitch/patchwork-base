@@ -52,10 +52,15 @@ const ITaskQueueBrowserTool: React.FC<any> = ({ docUrl }) => {
 
   useEffect(() => {
     const messageHandler = (m: any) => {
+      console.log('received ephemeral message', m);
       const msg = m.message as MessageToTaskQueueChannel;
       if (msg) {
         // console.log('received router heartbeat', msg);
-        setWorkers(msg.workerUrls);
+        if (msg.routerUrl !== activeRouter) {
+          console.log('^^ that was a router heartbeat from a different router!');
+        } else {
+          setWorkers(msg.workerUrls);
+        }
       }
     };
     handle.on('ephemeral-message', messageHandler);
