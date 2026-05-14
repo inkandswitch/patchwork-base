@@ -37,6 +37,14 @@ export interface CachedHistory {
    * "computing history…" UI instead of the (empty) item list.
    */
   isInitializing: Accessor<boolean>;
+  /** True while a forced recompute is in progress */
+  isRecalculating: Accessor<boolean>;
+  /** Unix ms timestamp from historyDoc.updatedAt — when the task last ran */
+  updatedAt: Accessor<number | undefined>;
+  /** Reset the cache and re-dispatch the grouping task from scratch */
+  forceRecompute: () => void;
+  /** Persist a user-defined label for an item (keyed by latestHash) */
+  setLabel: (hash: string, label: string) => void;
 }
 
 /**
@@ -89,10 +97,6 @@ export function useCachedHistory(
   let lastDispatchTime = 0;
 
   const dispatchTask = (sourceUrl: AutomergeUrl) => {
-    console.log(
-      "localStorage.useTasks ('truthy' -> use tasks, all other values run on main thread)",
-      localStorage.useTasks
-    );
     if (localStorage.useTasks) {
       tasklib
         .queue("automerge:21cbVwPwNZWXzC29AzhJGsVzSuQW" as AutomergeUrl)
@@ -102,12 +106,7 @@ export function useCachedHistory(
         });
       lastDispatchTime = Date.now();
     } else {
-      console.log("Running history task on main thread until tasks stabilize.");
-<<<<<<< HEAD
       import("../task").then((m) => {
-=======
-      const module = import("../task").then((m) => {
->>>>>>> bf5e26f (Make task API optional and use Alex's implementation.)
         m.default(sourceUrl);
         lastDispatchTime = Date.now();
       });
@@ -129,6 +128,8 @@ export function useCachedHistory(
   const [sourceHeads, setSourceHeads] = createSignal<string[] | undefined>(
     undefined
   );
+
+  const [isRecalculating, setIsRecalculating] = createSignal(false);
 
   createEffect(() => {
     const source = sourceHandle();
@@ -157,6 +158,8 @@ export function useCachedHistory(
       const cachedHeads = histDoc.heads ?? [];
       if (headsEqual(currentHeads, cachedHeads)) return;
 
+      if (Date.now() - lastDispatchTime < DISPATCH_COOLDOWN_MS) return;
+
       // Precise trigger: only dispatch when the accumulated delta would
       // actually split into more than one group — i.e. when its time span
       // exceeds the strategy's grouping window. Concurrent changes that
@@ -173,7 +176,6 @@ export function useCachedHistory(
         return;
       }
 
-      if (Date.now() - lastDispatchTime < DISPATCH_COOLDOWN_MS) return;
       dispatchTask(source.url);
     };
 
@@ -185,6 +187,14 @@ export function useCachedHistory(
     });
   });
 
+  // Clear isRecalculating once the task writes non-empty heads back.
+  createEffect(() => {
+    const heads = historyDoc()?.heads;
+    if (heads && heads.length > 0 && isRecalculating()) {
+      setIsRecalculating(false);
+    }
+  });
+
   // PART 4: Return reactive items. If the source doc has advanced past the
   // cached heads, synthesize a single "virtual" item at the top of the list
   // covering the ungrouped tail. The virtual item is never stored; it
@@ -193,8 +203,21 @@ export function useCachedHistory(
   const items = createMemo<HistoryItem[]>(() => {
     const doc = historyDoc();
     const strategyKey = getStrategyKey(strategyConfig());
-    const storedItems: HistoryItem[] =
-      doc?.groupings?.[strategyKey]?.items ?? [];
+    const labels = doc?.labels ?? {};
+    // Deduplicate by latestHash — concurrent task runs (e.g. two browser tabs)
+    // can each splice the same group into the array before syncing, leaving
+    // duplicate entries in the stored doc.
+    const storedItems: HistoryItem[] = deduplicateItems(
+      doc?.groupings?.[strategyKey]?.items ?? []
+    ).map((item) =>
+      labels[item.latestHash]
+        ? { ...item, customLabel: labels[item.latestHash] }
+        : item
+    );
+
+    // While recalculating, keep existing items visible to avoid collapsing the
+    // list into a single virtual item covering all history.
+    if (isRecalculating()) return storedItems;
 
     const cachedHeads = doc?.heads ?? [];
     const currentSourceHeads = sourceHeads();
@@ -213,7 +236,11 @@ export function useCachedHistory(
     deltaMeta.reverse();
 
     const virtualItem = buildVirtualItem(deltaMeta, storedItems[0]?.latestHash);
-    return [virtualItem, ...storedItems];
+
+    const virtualWithLabel = labels[virtualItem.latestHash]
+      ? { ...virtualItem, customLabel: labels[virtualItem.latestHash] }
+      : virtualItem;
+    return [virtualWithLabel, ...storedItems];
   });
 
   // True until the source doc carries a link to a history doc AND that doc
@@ -225,7 +252,35 @@ export function useCachedHistory(
     return historyDoc() === undefined;
   });
 
-  return { items, isInitializing };
+  const updatedAt = createMemo<number | undefined>(() => historyDoc()?.updatedAt);
+
+  const forceRecompute = () => {
+    const hHandle = historyDocHandle();
+    if (hHandle) {
+      hHandle.change((doc: HistoryGroupingsDoc) => {
+        doc.heads = [];
+        doc.updatedAt = 0; // bypass throttle so the task runs immediately
+      });
+      setIsRecalculating(true);
+    }
+    const source = sourceHandle();
+    if (source) dispatchTask(source.url);
+  };
+
+  const setLabel = (hash: string, label: string) => {
+    const hHandle = historyDocHandle();
+    if (!hHandle) return;
+    hHandle.change((doc: HistoryGroupingsDoc) => {
+      if (!doc.labels) doc.labels = {};
+      if (label.trim() === "") {
+        delete doc.labels[hash];
+      } else {
+        doc.labels[hash] = label.trim();
+      }
+    });
+  };
+
+  return { items, isInitializing, isRecalculating, updatedAt, forceRecompute, setLabel };
 }
 
 /**
@@ -254,6 +309,7 @@ function buildVirtualItem(
     count: deltaMeta.length,
     latestHash: deltaMeta[0].hash,
     authors,
+    isVirtual: true,
   };
 
   if (minTime !== Infinity) {
@@ -272,14 +328,26 @@ function buildVirtualItem(
 }
 
 /**
+ * Remove items with duplicate latestHash values, keeping the first occurrence.
+ * Guards against concurrent task runs each splicing the same group into the
+ * stored array before their changes sync and merge.
+ */
+function deduplicateItems(items: HistoryItem[]): HistoryItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.latestHash)) return false;
+    seen.add(item.latestHash);
+    return true;
+  });
+}
+
+/**
  * Check if two heads arrays are equal (order-independent)
  */
 function headsEqual(heads1: string[], heads2: string[]): boolean {
-  if (heads1.length !== heads2.length) {
-    return false;
-  }
-
-  return heads1.every((h) => heads2.includes(h));
+  if (heads1.length !== heads2.length) return false;
+  const set = new Set(heads2);
+  return heads1.every((h) => set.has(h));
 }
 
 /**

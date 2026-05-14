@@ -2,7 +2,7 @@ import type { JSXElement } from "solid-js";
 
 export interface TimelineCardProps {
   isSelected: boolean;
-  onClick: () => void;
+  onClick: (e: MouseEvent) => void;
   children: JSXElement;
 }
 
@@ -16,20 +16,14 @@ export function TimelineCard(props: TimelineCardProps) {
       role="button"
       tabIndex={0}
       aria-selected={props.isSelected}
-      onClick={props.onClick}
+      onClick={(e) => { e.stopPropagation(); props.onClick(e); }}
       class={
-        "relative text-xs p-3 pl-6 rounded border cursor-pointer " +
+        "relative text-xs py-1.5 px-3 rounded cursor-pointer " +
         (props.isSelected
-          ? "bg-primary border-primary-content"
-          : "bg-base-50 border-base-200 hover:bg-base-100")
+          ? "bg-[var(--history-accent)] border-[var(--history-accent)] text-[var(--history-accent-fg)] [&_*]:text-[var(--history-accent-fg)]"
+          : "bg-[var(--history-card-bg)] hover:bg-[var(--history-card-hover-bg)]")
       }
     >
-      {/* Timeline dot */}
-      <div class="absolute left-2 top-4 w-2 h-2 rounded-full bg-primary"></div>
-
-      {/* Timeline line */}
-      <div class="absolute left-2.5 top-6 bottom-0 w-0.5 bg-base-300 opacity-30 timeline-line"></div>
-
       {props.children}
     </div>
   );

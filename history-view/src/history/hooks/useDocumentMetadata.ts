@@ -21,7 +21,8 @@ export function useDocumentMetadata(
     if (!currentDoc) return "";
     const type = getType(currentDoc);
     const datatype = datatypes.find((dt) => dt.id === type);
-    if (datatype && isLoadedPlugin(datatype)) {
+    if (!datatype) return "";
+    if (datatype && isLoadedPlugin(datatype) && datatype.module) {
       return datatype.module.getTitle(currentDoc);
     }
     return "";

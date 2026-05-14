@@ -15,7 +15,6 @@ export function DateHeader(props: DateHeaderProps) {
     return props.date.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
-      year: "numeric",
     });
   };
 
@@ -47,14 +46,11 @@ export function DateHeader(props: DateHeaderProps) {
   };
 
   return (
-    <div class="sticky top-0 z-10 bg-base-100 py-2 px-3 mb-2">
-      <div class="flex items-baseline gap-2">
-        <div class="text-sm font-semibold text-base-content">
-          {displayDay()}
-        </div>
-        <div class="text-xs text-base-content/60">{formattedDate()}</div>
+    <div class="flex items-center gap-3 py-2 px-3 mb-1">
+      <div class="flex-1 h-px bg-[#ccc]"></div>
+      <div class="text-xs text-[#666] whitespace-nowrap shrink-0">
+        {displayDay()}, {formattedDate()}
       </div>
-      <div class="mt-1 h-px bg-base-300/50"></div>
     </div>
   );
 }
