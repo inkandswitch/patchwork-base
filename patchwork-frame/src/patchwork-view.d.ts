@@ -8,6 +8,12 @@ declare module "solid-js" {
         "tool-id"?: string;
         key?: string | number;
       };
+      "patchwork-view-2": {
+        class?: string;
+        "component-id"?: string;
+        key?: string | number;
+        children?: JSX.Element;
+      };
     }
   }
 }

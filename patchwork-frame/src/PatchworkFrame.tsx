@@ -118,31 +118,33 @@ export const PatchworkFrame = ({
         />
       )}
 
-      {/* Main Content Area */}
-      <div class="main-area">
-        <DocumentToolbar
-          toolIds={() => accountDoc()?.documentToolbarToolIds}
-          docUrl={selectedDoc.selectedDocUrl}
-        />
-        <MainDocumentView
-          viewKey={selectedDoc.viewKey}
-          selectedDocUrl={selectedDoc.selectedDocUrl}
-          toolId={() => selectedDoc.selectedView()?.toolId}
-        />
-      </div>
+      <patchwork-view-2 component-id="patchwork-comments-provider">
+        {/* Main Content Area */}
+        <div class="main-area">
+          <DocumentToolbar
+            toolIds={() => accountDoc()?.documentToolbarToolIds}
+            docUrl={selectedDoc.selectedDocUrl}
+          />
+          <MainDocumentView
+            viewKey={selectedDoc.viewKey}
+            selectedDocUrl={selectedDoc.selectedDocUrl}
+            toolId={() => selectedDoc.selectedView()?.toolId}
+          />
+        </div>
 
-      {/* Right Sidebar */}
-      {accountDoc()?.contextSidebarToolId && (
-        <Sidebar
-          side="right"
-          isCollapsed={sidebarState.isRightSidebarCollapsed}
-          width={sidebarState.rightSidebarWidth}
-          toolId={accountDoc()!.contextSidebarToolId}
-          docUrl={accountDocUrl}
-          onMouseDown={handleMouseDown}
-          onToggleClick={handleToggleClick}
-        />
-      )}
+        {/* Right Sidebar */}
+        {accountDoc()?.contextSidebarToolId && (
+          <Sidebar
+            side="right"
+            isCollapsed={sidebarState.isRightSidebarCollapsed}
+            width={sidebarState.rightSidebarWidth}
+            toolId={accountDoc()!.contextSidebarToolId}
+            docUrl={accountDocUrl}
+            onMouseDown={handleMouseDown}
+            onToggleClick={handleToggleClick}
+          />
+        )}
+      </patchwork-view-2>
     </div>
   );
 };
