@@ -13,6 +13,11 @@ import type { DocWithComments } from "@inkandswitch/patchwork-comments";
 
 const SELECTOR = "patchwork:comments";
 
+type CommentEntry = { targetRef: RefUrl; threadRef: RefUrl };
+
+const entriesEqual = (a: CommentEntry, b: CommentEntry) =>
+  a.targetRef === b.targetRef && a.threadRef === b.threadRef;
+
 export const CommentsProvider = (element: HTMLElement) => {
   const repo = (window as unknown as { repo?: Repo }).repo;
   if (!repo) {
@@ -20,45 +25,66 @@ export const CommentsProvider = (element: HTMLElement) => {
     return () => {};
   }
 
-  // Map of targetRef to threadRefs that reference it.
-  const aggregate = repo.create<Record<RefUrl, RefUrl[]>>({});
+  const allComments = repo.create<{ comments: CommentEntry[] }>({
+    comments: [],
+  });
   const commentsByDocHandle = new Map<
     DocHandle<DocWithComments>,
-    Record<RefUrl, RefUrl[]>
+    CommentEntry[]
   >();
 
-  const buildCommentsForDoc = (
+  const buildEntriesForDoc = (
     handle: DocHandle<DocWithComments>
-  ): Record<RefUrl, RefUrl[]> => {
-    const comments = {} as Record<RefUrl, RefUrl[]>;
+  ): CommentEntry[] => {
+    const entries: CommentEntry[] = [];
     const threads = handle.doc()?.["@comments"]?.threads ?? [];
     for (const thread of threads) {
       if (thread.isResolved) continue;
-      const threadRefUrl = handle.ref("@comments", "threads", {
+      const threadRef = handle.ref("@comments", "threads", {
         id: thread.id,
       }).url;
-      for (const targetRefUrl of thread.refs) {
-        (comments[targetRefUrl] ??= []).push(threadRefUrl);
+      for (const targetRef of thread.refs) {
+        entries.push({ targetRef, threadRef });
       }
     }
-    return comments;
+    return entries;
   };
 
-  const rebuildAggregate = () => {
-    aggregate.change((doc) => {
-      const map = doc as Record<string, RefUrl[]>;
-      for (const k of Object.keys(map)) delete map[k];
-      for (const comments of commentsByDocHandle.values()) {
-        for (const [targetRef, threadRefs] of Object.entries(comments)) {
-          map[targetRef] = [...(map[targetRef] ?? []), ...threadRefs];
+  // We mutate `doc.comments` in place (pop trailing entries, write fields
+  // on existing entries, push new ones) instead of replacing the array or
+  // deleting map keys. This is a workaround for a bug in the automerge
+  // solid bindings: their bundled `applyDelPatch` throws
+  // `RangeError: index is not a number for patch` whenever a `del` patch
+  // arrives with a non-numeric path, so we have to keep every delete as a
+  // numeric array operation.
+  const rebuildAllComments = () => {
+    const next: CommentEntry[] = [];
+    for (const docEntries of commentsByDocHandle.values()) {
+      for (const entry of docEntries) next.push(entry);
+    }
+    allComments.change((doc) => {
+      while (doc.comments.length > next.length) doc.comments.pop();
+      for (let i = 0; i < next.length; i++) {
+        if (i < doc.comments.length) {
+          const cur = doc.comments[i];
+          if (!entriesEqual(cur, next[i])) {
+            if (cur.targetRef !== next[i].targetRef) {
+              cur.targetRef = next[i].targetRef;
+            }
+            if (cur.threadRef !== next[i].threadRef) {
+              cur.threadRef = next[i].threadRef;
+            }
+          }
+        } else {
+          doc.comments.push(next[i]);
         }
       }
     });
   };
 
   const onChange = ({ handle }: DocHandleChangePayload<DocWithComments>) => {
-    commentsByDocHandle.set(handle, buildCommentsForDoc(handle));
-    rebuildAggregate();
+    commentsByDocHandle.set(handle, buildEntriesForDoc(handle));
+    rebuildAllComments();
   };
 
   const watch = async (url: AutomergeUrl) => {
@@ -72,8 +98,8 @@ export const CommentsProvider = (element: HTMLElement) => {
     if (commentsByDocHandle.has(handle)) return;
 
     handle.on("change", onChange);
-    commentsByDocHandle.set(handle, buildCommentsForDoc(handle));
-    rebuildAggregate();
+    commentsByDocHandle.set(handle, buildEntriesForDoc(handle));
+    rebuildAllComments();
   };
 
   const onMounted = (event: Event) => {
@@ -87,7 +113,7 @@ export const CommentsProvider = (element: HTMLElement) => {
 
   const onRequest = (event: RequestEvent) => {
     if (event.detail.type !== SELECTOR) return;
-    provide(event, aggregate as DocHandle<unknown>);
+    provide(event, allComments as DocHandle<unknown>);
   };
   element.addEventListener("patchwork:request", onRequest);
 
@@ -97,6 +123,6 @@ export const CommentsProvider = (element: HTMLElement) => {
     for (const handle of commentsByDocHandle.keys()) {
       handle.off("change", onChange);
     }
-    aggregate.delete();
+    allComments.delete();
   };
 };

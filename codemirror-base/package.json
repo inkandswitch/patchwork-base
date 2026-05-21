@@ -40,6 +40,7 @@
     "@inkandswitch/subscribables-solid": "^0.1.2",
     "@inkandswitch/patchwork-comments": "link:../../patchwork-next/packages/comments",
     "@inkandswitch/patchwork-providers": "link:../../patchwork-next/packages/providers",
+    "@inkandswitch/patchwork-providers-solid": "link:../../patchwork-next/packages/providers-solid",
     "solid-js": "^1.9.9",
     "vite-plugin-wasm": "^3.5.0"
   },

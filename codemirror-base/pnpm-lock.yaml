@@ -47,6 +47,9 @@ importers:
       '@inkandswitch/patchwork-providers':
         specifier: link:../../patchwork-next/packages/providers
         version: link:../../patchwork-next/packages/providers
+      '@inkandswitch/patchwork-providers-solid':
+        specifier: link:../../patchwork-next/packages/providers-solid
+        version: link:../../patchwork-next/packages/providers-solid
       '@inkandswitch/subscribables':
         specifier: ^0.1.2
         version: 0.1.2

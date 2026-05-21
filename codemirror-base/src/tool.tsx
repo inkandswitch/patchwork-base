@@ -21,10 +21,10 @@ import { getRegistry } from "@inkandswitch/patchwork-plugins";
 import { annotations as globalAnnotations } from "@inkandswitch/annotations-context";
 import { Diff } from "@inkandswitch/annotations-diff";
 import { createComment } from "@inkandswitch/patchwork-comments";
-import { request } from "@inkandswitch/patchwork-providers";
+import { request } from "@inkandswitch/patchwork-providers-solid";
 
 /** Styles */
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { useSubscribe } from "@inkandswitch/subscribables-solid";
 
 export type TextDoc = {
@@ -32,9 +32,7 @@ export type TextDoc = {
 };
 
 const PATH = ["content"];
-const VERSION = "v2.0.4";
-
-type CommentsAggregate = Record<RefUrl, RefUrl[]>;
+const VERSION = "v2.0.8";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const contentRef = () => (props.handle as DocHandle<TextDoc>).ref(...PATH);
@@ -46,78 +44,29 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const contentAnnotations = globalAnnotations.onChildrenOf(contentRef());
   const diffAnnotations = useSubscribe(contentAnnotations.ofType(Diff));
 
-  // Aggregate of all comment threads across all docs, keyed by target RefUrl.
-  // We subscribe to the handle directly (rather than via solid-primitives'
-  // `useDocument`) because the latter routes through a Solid store whose
-  // bundled `apply_patches` chokes on `del` patches with string paths — which
-  // happens whenever the provider clears stale map keys during rebuild.
-  let aggregateHandle: DocHandle<CommentsAggregate> | null = null;
-  let aggregateUnsubscribe: (() => void) | null = null;
-  const [aggregateRevision, setAggregateRevision] = createSignal(0);
+  // todo: once we have proper subdoc handle support comments should be just {targetRef: RefUrl, threadRef: RefUrl}[]
+  const [allComments] = request<{
+    comments: { targetRef: RefUrl; threadRef: RefUrl }[];
+  }>(props.element, "patchwork:comments");
 
-  onMount(() => {
-    console.log("[codemirror-base] onMount; requesting aggregate handle");
-    request<CommentsAggregate>(
-      props.element,
-      "patchwork:comments"
-    ).then((handle) => {
-      console.log(
-        "[codemirror-base] aggregate handle received:",
-        handle?.url,
-        "doc:",
-        (handle as unknown as DocHandle<CommentsAggregate>)?.doc()
-      );
-      if (!handle) return;
-      aggregateHandle = handle as unknown as DocHandle<CommentsAggregate>;
-      const onChange = () => {
-        console.log(
-          "[codemirror-base] aggregate change; new doc:",
-          aggregateHandle?.doc()
-        );
-        setAggregateRevision((r) => r + 1);
-      };
-      aggregateHandle.on("change", onChange);
-      aggregateUnsubscribe = () => aggregateHandle?.off("change", onChange);
-      setAggregateRevision((r) => r + 1);
-    });
-  });
-
-  onCleanup(() => {
-    aggregateUnsubscribe?.();
-    aggregateUnsubscribe = null;
-    aggregateHandle = null;
-  });
-
-  const currentDocPrefix = () =>
-    `automerge:${parseAutomergeUrl(props.handle.url).documentId}/`;
-
-  // Target refs (on this document) that have comment threads.
   const commentTargetRefs = (): Ref[] => {
-    const rev = aggregateRevision(); // re-run on any aggregate change
-    const doc = aggregateHandle?.doc();
-    const prefix = currentDocPrefix();
-    console.log(
-      "[codemirror-base] commentTargetRefs rev=",
-      rev,
-      "prefix=",
-      prefix,
-      "doc=",
-      doc
-    );
-    if (!doc) return [];
+    const entries = allComments()?.comments;
+    if (!entries) return [];
+    const seen = new Set<RefUrl>();
     const refs: Ref[] = [];
-    for (const targetRefUrl of Object.keys(doc)) {
-      if (!targetRefUrl.startsWith(prefix)) continue;
+    for (const { targetRef } of entries) {
+      if (!targetRef.startsWith(props.handle.url)) continue;
+      if (seen.has(targetRef)) continue;
+      seen.add(targetRef);
       try {
-        refs.push(refFromUrl(props.handle, targetRefUrl as RefUrl));
+        refs.push(refFromUrl(props.handle, targetRef));
       } catch (error) {
         console.warn(
-          `[codemirror-base] could not resolve ref ${targetRefUrl}`,
+          `[codemirror-base] could not resolve ref ${targetRef}`,
           error
         );
       }
     }
-    console.log("[codemirror-base] commentTargetRefs result:", refs.length);
     return refs;
   };
 
@@ -177,15 +126,8 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
       true // sort ranges
     );
 
-  // Selection broadcast was wired through globalAnnotations. With the new
-  // comments provider we no longer coordinate selection cross-tool. Keep a
-  // no-op so the CodeMirror prop stays satisfied.
-  const onChangeSelection = () => {};
-
-  // handle comment creation
-  // todo: we should have a better way to get the contactUrl of the current account
+  // todo: better way to get the contactUrl of the current account
   const onComment = async (from: number, to: number) => {
-    console.log("[codemirror-base] onComment", { from, to });
     const accountDoc = (
       window as unknown as { accountDocHandle?: DocHandle<unknown> }
     ).accountDocHandle?.doc?.() as { contactUrl?: string } | undefined;
@@ -196,24 +138,16 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
       });
       return;
     }
-    try {
-      const targetRef = props.handle.ref(...PATH, cursor(from, to));
-      console.log("[codemirror-base] creating comment", { targetRef });
-      const commentRef = createComment({
-        // Cast across linked-workspace package boundary (patchwork-comments
-        // resolves Ref types against its own automerge-repo version).
-        refs: [
-          targetRef as unknown as Parameters<
-            typeof createComment
-          >[0]["refs"][number],
-        ],
-        content: "",
-        contactUrl,
-      });
-      console.log("[codemirror-base] created comment", { commentRef });
-    } catch (error) {
-      console.error("[codemirror-base] failed to create comment", error);
-    }
+    const targetRef = props.handle.ref(...PATH, cursor(from, to));
+    createComment({
+      refs: [
+        targetRef as unknown as Parameters<
+          typeof createComment
+        >[0]["refs"][number],
+      ],
+      content: "",
+      contactUrl,
+    });
   };
 
   // Base CodeMirror extensions (context-specific, not language-specific)
@@ -264,7 +198,6 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
               path={PATH}
               decorations={decorations}
               extensions={extensions()}
-              onChangeSelection={onChangeSelection}
               readOnly={isReadOnly()}
             />
           </div>

@@ -4,8 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import { relativeTime } from "./relative-time";
 import { toolify, type ReactToolProps } from "@inkandswitch/patchwork-react";
 import { useRepo, useDocument } from "@automerge/automerge-repo-react-hooks";
-// (useDocument is still used in CommentView to look up contact docs, just not
-// for the aggregate handle — see useDocSnapshot below.)
 import {
   findRef,
   type AutomergeUrl,
@@ -23,85 +21,56 @@ import {
 } from "@inkandswitch/patchwork-comments";
 import { useRefValue } from "@inkandswitch/patchwork-refs-react";
 
-type CommentsAggregate = Record<RefUrl, RefUrl[]>;
+const VERSION = "v2.0.8";
 
-const VERSION = "v2.0.4";
-
-/**
- * Subscribe to a DocHandle and re-render on every "change" event.
- * Returns the doc snapshot (read fresh from the handle each render).
- *
- * We don't use `useDocument` from @automerge/automerge-repo-react-hooks
- * because it routes through a patch-based store whose `apply_patches`
- * implementation throws when a `del` patch arrives with a string path key
- * (which is exactly what CommentsProvider emits when it clears stale
- * aggregate keys during a rebuild).
- */
 function useDocSnapshot<T extends object>(
   handle: DocHandle<T> | null
 ): T | undefined {
-  const [revision, setRevision] = useState(0);
+  const [, setRevision] = useState(0);
   useEffect(() => {
     if (!handle) return;
-    console.log("[CommentsView] subscribing to handle", handle.url);
-    const bump = () => {
-      console.log("[CommentsView] handle change", handle.url);
-      setRevision((r) => r + 1);
-    };
+    const bump = () => setRevision((r) => r + 1);
     handle.on("change", bump);
-    // Trigger an initial render after subscription so we re-read once the
-    // listener is in place (in case the doc was modified between mount and
-    // subscription).
     setRevision((r) => r + 1);
     return () => {
       handle.off("change", bump);
     };
   }, [handle]);
-  const doc = handle?.doc();
-  console.log(
-    "[CommentsView] useDocSnapshot rev=",
-    revision,
-    "doc=",
-    doc
-  );
-  return doc;
+  return handle?.doc();
 }
 
 const CommentsView = ({ element }: ReactToolProps) => {
   const repo = useRepo();
-  const [aggregate, setAggregate] =
-    useState<DocHandle<CommentsAggregate> | null>(null);
+  const [allComments, setAllComments] = useState<DocHandle<{
+    comments: { targetRef: RefUrl; threadRef: RefUrl }[];
+  }> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    console.log("[CommentsView] requesting aggregate handle");
-    request<CommentsAggregate>(element, "patchwork:comments").then((handle) => {
+    request<{ comments: { targetRef: RefUrl; threadRef: RefUrl }[] }>(
+      element,
+      "patchwork:comments"
+    ).then((handle) => {
       if (cancelled) return;
-      console.log(
-        "[CommentsView] aggregate handle received:",
-        handle?.url,
-        "initial doc:",
-        handle?.doc()
+      setAllComments(
+        handle as unknown as DocHandle<{
+          comments: { targetRef: RefUrl; threadRef: RefUrl }[];
+        }> | null
       );
-      // Cast across linked-workspace package boundary: `request` lives in
-      // patchwork-next/packages/providers and resolves DocHandle types
-      // against its own automerge-repo version, not ours.
-      setAggregate(handle as unknown as DocHandle<CommentsAggregate> | null);
     });
     return () => {
       cancelled = true;
     };
   }, [element]);
 
-  const aggregateDoc = useDocSnapshot(aggregate);
+  const allCommentsDoc = useDocSnapshot(allComments);
 
   const threadUrls = useMemo(() => {
-    const urls = aggregateDoc
-      ? Array.from(new Set(Object.values(aggregateDoc).flat()))
-      : [];
-    console.log("[CommentsView] threadUrls:", urls);
-    return urls;
-  }, [aggregateDoc]);
+    if (!allCommentsDoc) return [];
+    return Array.from(
+      new Set(allCommentsDoc.comments.map(({ threadRef }) => threadRef))
+    );
+  }, [allCommentsDoc]);
 
   return (
     <div className="h-full flex flex-col p-2 gap-2">

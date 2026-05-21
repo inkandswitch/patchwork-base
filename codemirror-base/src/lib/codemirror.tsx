@@ -30,7 +30,7 @@ type CodeMirrorProps<T> = {
   path: AutomergeProp[];
   decorations: () => DecorationSet;
   extensions?: Extension[];
-  onChangeSelection: (from: number, to: number) => void;
+  onChangeSelection?: (from: number, to: number) => void;
   readOnly?: boolean;
   withView?(view: EditorView): void;
 };
