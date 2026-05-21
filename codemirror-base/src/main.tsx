@@ -6,14 +6,20 @@ import type { TextDoc } from "./tool.tsx";
 export const plugins = [
   {
     type: "patchwork:tool",
-    id: "codemirror-base",
-    name: "Text Editor",
+    id: "codemirror-base-2",
+    name: "Text Editor 2",
     supportedDatatypes: ["essay", "markdown"],
     async load(): Promise<ToolImplementation<TextDoc>> {
       const { CodeMirrorEditor } = await import("./tool.tsx");
       return function (handle, element) {
         return render(
-          () => <CodeMirrorEditor handle={handle} repo={element.repo} />,
+          () => (
+            <CodeMirrorEditor
+              handle={handle}
+              repo={element.repo}
+              element={element}
+            />
+          ),
           element
         );
       };

@@ -14,7 +14,7 @@ import {
 import { Sidebar } from "./components/Sidebar";
 import { DocumentToolbar } from "./components/DocumentToolbar";
 import { MainDocumentView } from "./components/MainDocumentView";
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
@@ -97,6 +97,21 @@ export const PatchworkFrame = ({
     clearAll,
   } = useDebugRegistryToast();
 
+  // Wait for the comments provider to mount before rendering consumers,
+  // so their patchwork:request events aren't dispatched before the
+  // provider has attached its listener.
+  const [isCommentsProviderReady, setCommentsProviderReady] =
+    createSignal(false);
+  const attachProviderReadyListener = (host: HTMLElement) => {
+    const onMounted = (event: Event) => {
+      const detail = (event as CustomEvent<{ componentId?: string }>).detail;
+      if (detail?.componentId !== "patchwork-comments-provider") return;
+      setCommentsProviderReady(true);
+    };
+    host.addEventListener("patchwork:mounted", onMounted);
+    onCleanup(() => host.removeEventListener("patchwork:mounted", onMounted));
+  };
+
   return (
     <div class="frame">
       <DebugRegistryToast
@@ -118,32 +133,37 @@ export const PatchworkFrame = ({
         />
       )}
 
-      <patchwork-view-2 component-id="patchwork-comments-provider">
-        {/* Main Content Area */}
-        <div class="main-area">
-          <DocumentToolbar
-            toolIds={() => accountDoc()?.documentToolbarToolIds}
-            docUrl={selectedDoc.selectedDocUrl}
-          />
-          <MainDocumentView
-            viewKey={selectedDoc.viewKey}
-            selectedDocUrl={selectedDoc.selectedDocUrl}
-            toolId={() => selectedDoc.selectedView()?.toolId}
-          />
-        </div>
+      <patchwork-view-2
+        component-id="patchwork-comments-provider"
+        ref={attachProviderReadyListener}
+      >
+        <Show when={isCommentsProviderReady()}>
+          {/* Main Content Area */}
+          <div class="main-area">
+            <DocumentToolbar
+              toolIds={() => accountDoc()?.documentToolbarToolIds}
+              docUrl={selectedDoc.selectedDocUrl}
+            />
+            <MainDocumentView
+              viewKey={selectedDoc.viewKey}
+              selectedDocUrl={selectedDoc.selectedDocUrl}
+              toolId={() => selectedDoc.selectedView()?.toolId}
+            />
+          </div>
 
-        {/* Right Sidebar */}
-        {accountDoc()?.contextSidebarToolId && (
-          <Sidebar
-            side="right"
-            isCollapsed={sidebarState.isRightSidebarCollapsed}
-            width={sidebarState.rightSidebarWidth}
-            toolId={accountDoc()!.contextSidebarToolId}
-            docUrl={accountDocUrl}
-            onMouseDown={handleMouseDown}
-            onToggleClick={handleToggleClick}
-          />
-        )}
+          {/* Right Sidebar */}
+          {accountDoc()?.contextSidebarToolId && (
+            <Sidebar
+              side="right"
+              isCollapsed={sidebarState.isRightSidebarCollapsed}
+              width={sidebarState.rightSidebarWidth}
+              toolId={accountDoc()!.contextSidebarToolId}
+              docUrl={accountDocUrl}
+              onMouseDown={handleMouseDown}
+              onToggleClick={handleToggleClick}
+            />
+          )}
+        </Show>
       </patchwork-view-2>
     </div>
   );

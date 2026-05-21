@@ -38,7 +38,8 @@
     "@inkandswitch/annotations-diff": "^0.1.5",
     "@inkandswitch/subscribables": "^0.1.2",
     "@inkandswitch/subscribables-solid": "^0.1.2",
-    "@inkandswitch/annotations-comments": "^0.3.5",
+    "@inkandswitch/patchwork-comments": "link:../../patchwork-next/packages/comments",
+    "@inkandswitch/patchwork-providers": "link:../../patchwork-next/packages/providers",
     "solid-js": "^1.9.9",
     "vite-plugin-wasm": "^3.5.0"
   },

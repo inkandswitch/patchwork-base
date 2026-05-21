@@ -7,29 +7,34 @@ import { commentButtonGutter } from "./lib/comments/commentButtonGutter.ts";
 
 /** Automerge */
 import type { PatchworkToolProps } from "./types.ts";
-import { parseAutomergeUrl, cursor } from "@automerge/automerge-repo";
-import type { DocHandle, Ref } from "@automerge/automerge-repo";
+import {
+  cursor,
+  parseAutomergeUrl,
+  refFromUrl,
+  type DocHandle,
+  type Ref,
+  type RefUrl,
+} from "@automerge/automerge-repo";
 
 /** Patchwork */
 import { getRegistry } from "@inkandswitch/patchwork-plugins";
 import { annotations as globalAnnotations } from "@inkandswitch/annotations-context";
 import { Diff } from "@inkandswitch/annotations-diff";
-import { IsSelected } from "@inkandswitch/annotations-selection";
-import {
-  CommentThread,
-  createComment,
-} from "@inkandswitch/annotations-comments";
+import { createComment } from "@inkandswitch/patchwork-comments";
+import { request } from "@inkandswitch/patchwork-providers";
 
 /** Styles */
 import { createSignal, onMount, onCleanup } from "solid-js";
 import { useSubscribe } from "@inkandswitch/subscribables-solid";
-import { AnnotationSet } from "@inkandswitch/annotations";
 
 export type TextDoc = {
   content: string;
 };
 
 const PATH = ["content"];
+const VERSION = "v2.0.4";
+
+type CommentsAggregate = Record<RefUrl, RefUrl[]>;
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const contentRef = () => (props.handle as DocHandle<TextDoc>).ref(...PATH);
@@ -41,21 +46,80 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const contentAnnotations = globalAnnotations.onChildrenOf(contentRef());
   const diffAnnotations = useSubscribe(contentAnnotations.ofType(Diff));
 
-  // Get all IsSelected annotations from global context (not just content children)
-  // This allows CommentsView to highlight text by adding IsSelected to thread refs
-  const allSelectionAnnotations = useSubscribe(
-    globalAnnotations.ofType(IsSelected)
-  );
+  // Aggregate of all comment threads across all docs, keyed by target RefUrl.
+  // We subscribe to the handle directly (rather than via solid-primitives'
+  // `useDocument`) because the latter routes through a Solid store whose
+  // bundled `apply_patches` chokes on `del` patches with string paths — which
+  // happens whenever the provider clears stale map keys during rebuild.
+  let aggregateHandle: DocHandle<CommentsAggregate> | null = null;
+  let aggregateUnsubscribe: (() => void) | null = null;
+  const [aggregateRevision, setAggregateRevision] = createSignal(0);
 
-  const commentAnnotations = useSubscribe(
-    contentAnnotations.ofType(CommentThread)
-  );
+  onMount(() => {
+    console.log("[codemirror-base] onMount; requesting aggregate handle");
+    request<CommentsAggregate>(
+      props.element,
+      "patchwork:comments"
+    ).then((handle) => {
+      console.log(
+        "[codemirror-base] aggregate handle received:",
+        handle?.url,
+        "doc:",
+        (handle as unknown as DocHandle<CommentsAggregate>)?.doc()
+      );
+      if (!handle) return;
+      aggregateHandle = handle as unknown as DocHandle<CommentsAggregate>;
+      const onChange = () => {
+        console.log(
+          "[codemirror-base] aggregate change; new doc:",
+          aggregateHandle?.doc()
+        );
+        setAggregateRevision((r) => r + 1);
+      };
+      aggregateHandle.on("change", onChange);
+      aggregateUnsubscribe = () => aggregateHandle?.off("change", onChange);
+      setAggregateRevision((r) => r + 1);
+    });
+  });
 
-  // Check if a ref overlaps with any selected ref
-  const isSelected = (targetRef: Ref) =>
-    Array.from(allSelectionAnnotations()).some(([selectedRef]) =>
-      selectedRef.overlaps(targetRef)
+  onCleanup(() => {
+    aggregateUnsubscribe?.();
+    aggregateUnsubscribe = null;
+    aggregateHandle = null;
+  });
+
+  const currentDocPrefix = () =>
+    `automerge:${parseAutomergeUrl(props.handle.url).documentId}/`;
+
+  // Target refs (on this document) that have comment threads.
+  const commentTargetRefs = (): Ref[] => {
+    const rev = aggregateRevision(); // re-run on any aggregate change
+    const doc = aggregateHandle?.doc();
+    const prefix = currentDocPrefix();
+    console.log(
+      "[codemirror-base] commentTargetRefs rev=",
+      rev,
+      "prefix=",
+      prefix,
+      "doc=",
+      doc
     );
+    if (!doc) return [];
+    const refs: Ref[] = [];
+    for (const targetRefUrl of Object.keys(doc)) {
+      if (!targetRefUrl.startsWith(prefix)) continue;
+      try {
+        refs.push(refFromUrl(props.handle, targetRefUrl as RefUrl));
+      } catch (error) {
+        console.warn(
+          `[codemirror-base] could not resolve ref ${targetRefUrl}`,
+          error
+        );
+      }
+    }
+    console.log("[codemirror-base] commentTargetRefs result:", refs.length);
+    return refs;
+  };
 
   // compute decorations
   const decorations = () =>
@@ -67,10 +131,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
 
           if (diff.value.type === "deleted") {
             return Decoration.widget({
-              widget: new DeletionMarker(
-                diff.value.before as string,
-                isSelected(ref)
-              ),
+              widget: new DeletionMarker(diff.value.before as string, false),
               side: 1,
             }).range(start);
           }
@@ -86,15 +147,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
               attributes: {
                 style: `
                 border-bottom: 2px solid ${isDarkMode ? "#4ade80" : "#22c55e"};
-                background-color: ${
-                  isSelected(ref)
-                    ? isDarkMode
-                      ? "#16a34a"
-                      : "#86efac"
-                    : isDarkMode
-                      ? "#14532d"
-                      : "#dcfce7"
-                };
+                background-color: ${isDarkMode ? "#14532d" : "#dcfce7"};
               `,
               },
             }).range(start, end);
@@ -103,26 +156,19 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
           return [];
         }),
         // decorations for comments
-        ...Array.from(commentAnnotations()).flatMap(([ref]) => {
-          const [start, end] = ref.rangePositions!;
+        ...commentTargetRefs().flatMap((ref) => {
+          const positions = ref.rangePositions;
+          if (!positions) return [];
+          const [start, end] = positions;
           if (start === end) return [];
           const isDarkMode = window.matchMedia(
             "(prefers-color-scheme: dark)"
           ).matches;
-          const selected = isSelected(ref);
           return Decoration.mark({
             attributes: {
               style: `
-                  border-bottom: 2px solid ${isDarkMode ? "#facc15" : "#eab308"};
-                  background-color: ${
-                    selected
-                      ? isDarkMode
-                        ? "#ca8a04"
-                        : "#fde047"
-                      : isDarkMode
-                        ? "#713f12"
-                        : "#fef9c3"
-                  };
+                  border-bottom: 2px solid ${isDarkMode ? "#34d399" : "#10b981"};
+                  background-color: ${isDarkMode ? "#064e3b" : "#d1fae5"};
                 `,
             },
           }).range(start, end);
@@ -131,38 +177,43 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
       true // sort ranges
     );
 
-  // Local annotation set for editor text selections
-  const editorSelectionAnnotations = new AnnotationSet();
-  globalAnnotations.add(editorSelectionAnnotations);
-
-  onCleanup(() => {
-    globalAnnotations.remove(editorSelectionAnnotations);
-  });
-
-  // handle selection changes - broadcast to annotation context
-  const onChangeSelection = (from: number, to: number) => {
-    editorSelectionAnnotations.change(() => {
-      editorSelectionAnnotations.clear();
-
-      const selectedRef = props.handle.ref(...PATH, cursor(from, to));
-      editorSelectionAnnotations.add(selectedRef, IsSelected(true));
-    });
-  };
+  // Selection broadcast was wired through globalAnnotations. With the new
+  // comments provider we no longer coordinate selection cross-tool. Keep a
+  // no-op so the CodeMirror prop stays satisfied.
+  const onChangeSelection = () => {};
 
   // handle comment creation
   // todo: we should have a better way to get the contactUrl of the current account
   const onComment = async (from: number, to: number) => {
-    const accountDoc = (window as any).accountDocHandle?.doc?.();
+    console.log("[codemirror-base] onComment", { from, to });
+    const accountDoc = (
+      window as unknown as { accountDocHandle?: DocHandle<unknown> }
+    ).accountDocHandle?.doc?.() as { contactUrl?: string } | undefined;
     const contactUrl = accountDoc?.contactUrl;
     if (!contactUrl) {
-      console.warn("Cannot create comment: no contactUrl available");
+      console.warn("Cannot create comment: no contactUrl available", {
+        accountDoc,
+      });
       return;
     }
-    createComment({
-      refs: [props.handle.ref(...PATH, cursor(from, to))],
-      content: "",
-      contactUrl,
-    });
+    try {
+      const targetRef = props.handle.ref(...PATH, cursor(from, to));
+      console.log("[codemirror-base] creating comment", { targetRef });
+      const commentRef = createComment({
+        // Cast across linked-workspace package boundary (patchwork-comments
+        // resolves Ref types against its own automerge-repo version).
+        refs: [
+          targetRef as unknown as Parameters<
+            typeof createComment
+          >[0]["refs"][number],
+        ],
+        content: "",
+        contactUrl,
+      });
+      console.log("[codemirror-base] created comment", { commentRef });
+    } catch (error) {
+      console.error("[codemirror-base] failed to create comment", error);
+    }
   };
 
   // Base CodeMirror extensions (context-specific, not language-specific)
@@ -198,7 +249,13 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   });
 
   return (
-    <div class="w-full h-full overflow-auto bg-base">
+    <div class="w-full h-full overflow-auto bg-base relative">
+      <div
+        class="absolute top-1 right-2 text-xs text-gray-400 font-medium pointer-events-none select-none z-10"
+        title="Text Editor 2 version"
+      >
+        Text Editor {VERSION}
+      </div>
       <div class="p-4 h-full">
         <div class="flex h-full">
           <div class="relative flex-1 h-full">

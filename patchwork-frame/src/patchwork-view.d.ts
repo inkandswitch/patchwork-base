@@ -13,6 +13,7 @@ declare module "solid-js" {
         "component-id"?: string;
         key?: string | number;
         children?: JSX.Element;
+        ref?: HTMLElement | ((el: HTMLElement) => void);
       };
     }
   }
