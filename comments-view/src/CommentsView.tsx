@@ -28,7 +28,7 @@ import {
   type CommentThread,
 } from "@inkandswitch/patchwork-comments";
 
-const VERSION = "v2.1.6";
+const VERSION = "v2.1.8";
 
 export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
@@ -103,6 +103,25 @@ function ThreadView(props: { threadUrl: RefUrl; repo: Repo }) {
     setThread(() => r.value());
     onCleanup(r.onChange(() => setThread(() => r.value())));
   });
+
+  // Stable list of comment ids. `thread().comments` is a fresh Automerge proxy
+  // on every change, so iterating over it with <For> would tear down every
+  // comment row (and its focused draft textarea) on each keystroke. Returning
+  // the previous array when the id sequence is unchanged keeps <For> stable.
+  const commentIds = createMemo<string[]>((prev) => {
+    const t = thread();
+    if (!t) return [];
+    const next: string[] = [];
+    for (const c of t.comments) next.push(c.id);
+    if (
+      prev &&
+      prev.length === next.length &&
+      next.every((id, i) => id === prev[i])
+    ) {
+      return prev;
+    }
+    return next;
+  }, []);
 
   // todo: we should have a better way to get the contactUrl of the current account
   const accountUrl = () =>
@@ -189,8 +208,8 @@ function ThreadView(props: { threadUrl: RefUrl; repo: Repo }) {
       <div class="flex flex-col gap-2">
         <div class="card card-bordered shadow-sm bg-white border border-gray-200">
           <div class="card-body p-2 space-y-2">
-            <For each={thread()!.comments}>
-              {(comment) => {
+            <For each={commentIds()}>
+              {(commentId) => {
                 const commentRef = createMemo(() => {
                   const r = threadRef();
                   const t = thread();
@@ -200,7 +219,7 @@ function ThreadView(props: { threadUrl: RefUrl; repo: Repo }) {
                     "threads",
                     { id: t.id },
                     "comments",
-                    { id: comment.id }
+                    { id: commentId }
                   );
                 });
                 return (
