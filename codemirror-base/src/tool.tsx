@@ -32,7 +32,7 @@ export type TextDoc = {
 };
 
 const PATH = ["content"];
-const VERSION = "v2.0.12";
+const VERSION = "v2.0.13";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const contentRef = () => (props.handle as DocHandle<TextDoc>).ref(...PATH);
