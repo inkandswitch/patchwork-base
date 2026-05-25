@@ -33,7 +33,7 @@ export type TextDoc = {
 };
 
 const PATH = ["content"];
-const VERSION = "v2.0.22-comments";
+const VERSION = "v2.0.24-comments";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const contentRef = () => (props.handle as DocHandle<TextDoc>).ref(...PATH);
@@ -293,7 +293,7 @@ class DeletionMarker extends WidgetType {
 }
 
 // Targets that overlap `emphasisRefs` (selection ∪ highlight) render in
-// yellow; the rest stay light green.
+// darker yellow; the rest stay in light yellow.
 function buildCommentDecorations(
   targetRefs: Ref[],
   emphasisRefs: Ref[],
@@ -319,11 +319,11 @@ function commentTargetStyle(isEmphasised: boolean, dark: boolean): string {
   return isEmphasised
     ? `
         border-bottom: 2px solid ${dark ? "#facc15" : "#ca8a04"};
-        background-color: ${dark ? "#713f12" : "#fef9c3"};
+        background-color: ${dark ? "#a16207" : "#fde047"};
       `
     : `
-        border-bottom: 2px solid ${dark ? "#34d399" : "#10b981"};
-        background-color: ${dark ? "#064e3b" : "#d1fae5"};
+        border-bottom: 2px solid ${dark ? "#ca8a04" : "#eab308"};
+        background-color: ${dark ? "#713f12" : "#fef9c3"};
       `;
 }
 
