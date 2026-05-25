@@ -29,7 +29,7 @@ import {
   type CommentThread,
 } from "@inkandswitch/patchwork-comments";
 
-const VERSION = "v2.3.7-comments";
+const VERSION = "v2.3.8-comments";
 
 export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
@@ -376,36 +376,38 @@ function ThreadView(props: {
             </For>
           </div>
         </div>
-        <div class="flex gap-2 justify-end">
-          <Show
-            when={draftComment()}
-            fallback={
-              <>
-                <button
-                  class="btn btn-ghost btn-sm"
-                  onClick={onResolveThread}
-                  title="Resolve comment"
-                >
-                  Resolve
-                </button>
-                <button
-                  class="btn btn-ghost btn-sm"
-                  onClick={onReplyToComment}
-                  title="Reply to comment"
-                >
-                  Reply
-                </button>
-              </>
-            }
-          >
-            <button class="btn btn-ghost btn-sm" onClick={onCancelDraft}>
-              Cancel
-            </button>
-            <button class="btn btn-ghost btn-sm" onClick={onSaveDraft}>
-              Save
-            </button>
-          </Show>
-        </div>
+        <Show when={draftComment() || isPrimary()}>
+          <div class="flex gap-2 justify-end">
+            <Show
+              when={draftComment()}
+              fallback={
+                <>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    onClick={onResolveThread}
+                    title="Resolve comment"
+                  >
+                    Resolve
+                  </button>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    onClick={onReplyToComment}
+                    title="Reply to comment"
+                  >
+                    Reply
+                  </button>
+                </>
+              }
+            >
+              <button class="btn btn-ghost btn-sm" onClick={onCancelDraft}>
+                Cancel
+              </button>
+              <button class="btn btn-ghost btn-sm" onClick={onSaveDraft}>
+                Save
+              </button>
+            </Show>
+          </div>
+        </Show>
       </div>
     </Show>
   );
