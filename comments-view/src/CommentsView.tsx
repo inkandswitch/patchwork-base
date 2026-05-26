@@ -29,7 +29,7 @@ import {
   type CommentThread,
 } from "@inkandswitch/patchwork-comments";
 
-const VERSION = "v2.3.8-comments";
+const VERSION = "v2.3.9-comments";
 
 export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
@@ -339,9 +339,9 @@ function ThreadView(props: {
         <div
           class={`card card-bordered bg-white border border-gray-300 transition-all cursor-pointer ${
             isPrimary()
-              ? "shadow-xl -translate-y-1"
+              ? "shadow-xl"
               : isSecondary()
-                ? "shadow-md -translate-y-0.5"
+                ? "shadow-md"
                 : "shadow-sm"
           }`}
           onClick={onClickThreadCard}
