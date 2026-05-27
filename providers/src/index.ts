@@ -19,4 +19,13 @@ export const plugins: Plugin<any>[] = [
       return FocusProvider;
     },
   },
+  {
+    type: "patchwork:component",
+    id: "patchwork-account-provider",
+    name: "Account Provider",
+    async load() {
+      const { AccountProvider } = await import("./AccountProvider.js");
+      return AccountProvider;
+    },
+  },
 ];

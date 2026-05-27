@@ -18,14 +18,14 @@ importers:
         specifier: file:../../patchwork-next/dist/inkandswitch-patchwork-comments-0.0.1.tgz
         version: file:../../patchwork-next/dist/inkandswitch-patchwork-comments-0.0.1.tgz(@automerge/automerge-repo@2.6.0-subduction.22)
       '@inkandswitch/patchwork-elements':
-        specifier: file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.0.8.tgz
-        version: file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.0.8.tgz(@automerge/automerge-repo@2.6.0-subduction.22)(@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz(@automerge/automerge-repo@2.6.0-subduction.22))
+        specifier: file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.1.0.tgz
+        version: file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.1.0.tgz(@automerge/automerge-repo@2.6.0-subduction.22)(@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz(@automerge/automerge-repo@2.6.0-subduction.22))
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.6
         version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
       '@inkandswitch/patchwork-providers':
-        specifier: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz
-        version: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz(@automerge/automerge-repo@2.6.0-subduction.22)
+        specifier: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz
+        version: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz(@automerge/automerge-repo@2.6.0-subduction.22)
     devDependencies:
       '@eslint/js':
         specifier: ^9.37.0
@@ -341,19 +341,19 @@ packages:
       '@keyhive/keyhive': 0.0.0-alpha.40
 
   '@inkandswitch/patchwork-comments@file:../../patchwork-next/dist/inkandswitch-patchwork-comments-0.0.1.tgz':
-    resolution: {integrity: sha512-6eAIrayRBnaXt2C0EEi0ZyejQlM6TitA9KAmuj0cDcF16739JBz3d8qLWBC13l0n5DHmbjB8oQtkWzZq0jKmvQ==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-comments-0.0.1.tgz}
+    resolution: {integrity: sha512-bkugE8guWF1RIq9kbnnMGvxZeK2aI4GGGUvPRD43Hr59c0QR8o0D4lD0YCgP0nyCK5HKvmOchqAZ61oxvRTT8w==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-comments-0.0.1.tgz}
     version: 0.0.1
     peerDependencies:
       '@automerge/automerge-repo': '*'
 
-  '@inkandswitch/patchwork-elements@file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.0.8.tgz':
-    resolution: {integrity: sha512-sM2lq+Uv2iRbfqTZQkiqA/le1pCz8GCYZjus2CT9rQ0+FcEFhBbZmQx5UBtEA1zkHpzbo1x36a+Cknj50Pxz5Q==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.0.8.tgz}
-    version: 0.0.8
+  '@inkandswitch/patchwork-elements@file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.1.0.tgz':
+    resolution: {integrity: sha512-iGmTs+dJ22KMXUKarsTIIdfo2LI6vmaVLgoT3FH7uy0RWD/QBLn0kSU+hH0lJffYFU3J/NhLJrwPcqa/fn7/6A==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.1.0.tgz}
+    version: 0.1.0
     peerDependencies:
       '@automerge/automerge-repo': '*'
-      '@inkandswitch/patchwork-filesystem': ^0.0.6
-      '@inkandswitch/patchwork-plugins': ^0.0.8
-      '@inkandswitch/patchwork-providers': ^0.0.1
+      '@inkandswitch/patchwork-filesystem': ^0.0.7
+      '@inkandswitch/patchwork-plugins': ^0.0.9
+      '@inkandswitch/patchwork-providers': ^0.0.0
       '@types/react': '*'
       react: '*'
       solid-js: '*'
@@ -372,9 +372,9 @@ packages:
       '@automerge/automerge-repo': '*'
       '@inkandswitch/patchwork-filesystem': ^0.0.4
 
-  '@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz':
-    resolution: {integrity: sha512-1RjQuNjga2YpGgat6RKa2XZdMNhdq6Zi0yyZzM9W3dgVEJ+/8cXv3uwuFYvuHKXEHaaDDmnaBnNCdZ3eOTbkpg==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz}
-    version: 0.0.1
+  '@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz':
+    resolution: {integrity: sha512-VLE/zt/UdRD9ymV3D3rBQOu3p2QVXMMnGx4qBw8m+UTQCnbUJGmyIPH3mzcYed14YTkkIUSGSA7eEF4i0Aw8Xg==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz}
+    version: 0.0.2
     peerDependencies:
       '@automerge/automerge-repo': '*'
 
@@ -1373,11 +1373,11 @@ snapshots:
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.22
 
-  '@inkandswitch/patchwork-elements@file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.0.8.tgz(@automerge/automerge-repo@2.6.0-subduction.22)(@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz(@automerge/automerge-repo@2.6.0-subduction.22))':
+  '@inkandswitch/patchwork-elements@file:../../patchwork-next/dist/inkandswitch-patchwork-elements-0.1.0.tgz(@automerge/automerge-repo@2.6.0-subduction.22)(@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz(@automerge/automerge-repo@2.6.0-subduction.22))':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.22
       '@inkandswitch/patchwork-plugins': 0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
-      '@inkandswitch/patchwork-providers': file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz(@automerge/automerge-repo@2.6.0-subduction.22)
+      '@inkandswitch/patchwork-providers': file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz(@automerge/automerge-repo@2.6.0-subduction.22)
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
@@ -1394,7 +1394,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz(@automerge/automerge-repo@2.6.0-subduction.22)':
+  '@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.2.tgz(@automerge/automerge-repo@2.6.0-subduction.22)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.22
 

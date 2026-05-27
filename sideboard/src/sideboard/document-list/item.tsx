@@ -8,7 +8,7 @@ import {
   type JSX,
 } from "solid-js";
 import { useSupportedToolsForType } from "../lib/solid-plugins";
-import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
+import type { PatchworkViewLegacyElement } from "@inkandswitch/patchwork-elements";
 import {
   type SideboardDragAndDropItem,
   dragstack,
@@ -50,7 +50,7 @@ export default function Item(props: {
   share?(): void;
   shareDisabled?: boolean;
   makeSecureCopy?(): void;
-  element: PatchworkViewElement;
+  element: PatchworkViewLegacyElement;
   repo: Repo;
   rootFolderHandle: DocHandle<FolderDoc>;
   parentFolderHandle: DocHandle<FolderDoc>;

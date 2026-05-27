@@ -106,6 +106,8 @@ export const PatchworkFrame = ({
     createSignal(false);
   const [isFocusProviderReady, setFocusProviderReady] =
     createSignal(false);
+  const [isAccountProviderReady, setAccountProviderReady] =
+    createSignal(false);
 
   const makeProviderReadyListener =
     (componentId: string, setReady: (value: boolean) => void) =>
@@ -144,7 +146,7 @@ export const PatchworkFrame = ({
         />
       )}
 
-      <patchwork-component
+      <patchwork-view
         component="patchwork-comments-provider"
         ref={makeProviderReadyListener(
           "patchwork-comments-provider",
@@ -152,7 +154,7 @@ export const PatchworkFrame = ({
         )}
       >
         <Show when={isCommentsProviderReady()}>
-          <patchwork-component
+          <patchwork-view
             component="patchwork-focus-provider"
             ref={makeProviderReadyListener(
               "patchwork-focus-provider",
@@ -160,35 +162,45 @@ export const PatchworkFrame = ({
             )}
           >
             <Show when={isFocusProviderReady()}>
-              {/* Main Content Area */}
-              <div class="main-area">
-                <DocumentToolbar
-                  toolIds={() => accountDoc()?.documentToolbarToolIds}
-                  docUrl={selectedDoc.selectedDocUrl}
-                />
-                <MainDocumentView
-                  viewKey={selectedDoc.viewKey}
-                  selectedDocUrl={selectedDoc.selectedDocUrl}
-                  toolId={() => selectedDoc.selectedView()?.toolId}
-                />
-              </div>
+              <patchwork-view
+                component="patchwork-account-provider"
+                ref={makeProviderReadyListener(
+                  "patchwork-account-provider",
+                  setAccountProviderReady
+                )}
+              >
+                <Show when={isAccountProviderReady()}>
+                  {/* Main Content Area */}
+                  <div class="main-area">
+                    <DocumentToolbar
+                      toolIds={() => accountDoc()?.documentToolbarToolIds}
+                      docUrl={selectedDoc.selectedDocUrl}
+                    />
+                    <MainDocumentView
+                      viewKey={selectedDoc.viewKey}
+                      selectedDocUrl={selectedDoc.selectedDocUrl}
+                      toolId={() => selectedDoc.selectedView()?.toolId}
+                    />
+                  </div>
 
-              {/* Right Sidebar */}
-              {accountDoc()?.contextSidebarToolId && (
-                <Sidebar
-                  side="right"
-                  isCollapsed={sidebarState.isRightSidebarCollapsed}
-                  width={sidebarState.rightSidebarWidth}
-                  toolId={accountDoc()!.contextSidebarToolId}
-                  docUrl={accountDocUrl}
-                  onMouseDown={handleMouseDown}
-                  onToggleClick={handleToggleClick}
-                />
-              )}
+                  {/* Right Sidebar */}
+                  {accountDoc()?.contextSidebarToolId && (
+                    <Sidebar
+                      side="right"
+                      isCollapsed={sidebarState.isRightSidebarCollapsed}
+                      width={sidebarState.rightSidebarWidth}
+                      toolId={accountDoc()!.contextSidebarToolId}
+                      docUrl={accountDocUrl}
+                      onMouseDown={handleMouseDown}
+                      onToggleClick={handleToggleClick}
+                    />
+                  )}
+                </Show>
+              </patchwork-view>
             </Show>
-          </patchwork-component>
+          </patchwork-view>
         </Show>
-      </patchwork-component>
+      </patchwork-view>
     </div>
   );
 };
