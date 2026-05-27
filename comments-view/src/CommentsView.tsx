@@ -1,4 +1,6 @@
 import "./styles.css";
+// Pulls in <patchwork-view> JSX intrinsic type augmentations.
+import type {} from "@inkandswitch/patchwork-elements";
 import {
   createSignal,
   createMemo,

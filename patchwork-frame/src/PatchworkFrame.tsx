@@ -144,16 +144,16 @@ export const PatchworkFrame = ({
         />
       )}
 
-      <patchwork-view-2
-        component-id="patchwork-comments-provider"
+      <patchwork-component
+        component="patchwork-comments-provider"
         ref={makeProviderReadyListener(
           "patchwork-comments-provider",
           setCommentsProviderReady
         )}
       >
         <Show when={isCommentsProviderReady()}>
-          <patchwork-view-2
-            component-id="patchwork-focus-provider"
+          <patchwork-component
+            component="patchwork-focus-provider"
             ref={makeProviderReadyListener(
               "patchwork-focus-provider",
               setFocusProviderReady
@@ -186,9 +186,9 @@ export const PatchworkFrame = ({
                 />
               )}
             </Show>
-          </patchwork-view-2>
+          </patchwork-component>
         </Show>
-      </patchwork-view-2>
+      </patchwork-component>
     </div>
   );
 };
