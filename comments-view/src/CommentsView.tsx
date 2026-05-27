@@ -23,7 +23,7 @@ import {
   type Repo,
 } from "@automerge/automerge-repo";
 
-import { request } from "@inkandswitch/patchwork-providers-solid";
+import { requestDoc } from "@inkandswitch/patchwork-providers-solid";
 import { useResolvedRefs, useResolvedRefMap } from "@patchwork/solid";
 import {
   createReply,
@@ -36,14 +36,14 @@ const VERSION = "v2.3.9-comments";
 export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
 
-  const [allComments] = request<{
+  const [allComments] = requestDoc<{
     comments: { targetRef: RefUrl; threadRef: RefUrl }[];
   }>(props.element, "patchwork:comments");
 
   // `selection` is read-only input (driven by the active editor), `highlight`
   // is our output. Splitting them avoids the feedback loop a single shared
   // map would have.
-  const [focusDoc, focusHandle] = request<{
+  const [focusDoc, focusHandle] = requestDoc<{
     selection: Record<RefUrl, true>;
     highlight: Record<RefUrl, true>;
   }>(props.element, "patchwork:focus");

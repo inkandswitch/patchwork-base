@@ -40,7 +40,7 @@
     "@inkandswitch/subscribables-solid": "^0.1.2",
     "@inkandswitch/patchwork-comments": "file:../../patchwork-next/dist/inkandswitch-patchwork-comments-0.0.1.tgz",
     "@inkandswitch/patchwork-providers": "file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.1.tgz",
-    "@inkandswitch/patchwork-providers-solid": "file:../../patchwork-next/dist/inkandswitch-patchwork-providers-solid-0.0.1.tgz",
+    "@inkandswitch/patchwork-providers-solid": "file:../../patchwork-next/dist/inkandswitch-patchwork-providers-solid-0.0.2.tgz",
     "solid-js": "^1.9.9",
     "vite-plugin-wasm": "^3.5.0"
   },

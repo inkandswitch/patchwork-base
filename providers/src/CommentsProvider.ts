@@ -16,7 +16,6 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 import type { DocWithComments } from "@inkandswitch/patchwork-comments";
 
-const SELECTOR = "patchwork:comments";
 
 type CommentEntry = { targetRef: RefUrl; threadRef: RefUrl };
 
@@ -24,7 +23,7 @@ export const CommentsProvider = (element: HTMLElement) => {
   const repo = (window as unknown as { repo?: Repo }).repo;
   if (!repo) {
     console.warn("[providers/comments] window.repo is not set; comments disabled");
-    return () => {};
+    return () => { };
   }
 
 
@@ -84,7 +83,7 @@ export const CommentsProvider = (element: HTMLElement) => {
   }
 
   function onRequest(event: RequestEvent) {
-    if (event.detail.type !== SELECTOR) return;
+    if (event.detail.type !== "patchwork:comments") return;
     provide(event, allComments as DocHandle<unknown>);
   }
 

@@ -22,7 +22,7 @@ import { annotations as globalAnnotations } from "@inkandswitch/annotations-cont
 import type { Annotation } from "@inkandswitch/annotations";
 import { Diff } from "@inkandswitch/annotations-diff";
 import { createComment } from "@inkandswitch/patchwork-comments";
-import { request } from "@inkandswitch/patchwork-providers-solid";
+import { requestDoc } from "@inkandswitch/patchwork-providers-solid";
 
 /** Styles */
 import { createSignal, onMount } from "solid-js";
@@ -46,13 +46,13 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const diffAnnotations = useSubscribe(contentAnnotations.ofType(Diff));
 
   // TODO: once subdoc handles land this can just be `{targetRef, threadRef}[]`.
-  const [allComments] = request<{
+  const [allComments] = requestDoc<{
     comments: { targetRef: RefUrl; threadRef: RefUrl }[];
   }>(props.element, "patchwork:comments");
 
   // We own `selection` (cursor) and only read `highlight` (other views'
   // emphasis). Splitting the two avoids any feedback loop.
-  const [focusDoc, focusHandle] = request<{
+  const [focusDoc, focusHandle] = requestDoc<{
     selection: Record<RefUrl, true>;
     highlight: Record<RefUrl, true>;
   }>(props.element, "patchwork:focus");
