@@ -21,7 +21,7 @@ export const DraftProvider = (element: HTMLElement) => {
   const rawUrl = element.getAttribute("url");
   if (!rawUrl || !isValidAutomergeUrl(rawUrl)) {
     console.warn(
-      `[workspaces] <patchwork-component component="patchwork-draft-provider"> ` +
+      `[workspaces] <patchwork-view component="patchwork-draft-provider"> ` +
         `is missing a valid url attribute (got ${JSON.stringify(rawUrl)})`
     );
     return () => {};
@@ -38,7 +38,6 @@ export const DraftProvider = (element: HTMLElement) => {
       );
     }
     const handle = await repo.find<WorkspaceDoc>(draftUrl);
-    await handle.whenReady();
     workspaceRepo = new WorkspaceRepo(repo, handle);
     return workspaceRepo;
   })();

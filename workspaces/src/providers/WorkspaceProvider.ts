@@ -30,7 +30,7 @@ export const WorkspaceProvider = (element: HTMLElement) => {
   const rawUrl = element.getAttribute(ATTR_URL);
   if (!rawUrl || !isValidAutomergeUrl(rawUrl)) {
     console.warn(
-      `[workspaces] <patchwork-component component="patchwork-workspace-provider"> ` +
+      `[workspaces] <patchwork-view component="patchwork-workspace-provider"> ` +
         `is missing a valid ${ATTR_URL} attribute (got ${JSON.stringify(rawUrl)})`
     );
     return () => {};

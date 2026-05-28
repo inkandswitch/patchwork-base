@@ -107,7 +107,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     <div class="w-full h-full overflow-auto bg-base relative">
       <div
         class="absolute top-1 right-2 text-xs text-gray-400 font-medium pointer-events-none select-none z-10"
-        title="Text Editor 2 version"
+        title="Text Editor version"
       >
         Text Editor {VERSION}
       </div>

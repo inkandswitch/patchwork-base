@@ -182,7 +182,7 @@ export const PatchworkFrame = ({
         onClearAll={clearAll}
       />
 
-      <patchwork-component
+      <patchwork-view
         component="patchwork-comments-provider"
         ref={makeProviderReadyListener(
           "patchwork-comments-provider",
@@ -190,7 +190,7 @@ export const PatchworkFrame = ({
         )}
       >
         <Show when={isCommentsProviderReady()}>
-          <patchwork-component
+          <patchwork-view
             component="patchwork-focus-provider"
             ref={makeProviderReadyListener(
               "patchwork-focus-provider",
@@ -202,7 +202,7 @@ export const PatchworkFrame = ({
               keyed
             >
               {(rootFolderUrl) => (
-                <patchwork-component
+                <patchwork-view
                   component="patchwork-workspace-provider"
                   url={rootFolderUrl}
                   ref={attachWorkspaceProviderReadyListener}
@@ -211,7 +211,7 @@ export const PatchworkFrame = ({
                     {/* Keyed remount on draft switch rebinds useRepo()/useDocument(). */}
                     <Show when={selectedDraft()} keyed>
                       {(draftUrl) => (
-                        <patchwork-component
+                        <patchwork-view
                           component="patchwork-draft-provider"
                           url={draftUrl}
                           ref={attachDraftProviderReadyListener}
@@ -243,7 +243,7 @@ export const PatchworkFrame = ({
                               />
                             </div>
                           </Show>
-                        </patchwork-component>
+                        </patchwork-view>
                       )}
                     </Show>
 
@@ -261,12 +261,12 @@ export const PatchworkFrame = ({
                       />
                     )}
                   </Show>
-                </patchwork-component>
+                </patchwork-view>
               )}
             </Show>
-          </patchwork-component>
+          </patchwork-view>
         </Show>
-      </patchwork-component>
+      </patchwork-view>
     </div>
   );
 };

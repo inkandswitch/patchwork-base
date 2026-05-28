@@ -1,6 +1,7 @@
 allowBuilds:
   cbor-extract: false
   esbuild: false
-
-overrides:
-  "@inkandswitch/patchwork-providers": "file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.0.0.tgz"
+minimumReleaseAgeExclude:
+  - '@inkandswitch/patchwork-elements@1.0.3'
+  - '@inkandswitch/patchwork-providers-solid@0.1.3'
+  - '@inkandswitch/patchwork-providers@0.1.2'
