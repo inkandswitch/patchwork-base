@@ -6,7 +6,7 @@ import type { TextDoc } from "./tool.tsx";
 export const plugins = [
   {
     type: "patchwork:tool",
-    id: "codemirror-base-2",
+    id: "codemirror-base",
     name: "Text Editor 2",
     supportedDatatypes: ["essay", "markdown"],
     async load(): Promise<ToolImplementation<TextDoc>> {

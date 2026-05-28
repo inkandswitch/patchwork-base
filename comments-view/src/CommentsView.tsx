@@ -24,7 +24,7 @@ import {
 } from "@automerge/automerge-repo";
 
 import { requestDoc } from "@inkandswitch/patchwork-providers-solid";
-import { useResolvedRefs, useResolvedRefMap } from "@patchwork/solid";
+import { useResolvedRefs, useResolvedRefMap } from "@inkandswitch/patchwork-solid";
 import {
   createReply,
   type Comment,

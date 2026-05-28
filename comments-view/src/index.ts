@@ -3,7 +3,7 @@ import { Plugin } from "@inkandswitch/patchwork-plugins";
 export const plugins: Plugin<any>[] = [
   {
     type: "patchwork:tool",
-    id: "comments-view-2",
+    id: "comments-view",
     tags: ["context-tool"],
     name: "Comments 2",
     icon: "Comments",
