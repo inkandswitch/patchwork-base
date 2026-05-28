@@ -3,11 +3,13 @@ import type { Plugin } from "@inkandswitch/patchwork-plugins";
 export const plugins: Plugin<any>[] = [
   {
     type: "patchwork:component",
-    id: "patchwork-workspace-provider",
-    name: "Workspace Provider",
+    id: "patchwork-draft-root-provider",
+    name: "Draft Root Provider",
     async load() {
-      const { WorkspaceProvider } = await import("./providers/WorkspaceProvider.js");
-      return WorkspaceProvider;
+      const { DraftRootProvider } = await import(
+        "./providers/DraftRootProvider.js"
+      );
+      return DraftRootProvider;
     },
   },
   {
@@ -21,11 +23,11 @@ export const plugins: Plugin<any>[] = [
   },
   {
     type: "patchwork:datatype",
-    id: "patchwork:workspace",
-    name: "Workspace",
+    id: "patchwork:draft",
+    name: "Draft",
     async load() {
-      const { WorkspaceDatatype } = await import("./WorkspaceDatatype.js");
-      return WorkspaceDatatype;
+      const { DraftDatatype } = await import("./DraftDatatype.js");
+      return DraftDatatype;
     },
   },
   {
@@ -42,5 +44,5 @@ export const plugins: Plugin<any>[] = [
   },
 ];
 
-export type { CloneEntry, WorkspaceDoc, WorkspaceState } from "./workspace-types.js";
-export { isWorkspaceDoc } from "./workspace-types.js";
+export type { CloneEntry, DraftDoc, DraftsState } from "./draft-types.js";
+export { isDraftDoc } from "./draft-types.js";

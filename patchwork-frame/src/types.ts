@@ -7,7 +7,7 @@ import { AutomergeUrl } from "@automerge/automerge-repo";
  * by AccountDatatype.init. Subdocument URLs (rootFolderUrl, moduleSettingsUrl,
  * contactUrl) are optional and are lazily populated by the frame on first
  * mount via createDocOfDatatype2 of their respective datatypes.
-  */
+ */
 export type AccountDoc = {
   frameToolId: string;
   accountSidebarToolId: string;

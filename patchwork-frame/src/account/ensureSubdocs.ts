@@ -1,4 +1,4 @@
-import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
+import type { DocHandle, Repo } from "@automerge/automerge-repo";
 import {
   createDocOfDatatype2,
   getRegistry,
@@ -8,12 +8,6 @@ import {
 import type { AccountDoc } from "../types";
 
 type SubdocField = "rootFolderUrl" | "moduleSettingsUrl" | "contactUrl";
-
-type FolderDoc = {
-  title?: string;
-  docs?: unknown[];
-  workspaceUrl?: AutomergeUrl;
-};
 
 async function loadDatatypeWhenReady<D>(
   id: string
@@ -51,33 +45,8 @@ async function ensureSubdoc<S>(
   });
 }
 
-async function ensureFolderWorkspace(
-  accountHandle: DocHandle<AccountDoc>,
-  repo: Repo
-) {
-  const folderUrl = accountHandle.doc()?.rootFolderUrl;
-  if (!folderUrl) return;
-
-  const folderHandle = await repo.find<FolderDoc>(folderUrl);
-  await folderHandle.whenReady();
-  if (folderHandle.doc()?.workspaceUrl) return;
-
-  const datatype = await loadDatatypeWhenReady("patchwork:workspace");
-  if (!datatype) {
-    console.warn(
-      `frame: datatype "patchwork:workspace" never registered; folder missing workspaceUrl`
-    );
-    return;
-  }
-  if (folderHandle.doc()?.workspaceUrl) return;
-
-  const wsHandle = await createDocOfDatatype2(datatype, repo);
-  folderHandle.change((d) => {
-    if (!d.workspaceUrl) d.workspaceUrl = wsHandle.url;
-  });
-}
-
-// already set (including those set concurrently by another tab) win.
+// Account subdocs are seeded lazily on first frame mount; existing values
+// (including those set concurrently by another tab) win.
 export async function ensureAccountSubdocs(
   accountHandle: DocHandle<AccountDoc>,
   repo: Repo
@@ -92,5 +61,4 @@ export async function ensureAccountSubdocs(
     ),
     ensureSubdoc(accountHandle, repo, "contactUrl", "contact"),
   ]);
-  await ensureFolderWorkspace(accountHandle, repo);
 }

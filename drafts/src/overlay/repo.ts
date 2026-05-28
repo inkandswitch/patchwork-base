@@ -14,23 +14,23 @@ import {
 } from "@automerge/automerge-repo";
 import type { RepoLike } from "@inkandswitch/patchwork-providers";
 
-import type { WorkspaceDoc } from "../workspace-types.js";
-import { WorkspacedDocHandle } from "./dochandle.js";
+import type { DraftDoc } from "../draft-types.js";
+import { DraftedDocHandle } from "./dochandle.js";
 
-// Overlay repo scoped to a single draft workspace doc. Root drafts pass
-// writes through; non-root drafts COW via `WorkspacedDocHandle`.
-export class WorkspaceRepo implements RepoLike {
+// Overlay repo scoped to a single draft doc. Root drafts pass writes
+// through; non-root drafts COW via `DraftedDocHandle`.
+export class DraftRepo implements RepoLike {
   readonly repo: Repo;
-  readonly workspaceHandle: DocHandle<WorkspaceDoc>;
-  readonly #wrapped = new Map<AutomergeUrl, WorkspacedDocHandle<unknown>>();
+  readonly draftHandle: DocHandle<DraftDoc>;
+  readonly #wrapped = new Map<AutomergeUrl, DraftedDocHandle<unknown>>();
 
-  constructor(repo: Repo, workspaceHandle: DocHandle<WorkspaceDoc>) {
+  constructor(repo: Repo, draftHandle: DocHandle<DraftDoc>) {
     this.repo = repo;
-    this.workspaceHandle = workspaceHandle;
+    this.draftHandle = draftHandle;
   }
 
   get isRoot(): boolean {
-    return this.workspaceHandle.doc()?.parent == null;
+    return this.draftHandle.doc()?.parentDraftUrl == null;
   }
 
   // Only already-wrapped handles are exposed; unknown ids fall through to
@@ -126,7 +126,7 @@ export class WorkspaceRepo implements RepoLike {
     if (cached) return cached as unknown as DocHandle<T>;
 
     const originalHandle = await this.repo.find<T>(original);
-    const cloneEntry = this.workspaceHandle.doc()?.clones?.[original];
+    const cloneEntry = this.draftHandle.doc()?.clones?.[original];
 
     let cloneHandle: DocHandle<T> | null = null;
     let forkHeads: UrlHeads | null = null;
@@ -135,8 +135,8 @@ export class WorkspaceRepo implements RepoLike {
       forkHeads = cloneEntry.clonedAt;
     }
 
-    const wrapped = new WorkspacedDocHandle<T>({
-      workspace: this,
+    const wrapped = new DraftedDocHandle<T>({
+      draft: this,
       originalUrl: original,
       originalHandle,
       cloneHandle,
@@ -144,7 +144,7 @@ export class WorkspaceRepo implements RepoLike {
     });
     this.#wrapped.set(
       original,
-      wrapped as unknown as WorkspacedDocHandle<unknown>
+      wrapped as unknown as DraftedDocHandle<unknown>
     );
     return wrapped as unknown as DocHandle<T>;
   }
@@ -176,10 +176,10 @@ export class WorkspaceRepo implements RepoLike {
   ): void {
     if (this.isRoot) {
       throw new Error(
-        "workspace-repo: root workspace cannot record clones (writes should pass through)"
+        "draft-repo: root draft cannot record clones (writes should pass through)"
       );
     }
-    this.workspaceHandle.change((d) => {
+    this.draftHandle.change((d) => {
       d.clones[originalUrl] = { cloneUrl, clonedAt };
     });
   }

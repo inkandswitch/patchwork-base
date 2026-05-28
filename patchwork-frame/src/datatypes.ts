@@ -7,7 +7,7 @@ import type { AccountDoc } from "./types";
  */
 export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
   init(doc) {
-    doc.frameToolId = "patchwork-frame";
+    doc.frameToolId = "patchwork-frame-2";
     doc.accountSidebarToolId = "chee/sideboard";
     doc.contextSidebarToolId = "context-sidebar";
     doc.contextToolIds = ["comments-view", "history-view", "context-view"];

@@ -1,5 +1,5 @@
 {
-  "name": "@tiny-patchwork/workspaces",
+  "name": "@tiny-patchwork/drafts",
   "type": "module",
   "private": true,
   "main": "./dist/index.js",

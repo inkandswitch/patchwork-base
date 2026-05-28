@@ -11,7 +11,7 @@ import {
 } from "@automerge/automerge-repo";
 import type { ChangeOptions } from "@automerge/automerge";
 
-import type { WorkspaceRepo } from "./repo.js";
+import type { DraftRepo } from "./repo.js";
 
 const FORWARDED_EVENTS = [
   "change",
@@ -24,19 +24,19 @@ const FORWARDED_EVENTS = [
 
 type Listener = (...args: unknown[]) => void;
 
-export type WorkspacedDocHandleOpts<T> = {
-  workspace: WorkspaceRepo;
+export type DraftedDocHandleOpts<T> = {
+  draft: DraftRepo;
   originalUrl: AutomergeUrl;
   originalHandle: DocHandle<T>;
   cloneHandle: DocHandle<T> | null;
   forkHeads: UrlHeads | null;
 };
 
-// Proxy handle returned by `WorkspaceRepo.find`. `url`/`documentId` always
-// report the original URL; on a non-root workspace, the first write triggers
+// Proxy handle returned by `DraftRepo.find`. `url`/`documentId` always
+// report the original URL; on a non-root draft, the first write triggers
 // COW and subsequent reads/writes go to the clone.
-export class WorkspacedDocHandle<T> {
-  readonly #workspace: WorkspaceRepo;
+export class DraftedDocHandle<T> {
+  readonly #draft: DraftRepo;
   readonly #originalUrl: AutomergeUrl;
   readonly #originalHandle: DocHandle<T>;
   #cloneHandle: DocHandle<T> | null;
@@ -44,8 +44,8 @@ export class WorkspacedDocHandle<T> {
   readonly #listeners = new Map<string, Set<Listener>>();
   #forwarders: Array<{ ev: string; fn: Listener }> = [];
 
-  constructor(opts: WorkspacedDocHandleOpts<T>) {
-    this.#workspace = opts.workspace;
+  constructor(opts: DraftedDocHandleOpts<T>) {
+    this.#draft = opts.draft;
     this.#originalUrl = opts.originalUrl;
     this.#originalHandle = opts.originalHandle;
     this.#cloneHandle = opts.cloneHandle;
@@ -154,7 +154,7 @@ export class WorkspacedDocHandle<T> {
   }
 
   change(callback: ChangeFn<T>, options?: ChangeOptions<T>): void {
-    if (!this.#workspace.isRoot) this.#triggerCOW();
+    if (!this.#draft.isRoot) this.#triggerCOW();
     this.#active.change(callback, options);
   }
 
@@ -163,15 +163,15 @@ export class WorkspacedDocHandle<T> {
     callback: ChangeFn<T>,
     options?: ChangeOptions<T>
   ): UrlHeads | undefined {
-    if (!this.#workspace.isRoot) this.#triggerCOW();
+    if (!this.#draft.isRoot) this.#triggerCOW();
     return this.#active.changeAt(heads, callback, options);
   }
 
   merge(other: DocHandle<T>): void {
-    if (!this.#workspace.isRoot) this.#triggerCOW();
+    if (!this.#draft.isRoot) this.#triggerCOW();
     const inner =
-      other instanceof WorkspacedDocHandle
-        ? ((other as WorkspacedDocHandle<T>).#active as DocHandle<T>)
+      other instanceof DraftedDocHandle
+        ? ((other as DraftedDocHandle<T>).#active as DocHandle<T>)
         : other;
     this.#active.merge(inner);
   }
@@ -223,7 +223,7 @@ export class WorkspacedDocHandle<T> {
   #triggerCOW(): void {
     if (this.#cloneHandle) return;
     const heads = this.#originalHandle.heads();
-    const cloned = this.#workspace.repo.clone(this.#originalHandle);
+    const cloned = this.#draft.repo.clone(this.#originalHandle);
     this.#cloneHandle = cloned;
     this.#forkHeads = heads;
 
@@ -234,7 +234,7 @@ export class WorkspacedDocHandle<T> {
       documentId: parseAutomergeUrl(cloned.url).documentId,
       heads,
     });
-    this.#workspace._recordClone(this.#originalUrl, cloneUrl, heads);
+    this.#draft._recordClone(this.#originalUrl, cloneUrl, heads);
 
     // Synthetic nudge so reactive consumers re-read `doc()` immediately
     // instead of waiting for an incidental change on the clone.
