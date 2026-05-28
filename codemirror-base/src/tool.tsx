@@ -327,9 +327,25 @@ function commentTargetStyle(isEmphasised: boolean, dark: boolean): string {
       `;
 }
 
+// True when two refs target overlapping content in the same doc. Tries the
+// built-in ref checks first (equality, parent/child containment, range
+// overlap), then falls back to a point-in-range check so a bare cursor still
+// matches an enclosing cursor range — `Ref.overlaps()` uses strict `<` and
+// rejects zero-width ranges.
 function refsOverlap(a: Ref, b: Ref): boolean {
   try {
-    return a.equals(b) || a.contains(b) || b.contains(a) || a.overlaps(b);
+    if (a.equals(b) || a.contains(b) || b.contains(a) || a.overlaps(b)) {
+      return true;
+    }
+    const aPos = a.rangePositions;
+    const bPos = b.rangePositions;
+    if (!aPos || !bPos) return false;
+    const aIsCursor = aPos[0] === aPos[1];
+    const bIsCursor = bPos[0] === bPos[1];
+    if (!aIsCursor && !bIsCursor) return false;
+    const point = aIsCursor ? aPos[0] : bPos[0];
+    const [rangeStart, rangeEnd] = aIsCursor ? bPos : aPos;
+    return rangeStart <= point && point <= rangeEnd;
   } catch {
     return false;
   }

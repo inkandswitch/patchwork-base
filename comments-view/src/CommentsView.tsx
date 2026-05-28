@@ -24,7 +24,10 @@ import {
 } from "@automerge/automerge-repo";
 
 import { requestDoc } from "@inkandswitch/patchwork-providers-solid";
-import { useResolvedRefs, useResolvedRefMap } from "@inkandswitch/patchwork-solid";
+import {
+  useResolvedRefs,
+  useResolvedRefMap,
+} from "@inkandswitch/patchwork-solid";
 import {
   createReply,
   type Comment,
@@ -168,10 +171,26 @@ function threadOverlapsSelection(targets: Ref[], selection: Ref[]): boolean {
   return targets.some((t) => selection.some((s) => refsOverlap(s, t)));
 }
 
+// True when two refs target overlapping content in the same doc. Tries the
+// built-in ref checks first (equality, parent/child containment, range
+// overlap), then falls back to a point-in-range check so a bare cursor still
+// matches an enclosing cursor range — `Ref.overlaps()` uses strict `<` and
+// rejects zero-width ranges.
 function refsOverlap(a: Ref, b: Ref): boolean {
   if (a.docHandle.url !== b.docHandle.url) return false;
   try {
-    return a.equals(b) || a.contains(b) || b.contains(a) || a.overlaps(b);
+    if (a.equals(b) || a.contains(b) || b.contains(a) || a.overlaps(b)) {
+      return true;
+    }
+    const aPos = a.rangePositions;
+    const bPos = b.rangePositions;
+    if (!aPos || !bPos) return false;
+    const aIsCursor = aPos[0] === aPos[1];
+    const bIsCursor = bPos[0] === bPos[1];
+    if (!aIsCursor && !bIsCursor) return false;
+    const point = aIsCursor ? aPos[0] : bPos[0];
+    const [rangeStart, rangeEnd] = aIsCursor ? bPos : aPos;
+    return rangeStart <= point && point <= rangeEnd;
   } catch {
     return false;
   }
@@ -225,8 +244,8 @@ function ThreadView(props: {
   const isPrimary = createMemo(
     () => props.primaryThreadUrl() === props.threadUrl
   );
-  const isSecondary = createMemo(
-    () => props.secondaryThreadUrls().has(props.threadUrl)
+  const isSecondary = createMemo(() =>
+    props.secondaryThreadUrls().has(props.threadUrl)
   );
 
   const onClickThreadCard = (e: MouseEvent) => {
@@ -276,13 +295,9 @@ function ThreadView(props: {
     const t = thread();
     const d = draftComment();
     if (!r || !t || !d) return undefined;
-    return r.docHandle.ref(
-      "@comments",
-      "threads",
-      { id: t.id },
-      "comments",
-      { id: d.id }
-    );
+    return r.docHandle.ref("@comments", "threads", { id: t.id }, "comments", {
+      id: d.id,
+    });
   });
 
   const onResolveThread = () => {
