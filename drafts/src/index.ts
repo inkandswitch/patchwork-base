@@ -46,5 +46,10 @@ export const plugins: Plugin<any>[] = [
   },
 ];
 
-export type { CloneEntry, DraftDoc, DraftsState } from "./draft-types.js";
+export type {
+  Baseline,
+  CloneEntry,
+  DraftDoc,
+  DraftsState,
+} from "./draft-types.js";
 export { isDraftDoc } from "./draft-types.js";

@@ -9,41 +9,104 @@ import { commentButtonGutter } from "./lib/comments/commentButtonGutter.ts";
 import type { PatchworkToolProps } from "./types.ts";
 import {
   cursor,
+  decodeHeads,
   parseAutomergeUrl,
   refFromUrl,
   type DocHandle,
   type Ref,
   type RefUrl,
+  type UrlHeads,
 } from "@automerge/automerge-repo";
 
 /** Patchwork */
 import { getRegistry } from "@inkandswitch/patchwork-plugins";
-import { annotations as globalAnnotations } from "@inkandswitch/annotations-context";
 import type { Annotation } from "@inkandswitch/annotations";
-import { Diff } from "@inkandswitch/annotations-diff";
+import { Diff, diffAnnotationsOfDoc } from "@inkandswitch/annotations-diff";
 import { createComment } from "@inkandswitch/patchwork-comments";
 import { requestDoc } from "@inkandswitch/patchwork-providers-solid";
 
 /** Styles */
-import { createSignal, onMount } from "solid-js";
-import { useSubscribe } from "@inkandswitch/subscribables-solid";
+import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
 
 export type TextDoc = {
   content: string;
 };
 
+// Diff baseline served by the draft overlay (`patchwork:baseline`). When
+// `heads` is absent, there is no baseline and no diff is rendered.
+type Baseline = { heads?: UrlHeads };
+
 const PATH = ["content"];
-const VERSION = "v2.0.24-comments";
+const VERSION = "v2.1.5-baseline-debug";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
-  const contentRef = () => (props.handle as DocHandle<TextDoc>).ref(...PATH);
-
   const isReadOnly = () => !!parseAutomergeUrl(props.handle.url).heads;
 
-  // TODO: what if contentRef() is undefined?
+  const [baseline] = requestDoc<Baseline>(
+    props.element,
+    "patchwork:baseline",
+    { url: props.handle.url }
+  );
 
-  const contentAnnotations = globalAnnotations.onChildrenOf(contentRef());
-  const diffAnnotations = useSubscribe(contentAnnotations.ofType(Diff));
+  // Track the current doc heads so the diff memo recomputes on every
+  // local edit. `baseline.heads` only moves on COW, so without this the
+  // diff would freeze at the first computation.
+  //
+  // The tick is bumped from a microtask so we don't trigger a CodeMirror
+  // re-dispatch while CodeMirror is already mid-update (the sync extension
+  // applies Automerge changes inside `view.update`, which synchronously
+  // emits `change` on the handle).
+  const [docTick, setDocTick] = createSignal(0);
+  onMount(() => {
+    let scheduled = false;
+    const onChange = () => {
+      if (scheduled) return;
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        setDocTick((t) => t + 1);
+      });
+    };
+    props.handle.on("change", onChange);
+    onCleanup(() => props.handle.off("change", onChange));
+  });
+
+  // Restrict to annotations on direct children of the content text so we
+  // get text-position refs only (with `rangePositions`); doc-root and
+  // ancestor refs from `diffAnnotationsOfDoc` don't render in CodeMirror.
+  const diffAnnotations = createMemo<
+    Iterable<Annotation<unknown, Diff<unknown>>>
+  >(() => {
+    docTick();
+    const heads = baseline()?.heads;
+    console.log(
+      "[codemirror/diff] memo running for",
+      props.handle.url,
+      "baseline heads:",
+      heads
+    );
+    if (!heads) return [];
+    const contentRef = (props.handle as DocHandle<TextDoc>).ref(...PATH);
+    const set = diffAnnotationsOfDoc(
+      props.handle as DocHandle<unknown>,
+      decodeHeads(heads)
+    );
+    const filtered = Array.from(
+      set.onChildrenOf(contentRef).entriesOfType(Diff)
+    );
+    const allEntries = Array.from(set.entriesOfType(Diff));
+    console.log(
+      "[codemirror/diff] doc heads:",
+      props.handle.heads(),
+      "total Diff entries:",
+      allEntries.length,
+      "after onChildrenOf(contentRef):",
+      filtered.length,
+      "contentRef:",
+      contentRef.url
+    );
+    return filtered;
+  });
 
   // TODO: once subdoc handles land this can just be `{targetRef, threadRef}[]`.
   const [allComments] = requestDoc<{

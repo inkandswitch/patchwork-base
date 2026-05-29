@@ -22,6 +22,15 @@ export type DraftsState = {
   selectedDraft: AutomergeUrl | null;
 };
 
+// Response shape for `patchwork:baseline { url }`. The draft overlay
+// publishes `heads` as the document's fork-point heads (`clones[url].clonedAt`)
+// once the doc has been COW'd in this draft; consumers compute a diff
+// against the live doc state from there. `heads` is undefined while there
+// is no baseline yet (e.g. the doc hasn't been written to in this draft).
+export type Baseline = {
+  heads?: UrlHeads;
+};
+
 // Convention: any document may carry `@patchwork.drafts` listing the
 // top-level drafts that branch off of it. Each entry is the URL of a
 // `DraftDoc`, which in turn may have its own sub-drafts via `DraftDoc.drafts`.

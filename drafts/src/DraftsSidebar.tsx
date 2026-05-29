@@ -21,7 +21,7 @@ import type {
   HasDrafts,
 } from "./draft-types";
 
-const VERSION = "v0.3.0-flat-drafts";
+const VERSION = "v0.4.2-baseline-debug";
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = requestDoc<HasDrafts>(
