@@ -16,7 +16,13 @@ import {
 import { Sidebar } from "./components/Sidebar";
 import { DocumentToolbar } from "./components/DocumentToolbar";
 import { MainDocumentView } from "./components/MainDocumentView";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
@@ -89,45 +95,42 @@ export const PatchworkFrame = ({
     clearAll,
   } = useDebugRegistryToast();
 
-  // Gate consumers on `patchwork:mounted` so their `patchwork:request`
-  // events don't fly before the listener attaches.
-  let commentsProviderHost!: HTMLElement;
+  const [commentsProviderHost, setCommentsProviderHost] =
+    createSignal<HTMLElement>();
   const isCommentsProviderReady = useProviderReady(
     "patchwork-comments-provider",
-    () => commentsProviderHost
+    commentsProviderHost
   );
 
-  let focusProviderHost!: HTMLElement;
+  const [focusProviderHost, setFocusProviderHost] = createSignal<HTMLElement>();
   const isFocusProviderReady = useProviderReady(
     "patchwork-focus-provider",
-    () => focusProviderHost
+    focusProviderHost
   );
 
-  // Per-doc draft-root provider — mounts on the currently-selected doc and
-  // exposes `patchwork:host-doc`/`patchwork:host-repo`/`patchwork:draft-root`/
-  // `patchwork:drafts`. We still gate on `patchwork:mounted` so requests
-  // dispatched by descendants (the sidebars, the inner draft provider) don't
-  // race the listener.
-  let draftRootProviderHost!: HTMLElement;
+  const [draftRootProviderHost, setDraftRootProviderHost] =
+    createSignal<HTMLElement>();
   const isDraftRootProviderReady = useProviderReady(
     "patchwork-draft-root-provider",
-    () => draftRootProviderHost
+    draftRootProviderHost
   );
 
-  const [draftsStateHandle, setDraftsStateHandle] =
-    createSignal<DocHandle<DraftsState> | undefined>();
+  const [draftsStateHandle, setDraftsStateHandle] = createSignal<
+    DocHandle<DraftsState> | undefined
+  >();
   const [stateTick, setStateTick] = createSignal(0);
 
   createEffect(() => {
     if (!isDraftRootProviderReady()) return;
+    const host = draftRootProviderHost();
+    if (!host) return;
     let cancelled = false;
-    request<DocHandle<DraftsState> | null>(
-      draftRootProviderHost,
-      "patchwork:drafts"
-    ).then((h) => {
-      if (cancelled || !h) return;
-      setDraftsStateHandle(() => h);
-    });
+    request<DocHandle<DraftsState> | null>(host, "patchwork:drafts").then(
+      (h) => {
+        if (cancelled || !h) return;
+        setDraftsStateHandle(() => h);
+      }
+    );
     onCleanup(() => {
       cancelled = true;
       setDraftsStateHandle(undefined);
@@ -147,10 +150,10 @@ export const PatchworkFrame = ({
     return draftsStateHandle()?.doc()?.selectedDraft;
   });
 
-  let draftProviderHost!: HTMLElement;
+  const [draftProviderHost, setDraftProviderHost] = createSignal<HTMLElement>();
   const isDraftProviderReady = useProviderReady(
     "patchwork-draft-provider",
-    () => draftProviderHost
+    draftProviderHost
   );
 
   return (
@@ -167,19 +170,19 @@ export const PatchworkFrame = ({
 
       <patchwork-view
         component="patchwork-comments-provider"
-        ref={commentsProviderHost}
+        ref={setCommentsProviderHost}
       >
         <Show when={isCommentsProviderReady()}>
           <patchwork-view
             component="patchwork-focus-provider"
-            ref={focusProviderHost}
+            ref={setFocusProviderHost}
           >
             <Show when={isFocusProviderReady()}>
               {/* Per-document draft scope. Keyed on the selected doc URL
-                * so the whole draft tree remounts when the user switches
-                * docs. When no doc is selected we still render sidebars
-                * (so the drafts sidebar can show its "no doc selected"
-                * empty state, etc.), just without a draft-root scope. */}
+               * so the whole draft tree remounts when the user switches
+               * docs. When no doc is selected we still render sidebars
+               * (so the drafts sidebar can show its "no doc selected"
+               * empty state, etc.), just without a draft-root scope. */}
               <Show
                 when={selectedDoc.selectedDocUrl()}
                 keyed
@@ -221,7 +224,7 @@ export const PatchworkFrame = ({
                   <patchwork-view
                     component="patchwork-draft-root-provider"
                     doc-url={docUrl}
-                    ref={draftRootProviderHost}
+                    ref={setDraftRootProviderHost}
                   >
                     <Show when={isDraftRootProviderReady()}>
                       {accountDoc()?.accountSidebarToolId && (
@@ -238,15 +241,13 @@ export const PatchworkFrame = ({
 
                       <div class="main-area">
                         <DocumentToolbar
-                          toolIds={() =>
-                            accountDoc()?.documentToolbarToolIds
-                          }
+                          toolIds={() => accountDoc()?.documentToolbarToolIds}
                           docUrl={selectedDoc.selectedDocUrl}
                         />
                         {/* Inner draft provider only mounts when a draft
-                          * is selected — i.e. the host doc has
-                          * `@patchwork.draftUrl` set. Otherwise we render
-                          * the main view directly against the root repo. */}
+                         * is selected — i.e. the host doc has
+                         * `@patchwork.draftUrl` set. Otherwise we render
+                         * the main view directly against the root repo. */}
                         <Show
                           when={selectedDraft()}
                           keyed
@@ -262,7 +263,7 @@ export const PatchworkFrame = ({
                             <patchwork-view
                               component="patchwork-draft-provider"
                               url={draftUrl}
-                              ref={draftProviderHost}
+                              ref={setDraftProviderHost}
                             >
                               <Show when={isDraftProviderReady()}>
                                 <MainDocumentView
