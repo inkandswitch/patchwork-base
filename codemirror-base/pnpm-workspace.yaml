@@ -5,3 +5,5 @@ minimumReleaseAgeExclude:
   - '@inkandswitch/patchwork-comments@0.1.2'
   - '@inkandswitch/patchwork-providers-solid@0.1.3'
   - '@inkandswitch/patchwork-providers@0.1.2'
+  - '@inkandswitch/patchwork-bootloader@0.2.4'
+  - '@inkandswitch/patchwork-elements@0.1.0'

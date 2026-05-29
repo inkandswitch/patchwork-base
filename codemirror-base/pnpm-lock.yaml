@@ -21,29 +21,29 @@ importers:
         specifier: ^6.38.4
         version: 6.43.0
       '@inkandswitch/annotations':
-        specifier: ^0.1.5
+        specifier: ^0.1.6
         version: 0.1.6(@automerge/automerge-repo@2.6.0-subduction.22)
       '@inkandswitch/annotations-context':
-        specifier: ^0.1.4
+        specifier: ^0.1.5
         version: 0.1.5(@automerge/automerge-repo@2.6.0-subduction.22)
       '@inkandswitch/annotations-diff':
-        specifier: ^0.1.5
+        specifier: ^0.1.6
         version: 0.1.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
       '@inkandswitch/annotations-selection':
-        specifier: ^0.1.5
+        specifier: ^0.1.6
         version: 0.1.6(@automerge/automerge-repo@2.6.0-subduction.22)
       '@inkandswitch/patchwork-bootloader':
-        specifier: ^0.0.4
-        version: 0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)
+        specifier: ^0.2.4
+        version: 0.2.4(@automerge/automerge-repo-keyhive@0.2.0-alpha.1d)(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.23)(solid-js@1.9.13)
       '@inkandswitch/patchwork-comments':
         specifier: ^0.1.2
         version: 0.1.2(@automerge/automerge-repo@2.6.0-subduction.22)
       '@inkandswitch/patchwork-filesystem':
-        specifier: ^0.0.4
-        version: 0.0.4(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
+        specifier: ^0.0.8
+        version: 0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
       '@inkandswitch/patchwork-plugins':
-        specifier: ^0.0.6
-        version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))
+        specifier: ^0.0.11
+        version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))
       '@inkandswitch/patchwork-providers':
         specifier: ^0.1.2
         version: 0.1.2(@automerge/automerge-repo@2.6.0-subduction.22)
@@ -51,10 +51,10 @@ importers:
         specifier: ^0.1.3
         version: 0.1.3(@automerge/automerge-repo-solid-primitives@2.5.6(@automerge/automerge@3.2.6)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.22)(solid-js@1.9.13)
       '@inkandswitch/subscribables':
-        specifier: ^0.1.2
+        specifier: ^0.1.3
         version: 0.1.3
       '@inkandswitch/subscribables-solid':
-        specifier: ^0.1.2
+        specifier: ^0.1.3
         version: 0.1.3(solid-js@1.9.13)
       solid-js:
         specifier: ^1.9.9
@@ -108,20 +108,20 @@ packages:
   '@automerge/automerge-codemirror@0.2.0':
     resolution: {integrity: sha512-GBNh4ESZHFNHZKLznf/2G2KdmBD+unEdk64+l621LsjIsJs6HBmQmO8RCY1v7vIq31kFyoVHNcBMGQOnLgy4GA==}
 
-  '@automerge/automerge-repo-keyhive@0.0.0-alpha.71':
-    resolution: {integrity: sha512-bDP6QPNTG9eCYVnLW/PuODLFmGrOe4rwaOSAWLgW9VrHg/5aBlP0PmrzeJ58loYvGlqYeN6PWrV+GFDqCPUcug==}
+  '@automerge/automerge-repo-keyhive@0.2.0-alpha.1d':
+    resolution: {integrity: sha512-p+4PnUua9vtvmdoZQXNOdl6SJGISF90JHi95zw33gUen4LHerNgXx7RVc0uDMC6WOfhKxJANqE2f+VKCQwis9w==}
 
-  '@automerge/automerge-repo-network-broadcastchannel@2.5.0':
-    resolution: {integrity: sha512-57rUTYf0W6kL9DXwjRtyGLqeyz65tDIpiNQdc1nXHnN4VkNMvNo0xzb37nyFKWHEqPWA0DGCcBA8HRlbVHHyHw==}
+  '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.23':
+    resolution: {integrity: sha512-lCsxaauTmtd2bxwW2p5Kk6zRqjgxCOXUcMDb4T2Yb6GtT7jo6gbBZh5G9U4UPANwGICdyQGJREQh8bj5n6BMOw==}
 
-  '@automerge/automerge-repo-network-messagechannel@2.5.0':
-    resolution: {integrity: sha512-G7m161tId4djPMzDPlP7nIEsDY7ddbKfKvpJP7kkVqv3OA/Ml8fzyKaU7C1++s/g0FSNCTiN6hOhFCbSkb6/Dw==}
+  '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.23':
+    resolution: {integrity: sha512-M0dWwgLRklTg1X65V+/py220rDF2UeBjgUpeqsCaMDTGy/1IV8l557fR/TqA8hStxq8unuwR19GkVAhpnAbWmg==}
 
-  '@automerge/automerge-repo-network-websocket@2.5.0':
-    resolution: {integrity: sha512-zrwbkW8hk3fWkXdeaH+YDfGG63WaB9WLfWYyinZx2AQv4mr6D6UhIhviIjweMmRxMLen6NlIcdu3toHV33ZuKg==}
+  '@automerge/automerge-repo-network-websocket@2.5.3':
+    resolution: {integrity: sha512-p6K1YLo34cyGxJ6oMWqeBbWX9rGvEPGyPdX2eq8S/iWNDjYf8lbjKSOhOD8DX87uAMZN/y1XOY/RckwS8lPJbQ==}
 
-  '@automerge/automerge-repo-network-websocket@2.5.0-alpha.2':
-    resolution: {integrity: sha512-EtdsSA9PhuiWWbvT36DGylBeGCL7Aop8nSe4FrBYchBCWpqqZOBLdbxD0crwbCUwTBTJy76pXhSHjObQi0y4zQ==}
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.23':
+    resolution: {integrity: sha512-onckHev2sV7lVERSC7BJvPkZbrlElx5n6FIn59WeHdfk6+tweAf5MmCnIUhAtVbVGxqaRfW1teCR3mBLyy1+wA==}
 
   '@automerge/automerge-repo-solid-primitives@2.5.6':
     resolution: {integrity: sha512-jwxktGP36AhxpPc9d3qi/k9WS7lIRqjfdWhn6i/Mzc6qe47COHe2QBvdDrDo6FTbFBoRz7+H5fyx3e2tfBIXfA==}
@@ -129,17 +129,20 @@ packages:
       '@automerge/automerge': ^3.0.0
       solid-js: ^1.9.4
 
-  '@automerge/automerge-repo-storage-indexeddb@2.5.0':
-    resolution: {integrity: sha512-7MJYJ5S6K7dHlbvs5/u/v9iexqOeprU/qQonup28r2IoVqwzjuN5ezaoVk6JRBMDI/ZxWfU4rNrqVrVlB49yXA==}
+  '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.23':
+    resolution: {integrity: sha512-VCnKBuIsBFl8DEDTfkVC5OxHV9dpeflEhtK9KgjJth4EUmGfwKN6IkEPC4bhQ/yNb+tDqIDJMO+f1YcTTZauOQ==}
 
-  '@automerge/automerge-repo@2.5.0':
-    resolution: {integrity: sha512-bdxuMuKmxw0ZjwQXecrIX1VrHXf445bYCftNJJ5vqgGWVvINB5ZKFYAbtgPIyu1Y0TXQKvc6eqESaDeL+g8MmA==}
-
-  '@automerge/automerge-repo@2.5.0-alpha.2':
-    resolution: {integrity: sha512-Sjl1CaD4IpmboNIG9/EL9Run+AKrL8/1h3Om1NZp9syBnJN8OWjeG4ttpQce6k8HdPyl8sllAHYy8/Q4Ukh39w==}
+  '@automerge/automerge-repo@2.5.3':
+    resolution: {integrity: sha512-5ppzsUlzCs6PY+GeFlquaYLnVnYPz/hWzedep37zjb15tqZju1ukPPkBzT7KGEhEAnA99l4vfhfqSVC+1GktJg==}
 
   '@automerge/automerge-repo@2.6.0-subduction.22':
     resolution: {integrity: sha512-BxNJQPtutS8wFu14AADDHxKqpnYJxNMgYmgZqW1RBnje2/TXxqs8jJLwWKluAlPN7AsVT3CLJheoXla20VhqcA==}
+
+  '@automerge/automerge-repo@2.6.0-subduction.23':
+    resolution: {integrity: sha512-SziEXGS4LlKmR6DK8Zf9FM12j14E39NM9kbzLoKx6cKdjEqowUyxDSpPAFrUPjrmFQ8eLw3p8DMb18mtoZD80Q==}
+
+  '@automerge/automerge-subduction@0.12.1':
+    resolution: {integrity: sha512-s1s40RTozkqExIk1LYdogKPzpCMFfe/7KBS0ccAlwsy4JwdcUGG9NQO2Pm3kZq8vD3OPw7DcIOSPG+bnLESQFg==}
 
   '@automerge/automerge-subduction@0.13.0':
     resolution: {integrity: sha512-7XlCIS0GH3ctboE8UPmD9rfiv203Q8n5Lx63xE6xCgtlpwecDKqzLDp77e9hUEo76j17Y8bYQyfsROqaByLf5A==}
@@ -147,8 +150,11 @@ packages:
   '@automerge/automerge@3.2.6':
     resolution: {integrity: sha512-9/GXXfYYWNVGpnbRrGQzTNU4fWZ3XaEMeEg0OrpK4pvlQSpkmUBoirEb/4TMK6BwMysZGV5Yeneq3wwc7RNGfg==}
 
-  '@automerge/vanillajs@2.5.0':
-    resolution: {integrity: sha512-18Z179fBkRYhfJOvzcz5NU+TSJOfOBez1ZQqjNnRlmHB0xwaC9P/MFuuc9ujWtJSiRAh6jzB3HxUZpCIjEfXFw==}
+  '@automerge/automerge@3.3.0-fragments.1':
+    resolution: {integrity: sha512-Im2n3qcYSuIsLDSjofTRo7CZyyvFn5pKLSCCO5sjWzESw+9q9G25ZIrL2mczDX43cXtyzi+w/4b9VUaiNdY56Q==}
+
+  '@automerge/vanillajs@2.6.0-subduction.23':
+    resolution: {integrity: sha512-7w26PiIqFZpbPrlQuPSGVm2Hk/rk2laMGl9/6yJ3LN8QPhopSJ3W5hmp0SixLhMCo6E2tqDx7OcgdYlxDHb1cQ==}
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -512,32 +518,49 @@ packages:
     peerDependencies:
       '@automerge/automerge-repo': '*'
 
-  '@inkandswitch/patchwork-bootloader@0.0.4':
-    resolution: {integrity: sha512-3VWkDYPTiY4H2+877tYHptRGQcCg22uoa0NG+7cgwbmETcBhnXheoLh/cv3clPf2mcMiglhY1Htt7ezkgKa17g==}
+  '@inkandswitch/patchwork-bootloader@0.2.4':
+    resolution: {integrity: sha512-NitcU/cQR+4X1kI5qfyfE+AlpAJO5In/vpwc7IcUnDkdceX3TA5aGTn8t76NVWyxFUbf0sn5tqgt+JShCX0G+A==}
     peerDependencies:
-      '@automerge/automerge': 3.2.1
-      '@automerge/automerge-repo': 2.5.0
-      '@automerge/automerge-repo-keyhive': 0.0.0-alpha.71
-      '@automerge/vanillajs': 2.5.0
-      '@keyhive/keyhive': 0.0.0-alpha.40
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.23
+      '@automerge/automerge-repo-keyhive': 0.2.0-alpha.1d
+      '@automerge/vanillajs': 2.6.0-subduction.23
 
   '@inkandswitch/patchwork-comments@0.1.2':
     resolution: {integrity: sha512-hROMr5IZ2lpnl5mF3ge53/0h3YzaRc95ph+KPvxPIRF2vaAJ9Xs1p+WRC5XIVaMZNUtgnrPcpZwypNyZIWVdNg==}
     peerDependencies:
       '@automerge/automerge-repo': '*'
 
-  '@inkandswitch/patchwork-filesystem@0.0.4':
-    resolution: {integrity: sha512-W44nTqmr4kGk3I9h+krexUXU8/vOGnQ7WQAseR/85OjXgSDcDjP47m+yAFLWBd2f/5kQM7xkDOCBo42PdwE0xw==}
+  '@inkandswitch/patchwork-elements@0.1.0':
+    resolution: {integrity: sha512-zciMyXzmTHHSBq5vDnHnmme2R2GHxsyp/yAXmfY7BRpzGPyVyXeAjjrRKy9VxvXpXkxD3nG89ET/dGRx3NUaLg==}
+    peerDependencies:
+      '@automerge/automerge-repo': '*'
+      '@inkandswitch/patchwork-filesystem': ^0.0.8
+      '@inkandswitch/patchwork-plugins': ^0.0.11
+      '@inkandswitch/patchwork-providers': ^0.1.2
+      '@types/react': '*'
+      react: '*'
+      solid-js: '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
+      solid-js:
+        optional: true
+
+  '@inkandswitch/patchwork-filesystem@0.0.8':
+    resolution: {integrity: sha512-gfS7OHC2W1xG0EWl5yQMPQl+Ra/hLsgus9X0VmwHvsovFSR9tun7Clz3XcIyAqEU7VpEtCkGrxHkMgw54SJxlg==}
     peerDependencies:
       '@automerge/automerge': '*'
       '@automerge/automerge-repo': '*'
 
-  '@inkandswitch/patchwork-plugins@0.0.6':
-    resolution: {integrity: sha512-BoDeVa/feJ3zNVCyo7X6kdR7Yv9Fl4ZK2iQ/iObOoFL+fkdglgGccz1LDeY/qYyo4Z1mnTph/s0MIwtKm1AYyw==}
+  '@inkandswitch/patchwork-plugins@0.0.11':
+    resolution: {integrity: sha512-ElwDEixpZN64gdoE7EU8QFz4WzvyJt6j4Zn0pTezsW6SzGlx+Rc6Ox+7POK7gqEzQEcl3Iqo8+QdYRucYllRFw==}
     peerDependencies:
       '@automerge/automerge': '*'
       '@automerge/automerge-repo': '*'
-      '@inkandswitch/patchwork-filesystem': ^0.0.4
+      '@inkandswitch/patchwork-filesystem': ^0.0.8
 
   '@inkandswitch/patchwork-providers-solid@0.1.3':
     resolution: {integrity: sha512-mBRB+nzd2AKVrS3lhw+g11KWIJ6i2eg2PbNdumnUa8mpP5drJC/XJlI06glGS/ZQPx+vOPZwiVs0wM2/GZp2sg==}
@@ -575,8 +598,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@keyhive/keyhive@0.0.0-alpha.40':
-    resolution: {integrity: sha512-FlvtX6ZK2q47OqqJZ/8G+SAevKJxjSdldhwJPlhUT9QTIv0LNmJO17pkEtLJ0VVrmPryP0tKQDIaQtmcE1f7Tg==}
+  '@keyhive/keyhive@0.0.0-alpha.56':
+    resolution: {integrity: sha512-hx/MRkRqCSJFIh5jHKs9HkzDQy4tUZzgaRlc85+8t22VciubmZAU1FyugmYboskPUxUGwqZC1GarwXfxhrp5DA==}
 
   '@lezer/common@1.5.2':
     resolution: {integrity: sha512-sxQE460fPZyU3sdc8lafxiPwJHBzZRy/udNFynGQky1SePYBdhkBl1kOagA9uT3pxR8K09bOrmTUqA9wb/PjSQ==}
@@ -1479,34 +1502,39 @@ snapshots:
       '@codemirror/view': 6.43.0
       codemirror: 6.0.2
 
-  '@automerge/automerge-repo-keyhive@0.0.0-alpha.71':
+  '@automerge/automerge-repo-keyhive@0.2.0-alpha.1d':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0-alpha.2
-      '@automerge/automerge-repo-network-websocket': 2.5.0-alpha.2
-      '@keyhive/keyhive': 0.0.0-alpha.40
+      '@automerge/automerge-repo': 2.5.3
+      '@automerge/automerge-repo-network-websocket': 2.5.3
+      '@keyhive/keyhive': 0.0.0-alpha.56
+      cbor-x: 1.6.4
       eventemitter3: 5.0.4
     transitivePeerDependencies:
       - bufferutil
       - supports-color
       - utf-8-validate
 
-  '@automerge/automerge-repo-network-broadcastchannel@2.5.0':
+  '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.23':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0
+      '@automerge/automerge-repo': 2.6.0-subduction.23
     transitivePeerDependencies:
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
-  '@automerge/automerge-repo-network-messagechannel@2.5.0':
+  '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.23':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0
+      '@automerge/automerge-repo': 2.6.0-subduction.23
       debug: 4.4.3
       eventemitter3: 5.0.4
     transitivePeerDependencies:
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
-  '@automerge/automerge-repo-network-websocket@2.5.0':
+  '@automerge/automerge-repo-network-websocket@2.5.3':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0
+      '@automerge/automerge-repo': 2.5.3
       cbor-x: 1.6.4
       debug: 4.4.3
       eventemitter3: 5.0.4
@@ -1517,9 +1545,9 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@automerge/automerge-repo-network-websocket@2.5.0-alpha.2':
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.23':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0-alpha.2
+      '@automerge/automerge-repo': 2.6.0-subduction.23
       cbor-x: 1.6.4
       debug: 4.4.3
       eventemitter3: 5.0.4
@@ -1535,26 +1563,15 @@ snapshots:
       '@automerge/automerge': 3.2.6
       solid-js: 1.9.13
 
-  '@automerge/automerge-repo-storage-indexeddb@2.5.0':
+  '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.23':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0
+      '@automerge/automerge-repo': 2.6.0-subduction.23
     transitivePeerDependencies:
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
-  '@automerge/automerge-repo@2.5.0':
-    dependencies:
-      '@automerge/automerge': 3.2.6
-      bs58check: 3.0.1
-      cbor-x: 1.6.4
-      debug: 4.4.3
-      eventemitter3: 5.0.4
-      fast-sha256: 1.3.0
-      uuid: 9.0.1
-      xstate: 5.31.1
-    transitivePeerDependencies:
-      - supports-color
-
-  '@automerge/automerge-repo@2.5.0-alpha.2':
+  '@automerge/automerge-repo@2.5.3':
     dependencies:
       '@automerge/automerge': 3.2.6
       bs58check: 3.0.1
@@ -1585,17 +1602,39 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@automerge/automerge-repo@2.6.0-subduction.23':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-subduction': 0.13.0
+      bs58check: 3.0.1
+      cbor-x: 1.6.4
+      debug: 4.4.3
+      eventemitter3: 5.0.4
+      fast-sha256: 1.3.0
+      isomorphic-ws: 5.0.0(ws@8.21.0)
+      uuid: 9.0.1
+      ws: 8.21.0
+      xstate: 5.31.1
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/automerge-subduction@0.12.1': {}
+
   '@automerge/automerge-subduction@0.13.0': {}
 
   '@automerge/automerge@3.2.6': {}
 
-  '@automerge/vanillajs@2.5.0':
+  '@automerge/automerge@3.3.0-fragments.1': {}
+
+  '@automerge/vanillajs@2.6.0-subduction.23':
     dependencies:
-      '@automerge/automerge-repo': 2.5.0
-      '@automerge/automerge-repo-network-broadcastchannel': 2.5.0
-      '@automerge/automerge-repo-network-messagechannel': 2.5.0
-      '@automerge/automerge-repo-network-websocket': 2.5.0
-      '@automerge/automerge-repo-storage-indexeddb': 2.5.0
+      '@automerge/automerge-repo': 2.6.0-subduction.23
+      '@automerge/automerge-repo-network-broadcastchannel': 2.6.0-subduction.23
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.23
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.23
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.23
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -1953,26 +1992,50 @@ snapshots:
       '@inkandswitch/subscribables': 0.1.3
       eventemitter3: 5.0.4
 
-  '@inkandswitch/patchwork-bootloader@0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)':
+  '@inkandswitch/patchwork-bootloader@0.2.4(@automerge/automerge-repo-keyhive@0.2.0-alpha.1d)(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.23)(solid-js@1.9.13)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.22
-      '@automerge/automerge-repo-keyhive': 0.0.0-alpha.71
-      '@automerge/vanillajs': 2.5.0
-      '@keyhive/keyhive': 0.0.0-alpha.40
+      '@automerge/automerge-repo-keyhive': 0.2.0-alpha.1d
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.23
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.23
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.23
+      '@automerge/automerge-subduction': 0.12.1
+      '@automerge/vanillajs': 2.6.0-subduction.23
+      '@inkandswitch/patchwork-elements': 0.1.0(@automerge/automerge-repo@2.6.0-subduction.22)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)))(@inkandswitch/patchwork-providers@0.1.2(@automerge/automerge-repo@2.6.0-subduction.22))(solid-js@1.9.13)
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))
+      '@inkandswitch/patchwork-providers': 0.1.2(@automerge/automerge-repo@2.6.0-subduction.22)
       '@types/debug': 4.1.13
       debug: 4.4.3
       resolve.exports: 2.0.3
       service-worker-types: '@types/serviceworker@0.0.153'
       tinyargs: 0.1.4
     transitivePeerDependencies:
+      - '@types/react'
+      - bufferutil
+      - react
+      - solid-js
       - supports-color
+      - utf-8-validate
 
   '@inkandswitch/patchwork-comments@0.1.2(@automerge/automerge-repo@2.6.0-subduction.22)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.22
 
-  '@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)':
+  '@inkandswitch/patchwork-elements@0.1.0(@automerge/automerge-repo@2.6.0-subduction.22)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)))(@inkandswitch/patchwork-providers@0.1.2(@automerge/automerge-repo@2.6.0-subduction.22))(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.22
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))
+      '@inkandswitch/patchwork-providers': 0.1.2(@automerge/automerge-repo@2.6.0-subduction.22)
+      debug: 4.4.3
+    optionalDependencies:
+      solid-js: 1.9.13
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.22
@@ -1983,11 +2046,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))':
+  '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6))':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.22
-      '@inkandswitch/patchwork-filesystem': 0.0.4(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.22)(@automerge/automerge@3.2.6)
       '@types/debug': 4.1.13
       '@types/node': 20.19.41
       debug: 4.4.3
@@ -2035,7 +2098,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@keyhive/keyhive@0.0.0-alpha.40': {}
+  '@keyhive/keyhive@0.0.0-alpha.56': {}
 
   '@lezer/common@1.5.2': {}
 

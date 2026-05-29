@@ -13,7 +13,7 @@ import {
 } from "@automerge/automerge-repo-keyhive";
 import type {
   OpenDocumentEventDetail,
-  PatchworkViewLegacyElement,
+  LegacyPatchworkViewElement,
 } from "@inkandswitch/patchwork-elements";
 import type {
   DocLink,
@@ -49,7 +49,7 @@ export interface DocumentListProps {
   hive?: AutomergeRepoKeyhive;
   selectedDocUrls: AutomergeUrl[];
   visitedFolders?: Set<AutomergeUrl>;
-  element: PatchworkViewLegacyElement;
+  element: LegacyPatchworkViewElement;
   rootFolderHandle: DocHandle<FolderDoc>;
 }
 
