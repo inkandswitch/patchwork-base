@@ -8,13 +8,20 @@ import {
   useSelectedDocument,
   useAnnotations,
   useCommentThreads,
+  useProviderReady,
   useDebugRegistryToast,
   DebugRegistryToast,
 } from "./hooks";
 import { Sidebar } from "./components/Sidebar";
 import { DocumentToolbar } from "./components/DocumentToolbar";
 import { MainDocumentView } from "./components/MainDocumentView";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
@@ -99,27 +106,26 @@ export const PatchworkFrame = ({
     clearAll,
   } = useDebugRegistryToast();
 
-  // Wait for each provider to mount before rendering consumers, so their
-  // patchwork:request events aren't dispatched before the provider has
-  // attached its listener.
-  const [isCommentsProviderReady, setCommentsProviderReady] =
-    createSignal(false);
-  const [isFocusProviderReady, setFocusProviderReady] =
-    createSignal(false);
-  const [isAccountProviderReady, setAccountProviderReady] =
-    createSignal(false);
+  const [commentsProviderElement, setCommentsProviderElement] =
+    createSignal<HTMLElement>();
+  const isCommentsProviderReady = useProviderReady(
+    "patchwork-comments-provider",
+    commentsProviderElement
+  );
 
-  const makeProviderReadyListener =
-    (componentId: string, setReady: (value: boolean) => void) =>
-    (host: HTMLElement) => {
-      const onMounted = (event: Event) => {
-        const detail = (event as CustomEvent<{ componentId?: string }>).detail;
-        if (detail?.componentId !== componentId) return;
-        setReady(true);
-      };
-      host.addEventListener("patchwork:mounted", onMounted);
-      onCleanup(() => host.removeEventListener("patchwork:mounted", onMounted));
-    };
+  const [focusProviderElement, setFocusProviderElement] =
+    createSignal<HTMLElement>();
+  const isFocusProviderReady = useProviderReady(
+    "patchwork-focus-provider",
+    focusProviderElement
+  );
+
+  const [accountProviderElement, setAccountProviderElement] =
+    createSignal<HTMLElement>();
+  const isAccountProviderReady = useProviderReady(
+    "patchwork-account-provider",
+    accountProviderElement
+  );
 
   return (
     <div class="frame">
@@ -148,26 +154,17 @@ export const PatchworkFrame = ({
 
       <patchwork-view
         component="patchwork-comments-provider"
-        ref={makeProviderReadyListener(
-          "patchwork-comments-provider",
-          setCommentsProviderReady
-        )}
+        ref={setCommentsProviderElement}
       >
         <Show when={isCommentsProviderReady()}>
           <patchwork-view
             component="patchwork-focus-provider"
-            ref={makeProviderReadyListener(
-              "patchwork-focus-provider",
-              setFocusProviderReady
-            )}
+            ref={setFocusProviderElement}
           >
             <Show when={isFocusProviderReady()}>
               <patchwork-view
                 component="patchwork-account-provider"
-                ref={makeProviderReadyListener(
-                  "patchwork-account-provider",
-                  setAccountProviderReady
-                )}
+                ref={setAccountProviderElement}
               >
                 <Show when={isAccountProviderReady()}>
                   {/* Main Content Area */}
