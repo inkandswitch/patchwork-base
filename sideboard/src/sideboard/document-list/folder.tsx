@@ -8,7 +8,7 @@ import type { AutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
 import { useDocument } from "@automerge/automerge-repo-solid-primitives";
 import type {
   OpenDocumentEventDetail,
-  LegacyPatchworkViewElement,
+  PatchworkViewElement,
 } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { handleFilesDrop } from "./file-drop.ts";
@@ -38,7 +38,7 @@ export default function Folder(props: {
   hive?: AutomergeRepoKeyhive;
   selectedDocUrls: AutomergeUrl[];
   visitedFolders?: Set<AutomergeUrl>;
-  element: LegacyPatchworkViewElement;
+  element: PatchworkViewElement;
   rootFolderHandle: DocHandle<FolderDoc>;
 }) {
   const [ref, setRef] = createSignal<HTMLElement>();

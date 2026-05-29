@@ -4,7 +4,7 @@ import {
   makeDocumentProjection,
 } from "@automerge/automerge-repo-solid-primitives";
 import type { DocHandle, Repo } from "@automerge/automerge-repo";
-import type { PatchworkViewLegacyElement } from "@inkandswitch/patchwork-elements";
+import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import { HasPatchworkMetadata } from "@inkandswitch/patchwork-filesystem/dist/metadata";
 import {
   ContactDoc,
@@ -52,7 +52,7 @@ type AccountTokenToLoginStatus = null | "valid" | "malformed" | "not-found" | "l
 
 export interface PatchworkToolProps<T> {
   handle: DocHandle<T>;
-  element: PatchworkViewLegacyElement;
+  element: PatchworkViewElement;
 }
 
 export const AccountPicker = (props: PatchworkToolProps<any>) => {
