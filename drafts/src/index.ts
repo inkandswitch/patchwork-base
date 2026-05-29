@@ -3,22 +3,24 @@ import type { Plugin } from "@inkandswitch/patchwork-plugins";
 export const plugins: Plugin<any>[] = [
   {
     type: "patchwork:component",
-    id: "patchwork-draft-root-provider",
-    name: "Draft Root Provider",
+    id: "patchwork-draft-list-provider",
+    name: "Draft List Provider",
     async load() {
-      const { DraftRootProvider } = await import(
-        "./providers/DraftRootProvider.js"
+      const { DraftListProvider } = await import(
+        "./providers/DraftListProvider.js"
       );
-      return DraftRootProvider;
+      return DraftListProvider;
     },
   },
   {
     type: "patchwork:component",
-    id: "patchwork-draft-provider",
-    name: "Draft Provider",
+    id: "patchwork-draft-overlay-provider",
+    name: "Draft Overlay Provider",
     async load() {
-      const { DraftProvider } = await import("./providers/DraftProvider.js");
-      return DraftProvider;
+      const { DraftOverlayProvider } = await import(
+        "./providers/DraftOverlayProvider.js"
+      );
+      return DraftOverlayProvider;
     },
   },
   {

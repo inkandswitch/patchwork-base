@@ -154,7 +154,7 @@ export class DraftedDocHandle<T> {
   }
 
   change(callback: ChangeFn<T>, options?: ChangeOptions<T>): void {
-    if (!this.#draft.isRoot) this.#triggerCOW();
+    this.#triggerCOW();
     this.#active.change(callback, options);
   }
 
@@ -163,12 +163,12 @@ export class DraftedDocHandle<T> {
     callback: ChangeFn<T>,
     options?: ChangeOptions<T>
   ): UrlHeads | undefined {
-    if (!this.#draft.isRoot) this.#triggerCOW();
+    this.#triggerCOW();
     return this.#active.changeAt(heads, callback, options);
   }
 
   merge(other: DocHandle<T>): void {
-    if (!this.#draft.isRoot) this.#triggerCOW();
+    this.#triggerCOW();
     const inner =
       other instanceof DraftedDocHandle
         ? ((other as DraftedDocHandle<T>).#active as DocHandle<T>)

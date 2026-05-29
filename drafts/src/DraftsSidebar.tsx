@@ -18,77 +18,41 @@ import { request } from "@inkandswitch/patchwork-providers";
 import type {
   DraftDoc,
   DraftsState,
-  HasDraftMarker,
+  HasDrafts,
 } from "./draft-types";
 
-const VERSION = "v0.2.0-per-doc";
+const VERSION = "v0.3.0-flat-drafts";
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
-  const [hostDoc, hostDocHandle] = requestDoc<HasDraftMarker>(
+  const [hostDoc, hostDocHandle] = requestDoc<HasDrafts>(
     props.element,
     "patchwork:host-doc"
   );
 
-  // `@patchwork.draftUrl` is the link from a host doc to its draft tree.
-  // We re-request `patchwork:draft-root` and `patchwork:drafts` whenever it
-  // toggles, because the underlying `request()` is fire-and-forget and the
-  // provider tears down / rebuilds those handles when the marker changes.
-  const draftUrlMarker = createMemo<string | undefined>(
-    () => hostDoc()?.["@patchwork"]?.draftUrl
-  );
-
-  const [rootHandle, setRootHandle] =
-    createSignal<DocHandle<DraftDoc> | undefined>();
   const [stateHandle, setStateHandle] =
     createSignal<DocHandle<DraftsState> | undefined>();
 
   createEffect(() => {
-    const marker = draftUrlMarker();
     let cancelled = false;
     onCleanup(() => {
       cancelled = true;
     });
-
-    if (!marker) {
-      setRootHandle(undefined);
-      setStateHandle(undefined);
-      return;
-    }
-
-    // The draft-root provider's reconcile is async; it may not have rebuilt
-    // its handles by the time we observe the host doc change. Retry briefly
-    // until both responses come back non-null.
-    void (async () => {
-      for (let attempt = 0; attempt < 50 && !cancelled; attempt++) {
-        const [root, drafts] = await Promise.all([
-          request<DocHandle<DraftDoc> | null>(
-            props.element,
-            "patchwork:draft-root"
-          ),
-          request<DocHandle<DraftsState> | null>(
-            props.element,
-            "patchwork:drafts"
-          ),
-        ]);
-        if (root && drafts && !cancelled) {
-          setRootHandle(() => root);
-          setStateHandle(() => drafts);
-          return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-    })();
+    void request<DocHandle<DraftsState> | null>(
+      props.element,
+      "patchwork:drafts"
+    ).then((h) => {
+      if (!cancelled && h) setStateHandle(() => h);
+    });
   });
 
   const state = createDocumentProjection<DraftsState>(stateHandle);
-
   const drafts = createMemo<AutomergeUrl[]>(() => state()?.drafts ?? []);
-  const selected = createMemo<AutomergeUrl | undefined>(
-    () => state()?.selectedDraft
+  const selected = createMemo<AutomergeUrl | null>(
+    () => state()?.selectedDraft ?? null
   );
-  const hasDraftTree = createMemo(() => !!rootHandle());
+  const isMainSelected = createMemo(() => selected() === null);
 
-  const selectDraft = (url: AutomergeUrl) => {
+  const selectDraft = (url: AutomergeUrl | null) => {
     stateHandle()?.change((d) => {
       d.selectedDraft = url;
     });
@@ -97,7 +61,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   const getHostRepo = () =>
     request<Repo>(props.element, "patchwork:host-repo");
 
-  const onCreateFirst = async () => {
+  const onCreateDraft = async () => {
     const docHandle = hostDocHandle();
     if (!docHandle) return;
     const repo = await getHostRepo();
@@ -105,61 +69,23 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
       console.warn("[drafts] no `patchwork:host-repo` available");
       return;
     }
-    const rootDraft = repo.create<DraftDoc>({
+    const draft = repo.create<DraftDoc>({
       "@patchwork": { type: "draft" },
-      parentDraftUrl: null,
+      parent: docHandle.url,
       drafts: [],
       clones: {},
-    });
-    const child = repo.create<DraftDoc>({
-      "@patchwork": { type: "draft" },
-      parentDraftUrl: rootDraft.url,
-      drafts: [],
-      clones: {},
-    });
-    rootDraft.change((d) => {
-      d.drafts.push(child.url);
     });
     docHandle.change((d) => {
       const existing = d["@patchwork"];
       const next =
         existing && typeof existing === "object" ? { ...existing } : {};
-      if (!next.draftUrl) {
-        next.draftUrl = rootDraft.url;
-        d["@patchwork"] = next;
-      }
+      const list = Array.isArray(next.drafts) ? [...next.drafts] : [];
+      list.push(draft.url);
+      next.drafts = list;
+      d["@patchwork"] = next;
     });
-    // The provider picks up the doc change, builds DraftsState with
-    // `selectedDraft = rootDraft.url`. We wait for that, then switch to
-    // the new child.
-    const stateReady = await waitForState(stateHandle);
-    stateReady?.change((d) => {
-      d.selectedDraft = child.url;
-    });
+    selectDraft(draft.url);
   };
-
-  const onCreateChild = async () => {
-    const r = rootHandle();
-    if (!r) return;
-    const repo = await getHostRepo();
-    if (!repo) return;
-    const child = repo.create<DraftDoc>({
-      "@patchwork": { type: "draft" },
-      parentDraftUrl: r.url,
-      drafts: [],
-      clones: {},
-    });
-    r.change((d) => {
-      d.drafts.push(child.url);
-    });
-    selectDraft(child.url);
-  };
-
-  // Single entry point used by the "New draft" button regardless of whether
-  // the host doc already has a draft tree. If it doesn't, we bootstrap the
-  // root and a child in one shot; otherwise we just add a child to the root.
-  const onCreateDraft = () =>
-    hasDraftTree() ? onCreateChild() : onCreateFirst();
 
   return (
     <div class="h-full flex flex-col p-2 gap-2">
@@ -175,34 +101,27 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
         }
       >
         <div class="flex flex-col gap-1">
-          <Show
-            when={hasDraftTree()}
-            fallback={
-              <VirtualMainCard hostDocUrl={hostDocHandle()?.url} />
-            }
-          >
-            <For each={drafts()}>
-              {(url) => (
-                <DraftCard
-                  url={url}
-                  isRoot={rootHandle()?.url === url}
-                  isSelected={selected() === url}
-                  onSelect={selectDraft}
-                />
-              )}
-            </For>
-          </Show>
+          <MainCard
+            hostDocUrl={hostDocHandle()?.url}
+            isSelected={isMainSelected()}
+            onSelect={() => selectDraft(null)}
+          />
+          <For each={drafts()}>
+            {(url) => (
+              <DraftCard
+                url={url}
+                isSelected={selected() === url}
+                onSelect={selectDraft}
+              />
+            )}
+          </For>
         </div>
 
         <div class="flex justify-end">
           <button
             class="btn btn-sm btn-primary"
             onClick={onCreateDraft}
-            title={
-              hasDraftTree()
-                ? "Create a new draft off the root"
-                : "Attach a draft tree to this document"
-            }
+            title="Create a new draft off this document"
           >
             New draft
           </button>
@@ -212,33 +131,39 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   );
 }
 
-/** Placeholder shown when a host doc has no draft tree yet. Visually
- * matches a selected `DraftCard` so the layout doesn't pop when the user
- * clicks "New draft" and the real root materializes.
- */
-function VirtualMainCard(props: { hostDocUrl: AutomergeUrl | undefined }) {
+function MainCard(props: {
+  hostDocUrl: AutomergeUrl | undefined;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <div
-      class="text-left card card-bordered shadow-sm border bg-base-200 border-primary ring-1 ring-primary"
+    <button
+      type="button"
+      class="text-left card card-bordered shadow-sm border hover:bg-gray-50"
+      classList={{
+        "bg-base-200 border-primary ring-1 ring-primary": props.isSelected,
+        "bg-white border-gray-200": !props.isSelected,
+      }}
+      onClick={props.onSelect}
       title="Main version (host document)"
     >
       <div class="card-body p-2 space-y-1">
         <div class="text-sm font-medium flex items-center gap-2">
           <span>Main</span>
-          <span class="badge badge-xs badge-primary">current</span>
+          <Show when={props.isSelected}>
+            <span class="badge badge-xs badge-primary">current</span>
+          </Show>
         </div>
         <div class="text-xs text-gray-500 font-mono break-all">
           {props.hostDocUrl ?? ""}
         </div>
-        <div class="text-xs text-gray-400">0 cloned doc(s) · 0 draft(s)</div>
       </div>
-    </div>
+    </button>
   );
 }
 
 function DraftCard(props: {
   url: AutomergeUrl;
-  isRoot: boolean;
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
 }) {
@@ -257,11 +182,11 @@ function DraftCard(props: {
           "bg-white border-gray-200": !props.isSelected,
         }}
         onClick={() => props.onSelect(props.url)}
-        title={props.isRoot ? "Main version" : "Open draft"}
+        title="Open draft"
       >
         <div class="card-body p-2 space-y-1">
           <div class="text-sm font-medium flex items-center gap-2">
-            <span>{props.isRoot ? "Main" : "Draft"}</span>
+            <span>Draft</span>
             <Show when={props.isSelected}>
               <span class="badge badge-xs badge-primary">current</span>
             </Show>
@@ -276,20 +201,4 @@ function DraftCard(props: {
       </button>
     </Show>
   );
-}
-
-// `DraftsState` is created by the draft-root provider only after it sees
-// `@patchwork.draftUrl` appear on the host doc — so on first-create there
-// is a brief window where `stateHandle()` is undefined. Poll briefly.
-async function waitForState(
-  stateHandle: () => DocHandle<DraftsState> | undefined,
-  attempts = 50,
-  intervalMs = 50
-): Promise<DocHandle<DraftsState> | undefined> {
-  for (let i = 0; i < attempts; i++) {
-    const h = stateHandle();
-    if (h) return h;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  return undefined;
 }

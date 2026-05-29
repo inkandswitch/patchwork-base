@@ -14,15 +14,21 @@ import {
 import { DraftRepo } from "../overlay/repo.js";
 import type { DraftDoc } from "../draft-types.js";
 
-// Inner provider. Mounts on a draft URL and owns the `DraftRepo`
-// overlay for that draft; the frame keys remounts on `selectedDraft` so the
-// overlay never has to be hot-swapped in place.
-export const DraftProvider = (element: HTMLElement) => {
+// Mounts on a draft URL and owns the `DraftRepo` overlay for that draft;
+// the frame keys remounts on `selectedDraft` so the overlay never has to
+// be hot-swapped in place.
+//
+// If the `url` attribute is absent or empty the provider becomes a no-op:
+// it registers no listeners and lets all `patchwork:request` events bubble
+// up to the outer providers, so the frame can mount this component
+// unconditionally and have "main" fall through to the host repo.
+export const DraftOverlayProvider = (element: HTMLElement) => {
   const rawUrl = element.getAttribute("url");
-  if (!rawUrl || !isValidAutomergeUrl(rawUrl)) {
+  if (!rawUrl) return () => {};
+  if (!isValidAutomergeUrl(rawUrl)) {
     console.warn(
-      `[drafts] <patchwork-view component="patchwork-draft-provider"> ` +
-        `is missing a valid url attribute (got ${JSON.stringify(rawUrl)})`
+      `[drafts] <patchwork-view component="patchwork-draft-overlay-provider"> ` +
+        `has an invalid url attribute (got ${JSON.stringify(rawUrl)})`
     );
     return () => {};
   }
@@ -34,7 +40,7 @@ export const DraftProvider = (element: HTMLElement) => {
     const repo = await request<Repo>(element, "patchwork:repo");
     if (!repo) {
       throw new Error(
-        "[drafts] no `patchwork:repo` provider found; draft provider disabled"
+        "[drafts] no `patchwork:repo` provider found; draft overlay provider disabled"
       );
     }
     const handle = await repo.find<DraftDoc>(draftUrl);
@@ -42,7 +48,10 @@ export const DraftProvider = (element: HTMLElement) => {
     return draftRepo;
   })();
   readyPromise.catch((err) => {
-    console.error(`[drafts] failed to load draft ${draftUrl}:`, err);
+    console.error(
+      `[drafts] failed to load draft overlay for ${draftUrl}:`,
+      err
+    );
   });
 
   const onRequest = (event: RequestEvent) => {

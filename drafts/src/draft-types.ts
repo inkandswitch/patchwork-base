@@ -5,28 +5,29 @@ export type CloneEntry = {
   clonedAt: UrlHeads;
 };
 
+// `parent` points at the URL this draft branches off of: either the host
+// document (for top-level drafts attached via `@patchwork.drafts`) or
+// another `DraftDoc` (for sub-drafts attached via `DraftDoc.drafts`).
 export type DraftDoc = {
   "@patchwork": { type: "draft" };
-  parentDraftUrl: AutomergeUrl | null;
+  parent: AutomergeUrl;
   drafts: AutomergeUrl[];
   clones: Record<AutomergeUrl, CloneEntry>;
 };
 
-// Ephemeral state owned by the draft-root provider; consumers mutate
-// `selectedDraft` to switch drafts.
+// Ephemeral state owned by the draft-list provider. `selectedDraft = null`
+// means "main" — i.e. the host doc itself, no draft overlay.
 export type DraftsState = {
   drafts: AutomergeUrl[];
-  selectedDraft: AutomergeUrl;
+  selectedDraft: AutomergeUrl | null;
 };
 
-// Convention: any document may carry `@patchwork.draftUrl` pointing to the
-// root `DraftDoc` of its draft tree. Absence means the document has no
-// drafts; the field is created lazily on the first "New draft" action.
-export type HasDraftMarker = {
+// Convention: any document may carry `@patchwork.drafts` listing the
+// top-level drafts that branch off of it. Each entry is the URL of a
+// `DraftDoc`, which in turn may have its own sub-drafts via `DraftDoc.drafts`.
+export type HasDrafts = {
   "@patchwork"?: {
-    type?: string;
-    draftUrl?: AutomergeUrl;
-    [key: string]: unknown;
+    drafts?: AutomergeUrl[];
   };
 };
 

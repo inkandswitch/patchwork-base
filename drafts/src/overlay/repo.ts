@@ -17,8 +17,8 @@ import type { RepoLike } from "@inkandswitch/patchwork-providers";
 import type { DraftDoc } from "../draft-types.js";
 import { DraftedDocHandle } from "./dochandle.js";
 
-// Overlay repo scoped to a single draft doc. Root drafts pass writes
-// through; non-root drafts COW via `DraftedDocHandle`.
+// Overlay repo scoped to a single draft doc. All writes to wrapped
+// documents COW into `DraftDoc.clones` via `DraftedDocHandle`.
 export class DraftRepo implements RepoLike {
   readonly repo: Repo;
   readonly draftHandle: DocHandle<DraftDoc>;
@@ -27,10 +27,6 @@ export class DraftRepo implements RepoLike {
   constructor(repo: Repo, draftHandle: DocHandle<DraftDoc>) {
     this.repo = repo;
     this.draftHandle = draftHandle;
-  }
-
-  get isRoot(): boolean {
-    return this.draftHandle.doc()?.parentDraftUrl == null;
   }
 
   // Only already-wrapped handles are exposed; unknown ids fall through to
@@ -164,7 +160,6 @@ export class DraftRepo implements RepoLike {
   // Self-clone so future writes skip COW: the dochandle treats a present
   // clone entry as "already cloned, write through".
   #registerBornHere(url: AutomergeUrl): void {
-    if (this.isRoot) return;
     this._recordClone(url, url, encodeHeads([]));
   }
 
@@ -174,11 +169,6 @@ export class DraftRepo implements RepoLike {
     cloneUrl: AutomergeUrl,
     clonedAt: UrlHeads
   ): void {
-    if (this.isRoot) {
-      throw new Error(
-        "draft-repo: root draft cannot record clones (writes should pass through)"
-      );
-    }
     this.draftHandle.change((d) => {
       d.clones[originalUrl] = { cloneUrl, clonedAt };
     });

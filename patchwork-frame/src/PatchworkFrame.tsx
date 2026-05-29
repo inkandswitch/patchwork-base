@@ -28,13 +28,14 @@ import "./styles.css";
 
 type DraftsState = {
   drafts: AutomergeUrl[];
-  selectedDraft: AutomergeUrl;
+  // `null` represents "main" — i.e. the host doc itself, no draft overlay.
+  selectedDraft: AutomergeUrl | null;
 };
 
 const MIN_SIDEBAR_WIDTH = 48;
 const DRAG_THRESHOLD = 3;
 
-const VERSION = "v1.2.0-per-doc-drafts";
+const VERSION = "v1.3.0-flat-drafts";
 
 export const PatchworkFrame = ({
   handle,
@@ -108,11 +109,11 @@ export const PatchworkFrame = ({
     focusProviderHost
   );
 
-  const [draftRootProviderHost, setDraftRootProviderHost] =
+  const [draftListProviderHost, setDraftListProviderHost] =
     createSignal<HTMLElement>();
-  const isDraftRootProviderReady = useProviderReady(
-    "patchwork-draft-root-provider",
-    draftRootProviderHost
+  const isDraftListProviderReady = useProviderReady(
+    "patchwork-draft-list-provider",
+    draftListProviderHost
   );
 
   const [draftsStateHandle, setDraftsStateHandle] = createSignal<
@@ -121,8 +122,8 @@ export const PatchworkFrame = ({
   const [stateTick, setStateTick] = createSignal(0);
 
   createEffect(() => {
-    if (!isDraftRootProviderReady()) return;
-    const host = draftRootProviderHost();
+    if (!isDraftListProviderReady()) return;
+    const host = draftListProviderHost();
     if (!host) return;
     let cancelled = false;
     request<DocHandle<DraftsState> | null>(host, "patchwork:drafts").then(
@@ -145,15 +146,24 @@ export const PatchworkFrame = ({
     onCleanup(() => h.off("change", onChange));
   });
 
-  const selectedDraft = createMemo<AutomergeUrl | undefined>(() => {
+  const selectedDraft = createMemo<AutomergeUrl | null | undefined>(() => {
     stateTick();
     return draftsStateHandle()?.doc()?.selectedDraft;
   });
 
-  const [draftProviderHost, setDraftProviderHost] = createSignal<HTMLElement>();
-  const isDraftProviderReady = useProviderReady(
-    "patchwork-draft-provider",
-    draftProviderHost
+  // Sentinel used to key the draft-provider remount when "main" is
+  // selected (or the drafts state hasn't loaded yet). The provider is a
+  // no-op when its `url` attribute is empty, so requests fall through to
+  // the host repo.
+  const draftProviderKey = createMemo<AutomergeUrl | "main">(
+    () => selectedDraft() ?? "main"
+  );
+
+  const [draftOverlayProviderHost, setDraftOverlayProviderHost] =
+    createSignal<HTMLElement>();
+  const isDraftOverlayProviderReady = useProviderReady(
+    "patchwork-draft-overlay-provider",
+    draftOverlayProviderHost
   );
 
   return (
@@ -222,11 +232,11 @@ export const PatchworkFrame = ({
               >
                 {(docUrl) => (
                   <patchwork-view
-                    component="patchwork-draft-root-provider"
+                    component="patchwork-draft-list-provider"
                     doc-url={docUrl}
-                    ref={setDraftRootProviderHost}
+                    ref={setDraftListProviderHost}
                   >
-                    <Show when={isDraftRootProviderReady()}>
+                    <Show when={isDraftListProviderReady()}>
                       {accountDoc()?.accountSidebarToolId && (
                         <Sidebar
                           side="left"
@@ -244,28 +254,20 @@ export const PatchworkFrame = ({
                           toolIds={() => accountDoc()?.documentToolbarToolIds}
                           docUrl={selectedDoc.selectedDocUrl}
                         />
-                        {/* Inner draft provider only mounts when a draft
-                         * is selected — i.e. the host doc has
-                         * `@patchwork.draftUrl` set. Otherwise we render
-                         * the main view directly against the root repo. */}
-                        <Show
-                          when={selectedDraft()}
-                          keyed
-                          fallback={
-                            <MainDocumentView
-                              viewKey={selectedDoc.viewKey}
-                              selectedDocUrl={selectedDoc.selectedDocUrl}
-                              toolId={() => selectedDoc.selectedView()?.toolId}
-                            />
-                          }
-                        >
-                          {(draftUrl) => (
+                        {/* Draft overlay provider is always mounted; it
+                         * becomes a no-op when its `url` attribute is
+                         * empty (the "main" case), letting requests
+                         * bubble up to the host repo. Keying on
+                         * `draftProviderKey` remounts on selection
+                         * change. */}
+                        <Show when={draftProviderKey()} keyed>
+                          {(key) => (
                             <patchwork-view
-                              component="patchwork-draft-provider"
-                              url={draftUrl}
-                              ref={setDraftProviderHost}
+                              component="patchwork-draft-overlay-provider"
+                              url={key === "main" ? "" : key}
+                              ref={setDraftOverlayProviderHost}
                             >
-                              <Show when={isDraftProviderReady()}>
+                              <Show when={isDraftOverlayProviderReady()}>
                                 <MainDocumentView
                                   viewKey={selectedDoc.viewKey}
                                   selectedDocUrl={selectedDoc.selectedDocUrl}

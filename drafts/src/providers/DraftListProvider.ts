@@ -13,32 +13,29 @@ import {
 import type {
   DraftDoc,
   DraftsState,
-  HasDraftMarker,
+  HasDrafts,
 } from "../draft-types.js";
 
 const REQ_HOST_DOC = "patchwork:host-doc";
 const REQ_HOST_REPO = "patchwork:host-repo";
-const REQ_DRAFT_ROOT = "patchwork:draft-root";
 const REQ_DRAFTS = "patchwork:drafts";
 
 const ATTR_DOC_URL = "doc-url";
 
-// Outer provider. Mounts on a document URL and exposes that document's
-// per-doc draft tree:
+// Mounts on a document URL and exposes that document's per-doc draft list:
 //   - `patchwork:host-doc`   → DocHandle of the doc this provider is on
 //   - `patchwork:host-repo`  → root Repo (so consumers can write outside COW)
-//   - `patchwork:draft-root` → DocHandle<DraftDoc> of the root draft, or null
-//                              when the doc has no drafts yet
-//   - `patchwork:drafts`     → DocHandle<DraftsState>, or null when empty
+//   - `patchwork:drafts`     → DocHandle<DraftsState>, always available
 //
-// `@patchwork.draftUrl` is the link from a doc to its root draft. It is
-// lazily created by the drafts sidebar on the first "New draft" action;
-// absence means "no drafts for this doc".
-export const DraftRootProvider = (element: HTMLElement) => {
+// The link from a host doc to its drafts is `@patchwork.drafts`, an array
+// of `DraftDoc` URLs that branch off of it. A `DraftDoc` may have its own
+// sub-drafts via `DraftDoc.drafts`. `DraftsState.selectedDraft = null`
+// represents "main" — i.e. the host doc itself, no overlay.
+export const DraftListProvider = (element: HTMLElement) => {
   const rawUrl = element.getAttribute(ATTR_DOC_URL);
   if (!rawUrl || !isValidAutomergeUrl(rawUrl)) {
     console.warn(
-      `[drafts] <patchwork-view component="patchwork-draft-root-provider"> ` +
+      `[drafts] <patchwork-view component="patchwork-draft-list-provider"> ` +
         `is missing a valid ${ATTR_DOC_URL} attribute (got ${JSON.stringify(rawUrl)})`
     );
     return () => {};
@@ -46,8 +43,7 @@ export const DraftRootProvider = (element: HTMLElement) => {
   const docUrl: AutomergeUrl = rawUrl;
 
   let repo: Repo | null = null;
-  let hostDocHandle: DocHandle<HasDraftMarker> | null = null;
-  let rootDraftHandle: DocHandle<DraftDoc> | null = null;
+  let hostDocHandle: DocHandle<HasDrafts> | null = null;
   let draftsStateHandle: DocHandle<DraftsState> | null = null;
   const trackedDrafts = new Map<AutomergeUrl, DocHandle<DraftDoc>>();
 
@@ -55,52 +51,48 @@ export const DraftRootProvider = (element: HTMLElement) => {
   let rewalkInFlight = false;
   let rewalkPending = false;
   const onTrackedChange = () => scheduleRewalk();
-  const onHostDocChange = () => scheduleHostDocReconcile();
-  let lastSeenDraftUrl: AutomergeUrl | null | undefined = undefined;
+  const onHostDocChange = () => scheduleRewalk();
 
-  const ready: Promise<DocHandle<HasDraftMarker>> = (async () => {
+  const ready: Promise<DocHandle<HasDrafts>> = (async () => {
     const r = await request<Repo>(element, "patchwork:repo");
     if (!r) {
       throw new Error(
-        "[drafts] no `patchwork:repo` provider found; draft-root provider disabled"
+        "[drafts] no `patchwork:repo` provider found; draft-list provider disabled"
       );
     }
     repo = r;
 
-    const handle = await repo.find<HasDraftMarker>(docUrl);
+    const handle = await repo.find<HasDrafts>(docUrl);
     await handle.whenReady();
     if (disposed) throw new Error("[drafts] provider disposed mid-load");
     hostDocHandle = handle;
-    handle.on("change", onHostDocChange);
 
-    await reconcileRootFromHostDoc();
+    // Eagerly create the ephemeral DraftsState so the sidebar can render
+    // its "Main" card and write `selectedDraft` even before any drafts
+    // exist on the host doc.
+    draftsStateHandle = repo.create<DraftsState>({
+      drafts: [],
+      selectedDraft: null,
+    });
+
+    handle.on("change", onHostDocChange);
+    scheduleRewalk();
     return handle;
   })();
   ready.catch((err) => {
-    console.error(`[drafts] failed to initialize draft-root provider:`, err);
+    console.error(`[drafts] failed to initialize draft-list provider:`, err);
   });
 
   const onRequest = (event: RequestEvent) => {
     const { type } = event.detail;
 
     if (type === REQ_HOST_DOC) {
-      provide<DocHandle<HasDraftMarker>>(
-        event,
-        hostDocHandle ?? ready
-      );
+      provide<DocHandle<HasDrafts>>(event, hostDocHandle ?? ready);
       return;
     }
 
     if (type === REQ_HOST_REPO) {
       provide<Repo>(event, repo ?? ready.then(() => repo!));
-      return;
-    }
-
-    if (type === REQ_DRAFT_ROOT) {
-      provide<DocHandle<DraftDoc> | null>(
-        event,
-        rootDraftHandle ?? ready.then(() => rootDraftHandle)
-      );
       return;
     }
 
@@ -125,75 +117,45 @@ export const DraftRootProvider = (element: HTMLElement) => {
       repo.delete(draftsStateHandle.url);
     }
     draftsStateHandle = null;
-    rootDraftHandle = null;
     hostDocHandle = null;
   };
 
-  async function reconcileRootFromHostDoc(): Promise<void> {
-    if (!repo || !hostDocHandle) return;
-    const draftUrl = hostDocHandle.doc()?.["@patchwork"]?.draftUrl;
-    const next: AutomergeUrl | null =
-      draftUrl && isValidAutomergeUrl(draftUrl) ? draftUrl : null;
-
-    if (next === lastSeenDraftUrl) return;
-    lastSeenDraftUrl = next;
-
-    // Tear down any previous draft tree state.
-    for (const [, h] of trackedDrafts) h.off("change", onTrackedChange);
-    trackedDrafts.clear();
-    if (draftsStateHandle) {
-      repo.delete(draftsStateHandle.url);
-      draftsStateHandle = null;
-    }
-    rootDraftHandle = null;
-
-    if (!next) return;
-
-    const root = await repo.find<DraftDoc>(next);
-    await root.whenReady();
-    if (disposed || lastSeenDraftUrl !== next) return;
-    rootDraftHandle = root;
-
-    const allDrafts = await collectAllDrafts(repo, root.url, trackedDrafts);
-    if (disposed || lastSeenDraftUrl !== next) return;
-
-    draftsStateHandle = repo.create<DraftsState>({
-      drafts: allDrafts,
-      selectedDraft: root.url,
-    });
-    for (const [, h] of trackedDrafts) h.on("change", onTrackedChange);
-  }
-
-  function scheduleHostDocReconcile(): void {
-    if (disposed) return;
-    void reconcileRootFromHostDoc().catch((err) => {
-      console.error("[drafts] reconcile failed:", err);
-    });
-  }
-
   function scheduleRewalk(): void {
     if (disposed) return;
-    if (!repo) return;
+    if (!repo || !hostDocHandle || !draftsStateHandle) return;
     if (rewalkInFlight) {
       rewalkPending = true;
       return;
     }
     rewalkInFlight = true;
     const liveRepo = repo;
+    const liveHostDoc = hostDocHandle;
+    const liveState = draftsStateHandle;
     void (async () => {
       try {
-        if (!rootDraftHandle || !draftsStateHandle) return;
+        const roots = (liveHostDoc.doc()?.["@patchwork"]?.drafts ?? []).filter(
+          isValidAutomergeUrl
+        );
         const allDrafts = await collectAllDrafts(
           liveRepo,
-          rootDraftHandle.url,
+          roots,
           trackedDrafts,
           onTrackedChange
         );
-        if (disposed || !draftsStateHandle) return;
-        const current = draftsStateHandle.doc()?.drafts ?? [];
-        if (sameUrlList(current, allDrafts)) return;
-        draftsStateHandle.change((d) => {
+        if (disposed) return;
+        const current = liveState.doc()?.drafts ?? [];
+        const selected = liveState.doc()?.selectedDraft ?? null;
+        const nextSelected =
+          selected && !allDrafts.includes(selected) ? null : selected;
+        if (
+          sameUrlList(current, allDrafts) &&
+          nextSelected === selected
+        ) {
+          return;
+        }
+        liveState.change((d) => {
           d.drafts = allDrafts;
+          d.selectedDraft = nextSelected;
         });
       } catch (err) {
         console.error("[drafts] rewalk failed:", err);
@@ -210,13 +172,13 @@ export const DraftRootProvider = (element: HTMLElement) => {
 
 async function collectAllDrafts(
   repo: Repo,
-  rootUrl: AutomergeUrl,
+  roots: readonly AutomergeUrl[],
   tracked: Map<AutomergeUrl, DocHandle<DraftDoc>>,
-  onNewChange?: () => void
+  onNewChange: () => void
 ): Promise<AutomergeUrl[]> {
   const visited = new Set<AutomergeUrl>();
   const order: AutomergeUrl[] = [];
-  const queue: AutomergeUrl[] = [rootUrl];
+  const queue: AutomergeUrl[] = [...roots];
   while (queue.length) {
     const url = queue.shift()!;
     if (visited.has(url)) continue;
@@ -228,7 +190,7 @@ async function collectAllDrafts(
       h = await repo.find<DraftDoc>(url);
       await h.whenReady();
       tracked.set(url, h);
-      if (onNewChange) h.on("change", onNewChange);
+      h.on("change", onNewChange);
     }
     const drafts = h.doc()?.drafts ?? [];
     for (const child of drafts) {
