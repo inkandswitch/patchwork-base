@@ -1,14 +1,6 @@
-// File plugin for Patchwork
-// Bundleless plugin that supports viewing and editing various file types
+// File plugin for Patchwork — entry registers metadata only; implementations load on demand.
 
-import {FileDatatype} from "./datatype"
-import {FileTool} from "./tool"
-import {NewFileDatatype} from "./new-file-datatype"
-import {NewFileTool} from "./new-file-tool"
-
-export * from "./types"
-export * from "./datatype"
-export * from "./utils"
+export type * from "./types";
 
 export const plugins = [
 	{
@@ -18,7 +10,7 @@ export const plugins = [
 		icon: "File",
 		unlisted: true,
 		async load() {
-			return FileDatatype
+			return (await import("./datatype")).FileDatatype;
 		},
 	},
 	{
@@ -28,7 +20,7 @@ export const plugins = [
 		icon: "File",
 		supportedDatatypes: ["file"],
 		async load() {
-			return FileTool
+			return (await import("./tool")).FileTool;
 		},
 	},
 	{
@@ -37,7 +29,7 @@ export const plugins = [
 		name: "New File",
 		icon: "FilePlus",
 		async load() {
-			return NewFileDatatype
+			return (await import("./new-file-datatype")).NewFileDatatype;
 		},
 	},
 	{
@@ -47,7 +39,7 @@ export const plugins = [
 		icon: "FilePlus",
 		supportedDatatypes: ["new-file"],
 		async load() {
-			return NewFileTool
+			return (await import("./new-file-tool")).NewFileTool;
 		},
 	},
-]
+];

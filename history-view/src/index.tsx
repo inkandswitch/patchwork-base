@@ -1,9 +1,4 @@
-import { render } from "solid-js/web";
-import {
-  Plugin,
-  type ToolImplementation,
-} from "@inkandswitch/patchwork-plugins";
-import { HistoryGroupingsDoc } from "./types";
+import type { Plugin, ToolImplementation } from "@inkandswitch/patchwork-plugins";
 
 export const plugins: Plugin<any>[] = [
   {
@@ -13,23 +8,8 @@ export const plugins: Plugin<any>[] = [
     icon: "History",
     unlisted: true,
     async load() {
-      return {
-        init: (doc: HistoryGroupingsDoc) => {
-          if (!doc.sourceDocumentUrl) return;
-          Object.assign(doc, {
-            ["@patchwork"]: { type: "patchwork:history-change-groups" },
-            version: doc.version || 1,
-            sourceDocumentUrl: doc.sourceDocumentUrl,
-            updatedAt: doc.updatedAt || 0,
-            throttleMs: doc.throttleMs || 30 * 60 * 1000,
-            heads: doc.heads || [],
-            groupings: doc.groupings || {},
-          } as HistoryGroupingsDoc);
-        },
-        getTitle: (doc: HistoryGroupingsDoc) => {
-          return `History Change Groups for ${doc.sourceDocumentUrl}`;
-        },
-      };
+      return (await import("./history-groupings-datatype"))
+        .HistoryGroupingsDatatype;
     },
   },
   {
@@ -39,10 +19,8 @@ export const plugins: Plugin<any>[] = [
     icon: "History",
     supportedDatatypes: ["account"],
     async load(): Promise<ToolImplementation<any>> {
-      const { HistoryTimeline } = await import("./history/HistoryTimeline");
-      return function (_handle, element) {
-        return render(() => <HistoryTimeline repo={element.repo} />, element);
-      };
+      const { renderHistoryView } = await import("./history/HistoryTimeline");
+      return renderHistoryView;
     },
   },
 ];

@@ -1,9 +1,14 @@
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { render } from "solid-js/web";
+import type {
+  ToolElement,
+  ToolImplementation,
+} from "@inkandswitch/patchwork-plugins";
 import {
   makeDocumentProjection,
   useDocHandle,
   useDocument,
-} from "solid-automerge";
+} from "@automerge/automerge-repo-solid-primitives";
 import {
   isValidAutomergeUrl,
   type AutomergeUrl,
@@ -164,4 +169,53 @@ export function ModuleSettings(props: PatchworkToolProps<ModuleSettingsDoc>) {
       </footer>
     </div>
   );
+}
+
+const STYLE_ID = "module-settings-manager-styles";
+let styleRefcount = 0;
+
+function addStyles(textContent: string) {
+  const existing = document.head.querySelector(`#${STYLE_ID}`);
+  if (existing) {
+    styleRefcount++;
+    return;
+  }
+  const el = document.createElement("style");
+  Object.assign(el, { textContent, id: STYLE_ID });
+  document.head.append(el);
+  styleRefcount++;
+}
+
+function removeStyles() {
+  styleRefcount--;
+  if (styleRefcount > 0) return;
+  document.head.querySelector(`#${STYLE_ID}`)?.remove();
+}
+
+async function loadStyles() {
+  const url = new URL("../index.css", import.meta.url);
+  return (await fetch(url)).text();
+}
+
+export async function renderModuleSettingsManager(): Promise<
+  ToolImplementation<ModuleSettingsDoc>
+> {
+  const css = await loadStyles();
+  return function (handle, element: ToolElement) {
+    addStyles(css);
+    const dispose = render(
+      () => (
+        <ModuleSettings
+          handle={handle}
+          repo={element.repo}
+          element={element as any}
+        />
+      ),
+      element
+    );
+    return () => {
+      dispose();
+      removeStyles();
+    };
+  };
 }

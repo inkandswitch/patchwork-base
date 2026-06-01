@@ -17,7 +17,6 @@
     "@inkandswitch/patchwork-elements": "^0.0.6",
     "@inkandswitch/patchwork-filesystem": "^0.0.4",
     "@inkandswitch/patchwork-plugins": "^0.0.6",
-    "@inkandswitch/patchwork-react": "^0.0.3",
     "@inkandswitch/annotations-context": "^0.1.4",
     "@inkandswitch/annotations": "^0.1.5",
     "@inkandswitch/subscribables-react": "^0.1.2",

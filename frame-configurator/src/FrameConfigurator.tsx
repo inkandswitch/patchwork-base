@@ -1,10 +1,15 @@
 import "./styles.css";
-import { useDocument } from "@automerge/automerge-repo-react-hooks";
+import { RepoContext, useDocument } from "@automerge/automerge-repo-react-hooks";
 import type { AutomergeUrl } from "@automerge/automerge-repo";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
 import type { TinyPatchworkLayoutDoc } from "./types";
-import type { ToolElement } from "@inkandswitch/patchwork-plugins";
-import { useToolDescriptions } from "@inkandswitch/patchwork-react";
+import type {
+  Plugin,
+  ToolDescription,
+  ToolElement,
+} from "@inkandswitch/patchwork-plugins";
+import { getRegistry } from "@inkandswitch/patchwork-plugins";
 import {
   DndContext,
   closestCenter,
@@ -27,6 +32,19 @@ type ModuleOption = {
   id: string;
   name: string;
 };
+
+function useToolDescriptions(): Plugin<ToolDescription>[] {
+  const [plugins, setPlugins] = useState<Plugin<ToolDescription>[]>([]);
+
+  useEffect(() => {
+    const registry = getRegistry<ToolDescription>("patchwork:tool");
+    const onPluginsChange = () => setPlugins(registry.all());
+    setPlugins(registry.all());
+    return registry.on("changed", onPluginsChange);
+  }, []);
+
+  return plugins;
+}
 
 function SortableItem({
   id,
@@ -410,4 +428,17 @@ export function FrameConfigurator({
       />
     </div>
   );
+}
+
+export function renderFrameConfigurator(
+  handle: { url: AutomergeUrl },
+  element: ToolElement
+) {
+  const root = createRoot(element);
+  root.render(
+    <RepoContext.Provider value={element.repo}>
+      <FrameConfigurator docUrl={handle.url} element={element} />
+    </RepoContext.Provider>
+  );
+  return () => root.unmount();
 }

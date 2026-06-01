@@ -1,5 +1,4 @@
-import { Plugin, ToolImplementation } from "@inkandswitch/patchwork-plugins";
-import { render } from "solid-js/web";
+import type { Plugin, ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import type { AccountDoc } from "./types";
 
 export const plugins: Plugin<any>[] = [
@@ -22,19 +21,8 @@ export const plugins: Plugin<any>[] = [
     icon: "Window",
     supportedDatatypes: ["account"],
     async load(): Promise<ToolImplementation<AccountDoc>> {
-      const { PatchworkFrame } = await import("./PatchworkFrame");
-      return (handle, element) => {
-        return render(
-          () => (
-            <PatchworkFrame
-              handle={handle}
-              element={element}
-              repo={element.repo}
-            />
-          ),
-          element
-        );
-      };
+      const { renderPatchworkFrame } = await import("./PatchworkFrame");
+      return renderPatchworkFrame;
     },
   },
 ];

@@ -1,5 +1,4 @@
-import { Plugin } from "@inkandswitch/patchwork-plugins";
-import { toolify } from "@inkandswitch/patchwork-react";
+import type { Plugin } from "@inkandswitch/patchwork-plugins";
 
 export const plugins: Plugin<any>[] = [
   {
@@ -9,8 +8,8 @@ export const plugins: Plugin<any>[] = [
     icon: "Settings",
     supportedDatatypes: ["account"],
     async load() {
-      const { FrameConfigurator } = await import("./FrameConfigurator");
-      return toolify(FrameConfigurator);
+      const { renderFrameConfigurator } = await import("./FrameConfigurator");
+      return renderFrameConfigurator;
     },
   },
 ];

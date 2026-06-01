@@ -7,7 +7,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import { makeDocumentProjection } from "solid-automerge";
+import { makeDocumentProjection } from "@automerge/automerge-repo-solid-primitives";
 import {
   isValidAutomergeUrl,
   type AutomergeUrl,

@@ -22,8 +22,10 @@ import {
 
 /** Styles */
 import { createSignal, onMount, onCleanup } from "solid-js";
+import { render } from "solid-js/web";
 import { useSubscribe } from "@inkandswitch/subscribables-solid";
 import { AnnotationSet } from "@inkandswitch/annotations";
+import type { ToolElement, ToolImplementation } from "@inkandswitch/patchwork-plugins";
 
 export type TextDoc = {
   content: string;
@@ -291,4 +293,14 @@ class DeletionMarker extends WidgetType {
   ignoreEvent() {
     return true;
   }
+}
+
+export function renderCodeMirrorBase(
+  handle: PatchworkToolProps<TextDoc>["handle"],
+  element: ToolElement
+): ReturnType<ToolImplementation<TextDoc>> {
+  return render(
+    () => <CodeMirrorEditor handle={handle} repo={element.repo} />,
+    element
+  );
 }

@@ -1,7 +1,5 @@
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 
-import "./main.css";
-
 function addStyles(textContent: string, element: HTMLElement = document.head) {
   const id = "tldraw4-styles";
   const el = element.querySelector(`#${id}`) ?? document.createElement("style");

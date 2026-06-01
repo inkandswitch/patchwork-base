@@ -1,12 +1,10 @@
-import { render } from "solid-js/web";
-import { type ToolImplementation } from "@inkandswitch/patchwork-plugins";
+import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import {
   ACCOUNT_HISTORY_DATATYPE,
   VIEWER_TOOL_ID,
   NOTEBOOK_VIEWER_TOOL_ID,
 } from "./constants.ts";
 import type { HistoryDoc } from "./types.ts";
-import "./index.css";
 
 export const plugins = [
   {
@@ -34,19 +32,7 @@ export const plugins = [
     icon: "Clock",
     unlisted: true,
     async load(): Promise<ToolImplementation<any>> {
-      const { HistoryRecorder } = await import("./HistoryRecorder.tsx");
-      return (handle, element) => {
-        return render(
-          () => (
-            <HistoryRecorder
-              handle={handle}
-              repo={element.repo}
-              element={element}
-            />
-          ),
-          element
-        );
-      };
+      return (await import("./mount.tsx")).renderHistoryRecorder();
     },
   },
   {
@@ -56,19 +42,7 @@ export const plugins = [
     supportedDatatypes: [ACCOUNT_HISTORY_DATATYPE],
     icon: "Clock",
     async load(): Promise<ToolImplementation<HistoryDoc>> {
-      const { HistoryViewer } = await import("./HistoryViewer.tsx");
-      return (handle, element) => {
-        return render(
-          () => (
-            <HistoryViewer
-              handle={handle}
-              repo={element.repo}
-              element={element}
-            />
-          ),
-          element
-        );
-      };
+      return (await import("./mount.tsx")).renderHistoryViewer();
     },
   },
   {
@@ -78,19 +52,7 @@ export const plugins = [
     supportedDatatypes: [ACCOUNT_HISTORY_DATATYPE],
     icon: "BookOpen",
     async load(): Promise<ToolImplementation<HistoryDoc>> {
-      const { NotebookViewer } = await import("./NotebookViewer.tsx");
-      return (handle, element) => {
-        return render(
-          () => (
-            <NotebookViewer
-              handle={handle}
-              repo={element.repo}
-              element={element}
-            />
-          ),
-          element
-        );
-      };
+      return (await import("./mount.tsx")).renderNotebookViewer();
     },
   },
 ];

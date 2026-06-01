@@ -1,10 +1,11 @@
 import "./styles.css";
 import { useState, useEffect, useMemo } from "react";
+import { createRoot } from "react-dom/client";
 
 import { relativeTime } from "./relative-time";
-import { toolify } from "@inkandswitch/patchwork-react";
-import { useRepo, useDocument } from "@automerge/automerge-repo-react-hooks";
-import type { AutomergeUrl } from "@automerge/automerge-repo";
+import { RepoContext, useRepo, useDocument } from "@automerge/automerge-repo-react-hooks";
+import type { AutomergeUrl, DocHandle } from "@automerge/automerge-repo";
+import type { ToolElement } from "@inkandswitch/patchwork-plugins";
 
 import { annotations as globalAnnotations } from "@inkandswitch/annotations-context";
 import { AnnotationSet } from "@inkandswitch/annotations";
@@ -17,8 +18,6 @@ import {
   createReply,
 } from "@inkandswitch/annotations-comments";
 import { useSubscribe } from "@inkandswitch/subscribables-react";
-import { findRef, type Ref, type RefUrl } from "@automerge/automerge-repo";
-import { useRefValue } from "@inkandswitch/patchwork-refs-react";
 import { Repo } from "@automerge/automerge-repo";
 
 const CommentsView = () => {
@@ -35,7 +34,7 @@ const CommentsView = () => {
     };
   }, [selectionAnnotations]);
 
-  const onSelectRefs = (refs: Ref[]) => {
+  const onSelectRefs = (refs: DocHandle<SerializedCommentThread>[]) => {
     selectionAnnotations.change(() => {
       selectionAnnotations.clear();
       for (const ref of refs) {
@@ -57,7 +56,18 @@ const CommentsView = () => {
   );
 };
 
-export const renderCommentsView = toolify(CommentsView);
+export function renderCommentsView(
+  _handle: DocHandle<unknown>,
+  element: ToolElement
+) {
+  const root = createRoot(element);
+  root.render(
+    <RepoContext.Provider value={element.repo}>
+      <CommentsView />
+    </RepoContext.Provider>
+  );
+  return () => root.unmount();
+}
 
 const ThreadView = ({
   threadRef,

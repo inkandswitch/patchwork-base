@@ -21,6 +21,9 @@ import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import { useSubscribe } from "@inkandswitch/subscribables-solid";
 import { $selectedDocUrls } from "@inkandswitch/annotations-selection";
 import { createSignal, Show } from "solid-js";
+import { render } from "solid-js/web";
+import type { ToolElement, ToolImplementation } from "@inkandswitch/patchwork-plugins";
+import type { TinyPatchworkAccountDoc } from "../types.ts";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
 
 export function Sideboard(
@@ -186,4 +189,33 @@ export function Sideboard(
       </Show>
     </aside>
   );
+}
+
+async function loadStyles() {
+  const url = new URL("../index.css", import.meta.url);
+  return (await fetch(url)).text();
+}
+
+function addStyles(textContent: string) {
+  const id = "sideboard-styles";
+  const el =
+    document.head.querySelector(`#${id}`) ?? document.createElement("style");
+  Object.assign(el, { textContent, id });
+  document.head.append(el);
+}
+
+export async function renderSideboard(): Promise<
+  ToolImplementation<TinyPatchworkAccountDoc>
+> {
+  const styles = await loadStyles();
+  return (handle, element) => {
+    addStyles(styles);
+    return render(
+      () => (
+        // @ts-expect-error - handle type doesn't know it supports folders
+        <Sideboard handle={handle} repo={element.repo} element={element} />
+      ),
+      element
+    );
+  };
 }
