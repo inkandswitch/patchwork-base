@@ -1,9 +1,5 @@
 import { type AutomergeUrl, type DocHandle } from "@automerge/automerge-repo";
-import {
-  accept,
-  getRepo,
-  type SubscribeEvent,
-} from "@inkandswitch/patchwork-providers";
+import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 
 const CONTACT_SELECTOR = "patchwork:contact";
 
@@ -29,7 +25,15 @@ export const AccountProvider = (element: HTMLElement) => {
         return;
       }
 
-      void getRepo()
+      const repo = "repo" in window ? window.repo : undefined;
+      if (!repo) {
+        console.warn(
+          "[providers/account] no global repo available; cannot resolve contact doc"
+        );
+        return;
+      }
+
+      void repo
         .find<AccountDocLike>(accountDocUrl)
         .then((accountDocHandle) => waitForContactUrl(accountDocHandle))
         .then((url) => {

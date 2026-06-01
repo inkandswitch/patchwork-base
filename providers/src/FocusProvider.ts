@@ -1,4 +1,4 @@
-import type { AutomergeUrl, RefUrl, Repo } from "@automerge/automerge-repo";
+import type { AutomergeUrl, RefUrl } from "@automerge/automerge-repo";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 
 const SELECTOR = "patchwork:focus";
@@ -16,7 +16,7 @@ export type FocusDoc = {
 };
 
 export const FocusProvider = (element: HTMLElement) => {
-  const repo = (window as unknown as { repo?: Repo }).repo;
+  const repo = "repo" in window ? window.repo : undefined;
   if (!repo) {
     console.warn("[providers/focus] window.repo is not set; focus disabled");
     return () => {};

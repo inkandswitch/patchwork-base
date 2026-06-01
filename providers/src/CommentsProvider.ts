@@ -4,7 +4,6 @@ import {
   type DocHandleChangePayload,
   type DocHandleDeletePayload,
   type RefUrl,
-  type Repo,
 } from "@automerge/automerge-repo";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 import type {
@@ -26,7 +25,7 @@ type CommentEntry = { targetRef: RefUrl; threadRef: RefUrl };
  * - no args → the flat list of every entry across all mounted docs.
  */
 export const CommentsProvider = (element: HTMLElement) => {
-  const repo = (window as unknown as { repo?: Repo }).repo;
+  const repo = "repo" in window ? window.repo : undefined;
   if (!repo) {
     console.warn(
       "[providers/comments] window.repo is not set; comments disabled"
