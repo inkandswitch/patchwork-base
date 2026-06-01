@@ -407,7 +407,7 @@ packages:
       '@automerge/automerge-repo': '*'
 
   '@inkandswitch/patchwork-providers@file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.1.2.tgz':
-    resolution: {integrity: sha512-/GQ+Lr6BkkKrk7yBjkokNtmFX/ln2trjjBHg1Z1mpHk524QeyWSbNjCJLacUOXBN08GeJ3d+mdU31FupAHnqJQ==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.1.2.tgz}
+    resolution: {integrity: sha512-gzfE47ioRHhWG+tOIySRqwzQ0/Mmk+8WiO9MNOxDDEw2HCr8ZmdH2jPyzejZ/7qXNDmXieUOZ8kS2oTGuMxOjQ==, tarball: file:../../patchwork-next/dist/inkandswitch-patchwork-providers-0.1.2.tgz}
     version: 0.1.2
     peerDependencies:
       '@automerge/automerge-repo': '*'

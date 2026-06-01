@@ -66,8 +66,8 @@ export const CommentsProvider = (element: HTMLElement) => {
   };
 
   function onSubscribe(event: SubscribeEvent) {
-    if (event.detail.type !== "patchwork:comments") return;
-    const url = event.detail.args?.url as AutomergeUrl | undefined;
+    if (event.detail.selector.type !== "patchwork:comments") return;
+    const url = event.detail.selector.url as AutomergeUrl | undefined;
 
     accept<CommentEntry[]>(event, (respond) => {
       if (url) {

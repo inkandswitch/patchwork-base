@@ -41,7 +41,8 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   const commentEntries = subscribe<{ targetRef: RefUrl; threadRef: RefUrl }[]>(
     props.element,
-    "patchwork:comments"
+    { type: "patchwork:comments" },
+    []
   );
 
   // `selection` is read-only input (driven by the active editor), `highlight`
@@ -61,7 +62,6 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   const threadUrls = createMemo<RefUrl[]>(() => {
     const entries = commentEntries();
-    if (!entries) return [];
     const seen = new Set<RefUrl>();
     const urls: RefUrl[] = [];
     for (const { threadRef } of entries) {
@@ -75,7 +75,6 @@ export function CommentsView(props: { element: HTMLElement }) {
   const threadTargetUrlMap = createMemo<Map<RefUrl, RefUrl[]>>(() => {
     const entries = commentEntries();
     const map = new Map<RefUrl, RefUrl[]>();
-    if (!entries) return map;
     for (const { targetRef, threadRef } of entries) {
       const existing = map.get(threadRef);
       if (existing) {

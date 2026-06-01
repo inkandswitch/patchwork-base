@@ -50,8 +50,8 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   // lives here, so no client-side filtering by url is needed.
   const commentEntries = subscribe<{ targetRef: RefUrl; threadRef: RefUrl }[]>(
     props.element,
-    "patchwork:comments",
-    { url: props.handle.url }
+    { type: "patchwork:comments", url: props.handle.url },
+    []
   );
 
   // We own `selection` (cursor) and only read `highlight` (other views'
