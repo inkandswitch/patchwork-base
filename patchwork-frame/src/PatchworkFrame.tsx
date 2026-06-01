@@ -1,4 +1,7 @@
-import { useDocHandle } from "@automerge/automerge-repo-solid-primitives";
+import {
+  useDocHandle,
+  createDocSignal,
+} from "@automerge/automerge-repo-solid-primitives";
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import type { DocWithComments } from "@inkandswitch/annotations-comments";
 import { request } from "@inkandswitch/patchwork-providers";
@@ -119,7 +122,6 @@ export const PatchworkFrame = ({
   const [draftsStateHandle, setDraftsStateHandle] = createSignal<
     DocHandle<DraftsState> | undefined
   >();
-  const [stateTick, setStateTick] = createSignal(0);
 
   createEffect(() => {
     if (!isDraftListProviderReady()) return;
@@ -138,25 +140,10 @@ export const PatchworkFrame = ({
     });
   });
 
-  createEffect(() => {
-    const h = draftsStateHandle();
-    if (!h) return;
-    const onChange = () => setStateTick((t) => t + 1);
-    h.on("change", onChange);
-    onCleanup(() => h.off("change", onChange));
-  });
+  const draftsState = createDocSignal<DraftsState>(draftsStateHandle);
 
-  const selectedDraft = createMemo<AutomergeUrl | null | undefined>(() => {
-    stateTick();
-    return draftsStateHandle()?.doc()?.selectedDraft;
-  });
-
-  // Sentinel used to key the draft-provider remount when "main" is
-  // selected (or the drafts state hasn't loaded yet). The provider is a
-  // no-op when its `url` attribute is empty, so requests fall through to
-  // the host repo.
   const draftProviderKey = createMemo<AutomergeUrl | "main">(
-    () => selectedDraft() ?? "main"
+    () => draftsState()?.selectedDraft ?? "main"
   );
 
   const [draftOverlayProviderHost, setDraftOverlayProviderHost] =
