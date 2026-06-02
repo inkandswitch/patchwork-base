@@ -16,9 +16,6 @@ import {
 
 /** Patchwork */
 import { getRegistry } from "@inkandswitch/patchwork-plugins";
-import { annotations as globalAnnotations } from "@inkandswitch/annotations-context";
-import type { Annotation } from "@inkandswitch/annotations";
-import { Diff } from "@inkandswitch/annotations-diff";
 import { createComment } from "@inkandswitch/patchwork-comments";
 import {
   subscribeDoc,
@@ -27,7 +24,6 @@ import {
 
 /** Styles */
 import { createResource, createSignal, onMount } from "solid-js";
-import { useSubscribe } from "@inkandswitch/subscribables-solid";
 
 export type TextDoc = {
   content: string;
@@ -37,14 +33,7 @@ const PATH = ["content"];
 const VERSION = "v2.0.25-comments";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
-  const contentRef = () => (props.handle as DocHandle<TextDoc>).sub(...PATH);
-
   const isReadOnly = props.handle.isReadOnly();
-
-  // TODO: what if contentRef() is undefined?
-
-  const contentAnnotations = globalAnnotations.onChildrenOf(contentRef());
-  const diffAnnotations = useSubscribe(contentAnnotations.ofType(Diff));
 
   const commentEntries = subscribe<
     { targetRef: AutomergeUrl; threadRef: AutomergeUrl }[]
@@ -103,7 +92,8 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     const emphasisRefs = emphasisTargets();
     return RangeSet.of<Decoration>(
       [
-        ...buildDiffDecorations(diffAnnotations(), dark),
+        // TODO: replace this once we have branches
+        // ...buildDiffDecorations(diffAnnotations(), dark),
         ...buildCommentDecorations(targetRefs, emphasisRefs, dark),
       ],
       true // sort ranges
@@ -192,117 +182,6 @@ async function resolveRefsInDoc(
     }
   }
   return Array.from(refs);
-}
-
-function buildDiffDecorations(
-  diffs: Iterable<Annotation<unknown, Diff<unknown>>>,
-  dark: boolean
-): Range<Decoration>[] {
-  const out: Range<Decoration>[] = [];
-  for (const [ref, diff] of diffs) {
-    const [start, end] = ref.rangePositions!;
-    if (diff.value.type === "deleted") {
-      out.push(
-        Decoration.widget({
-          widget: new DeletionMarker(diff.value.before as string, false),
-          side: 1,
-        }).range(start)
-      );
-      continue;
-    }
-    // Skip zero-length ranges for non-deletion diffs.
-    if (start === end) continue;
-    if (diff.value.type === "added") {
-      out.push(
-        Decoration.mark({
-          attributes: { style: addedDiffStyle(dark) },
-        }).range(start, end)
-      );
-    }
-  }
-  return out;
-}
-
-function addedDiffStyle(dark: boolean): string {
-  return `
-    border-bottom: 2px solid ${dark ? "#4ade80" : "#22c55e"};
-    background-color: ${dark ? "#14532d" : "#dcfce7"};
-  `;
-}
-
-class DeletionMarker extends WidgetType {
-  deletedText: string;
-  isActive: boolean;
-
-  constructor(deletedText: string, isActive: boolean) {
-    super();
-    this.deletedText = deletedText;
-    this.isActive = isActive;
-  }
-
-  toDOM(): HTMLElement {
-    const box = document.createElement("div");
-    box.style.display = "inline-block";
-    box.style.boxSizing = "border-box";
-    box.style.padding = "0 2px";
-    box.style.color = "rgb(239 68 68)"; // red-500
-    box.style.margin = "0 4px";
-    box.style.fontSize = "0.8em";
-    box.style.backgroundColor = this.isActive
-      ? "rgb(239 68 68 / 20%)" // red-500 with opacity
-      : "rgb(239 68 68 / 10%)";
-    box.style.borderRadius = "3px";
-    box.style.cursor = "default";
-    box.innerText = "⌫";
-
-    const hoverText = document.createElement("div");
-    hoverText.style.position = "absolute";
-    hoverText.style.zIndex = "1";
-    hoverText.style.padding = "5px";
-    hoverText.style.backgroundColor = "rgb(254 242 242)"; // red-50
-    hoverText.style.fontSize = "15px";
-    hoverText.style.color = "rgb(17 24 39)"; // gray-900
-    hoverText.style.border = "1px solid rgb(185 28 28)"; // red-700
-    hoverText.style.boxShadow = "0px 0px 6px rgba(0, 0, 0, 0.1)";
-    hoverText.style.borderRadius = "3px";
-    hoverText.style.visibility = "hidden";
-    hoverText.innerText = this.deletedText;
-
-    const isDarkMode =
-      document.documentElement.classList.contains("dark") ||
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    if (isDarkMode) {
-      box.style.color = "rgb(248 113 113)"; // red-400 for dark mode
-      box.style.backgroundColor = this.isActive
-        ? "rgb(248 113 113 / 20%)"
-        : "rgb(248 113 113 / 10%)";
-      hoverText.style.backgroundColor = "rgb(69 10 10)"; // red-950
-      hoverText.style.color = "rgb(254 226 226)"; // red-100
-      hoverText.style.border = "1px solid rgb(153 27 27)"; // red-800
-    }
-
-    box.appendChild(hoverText);
-
-    box.onmouseover = function () {
-      hoverText.style.visibility = "visible";
-    };
-    box.onmouseout = function () {
-      hoverText.style.visibility = "hidden";
-    };
-
-    return box;
-  }
-
-  eq(other: DeletionMarker) {
-    return (
-      other.deletedText === this.deletedText && other.isActive === this.isActive
-    );
-  }
-
-  ignoreEvent() {
-    return true;
-  }
 }
 
 // Targets that overlap `emphasisRefs` (selection ∪ highlight) render in
