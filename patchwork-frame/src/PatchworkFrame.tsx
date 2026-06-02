@@ -24,6 +24,7 @@ import {
 } from "solid-js";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
+import { useSelectedView } from "./hooks/useSelectedDocument";
 
 // Sidebar dimensions
 const MIN_SIDEBAR_WIDTH = 48;
@@ -81,22 +82,9 @@ export const PatchworkFrame = ({
   });
 
   // Selected document management
-  const selectedDoc = useSelectedDocument({
+  const selectedView = useSelectedView({
     element,
     repo,
-  });
-
-  // Comment threads for selected document
-  const commentThreadsWithRef = useCommentThreads(
-    () =>
-      selectedDoc.selectedDocHandle() as DocHandle<DocWithComments> | undefined,
-    repo
-  );
-
-  // Annotations management
-  useAnnotations({
-    selectedDocRef: selectedDoc.selectedDocRef,
-    commentThreadsWithRef,
   });
 
   // Debug registry toast
@@ -172,12 +160,12 @@ export const PatchworkFrame = ({
                   <div class="main-area">
                     <DocumentToolbar
                       toolIds={() => accountDoc()?.documentToolbarToolIds}
-                      docUrl={selectedDoc.selectedDocUrl}
+                      docUrl={() => selectedView()?.url}
                     />
                     <MainDocumentView
-                      viewKey={selectedDoc.viewKey}
-                      selectedDocUrl={selectedDoc.selectedDocUrl}
-                      toolId={() => selectedDoc.selectedView()?.toolId}
+                      viewKey={() => selectedView()?.url}
+                      selectedDocUrl={() => selectedView()?.url}
+                      toolId={() => selectedView()?.toolId}
                     />
                   </div>
 
