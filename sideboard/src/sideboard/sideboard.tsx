@@ -25,6 +25,7 @@ import { render } from "solid-js/web";
 import type { ToolElement, ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import type { TinyPatchworkAccountDoc } from "../types.ts";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
+import sideboardStyles from "../index.css";
 
 export function Sideboard(
   props: PatchworkToolProps<TinyPatchworkAccountDoc | FolderDoc>
@@ -191,11 +192,6 @@ export function Sideboard(
   );
 }
 
-async function loadStyles() {
-  const url = new URL("../index.css", import.meta.url);
-  return (await fetch(url)).text();
-}
-
 function addStyles(textContent: string) {
   const id = "sideboard-styles";
   const el =
@@ -204,12 +200,9 @@ function addStyles(textContent: string) {
   document.head.append(el);
 }
 
-export async function renderSideboard(): Promise<
-  ToolImplementation<TinyPatchworkAccountDoc>
-> {
-  const styles = await loadStyles();
+export function renderSideboard(): ToolImplementation<TinyPatchworkAccountDoc> {
   return (handle, element) => {
-    addStyles(styles);
+    addStyles(sideboardStyles);
     return render(
       () => (
         // @ts-expect-error - handle type doesn't know it supports folders

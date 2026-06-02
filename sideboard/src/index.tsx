@@ -12,7 +12,7 @@ export const plugins = [
     unlisted: true,
     async load(): Promise<ToolImplementation<TinyPatchworkAccountDoc>> {
       const { renderSideboard } = await import("./sideboard/sideboard.tsx");
-      return renderSideboard();
+      return renderSideboard;
     },
   },
 ];
