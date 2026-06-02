@@ -3,7 +3,6 @@ import {
   type DocHandle,
   type DocHandleChangePayload,
   type DocHandleDeletePayload,
-  type RefUrl,
 } from "@automerge/automerge-repo";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 import type {
@@ -12,7 +11,7 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 import type { DocWithComments } from "@inkandswitch/patchwork-comments";
 
-type CommentEntry = { targetRef: RefUrl; threadRef: RefUrl };
+type CommentEntry = { targetRef: AutomergeUrl; threadRef: AutomergeUrl };
 
 /**
  * Answers `patchwork:comments` subscriptions. Watches every mounted doc for
@@ -183,7 +182,7 @@ export const CommentsProvider = (element: HTMLElement) => {
     const threads = handle.doc()?.["@comments"]?.threads ?? [];
     for (const thread of threads) {
       if (thread.isResolved) continue;
-      const threadRef = handle.ref("@comments", "threads", {
+      const threadRef = handle.sub("@comments", "threads", {
         id: thread.id,
       }).url;
       for (const targetRef of thread.refs) {
@@ -208,7 +207,8 @@ export const CommentsProvider = (element: HTMLElement) => {
   }
 };
 
-function docUrlOfRef(ref: RefUrl): AutomergeUrl | undefined {
+// TODO: this probably doesnt need to exist
+function docUrlOfRef(ref: AutomergeUrl): AutomergeUrl | undefined {
   const slash = ref.indexOf("/");
   const hash = ref.indexOf("#");
   const end =

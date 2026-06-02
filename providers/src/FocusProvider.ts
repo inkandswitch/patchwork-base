@@ -1,4 +1,4 @@
-import type { AutomergeUrl, RefUrl } from "@automerge/automerge-repo";
+import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 
 const SELECTOR = "patchwork:focus";
@@ -11,8 +11,8 @@ const SELECTOR = "patchwork:focus";
 // Two fields instead of one because a single shared `selection` would
 // create a feedback loop between the editor and any view writing back.
 export type FocusDoc = {
-  selection: Record<RefUrl, true>;
-  highlight: Record<RefUrl, true>;
+  selection: Record<AutomergeUrl, true>;
+  highlight: Record<AutomergeUrl, true>;
 };
 
 export const FocusProvider = (element: HTMLElement) => {
