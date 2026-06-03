@@ -22,7 +22,7 @@ import {
 } from "@inkandswitch/patchwork-providers-solid";
 
 /** Styles */
-import { createResource, createSignal, onMount } from "solid-js";
+import { createMemo, createResource, createSignal, onMount } from "solid-js";
 import { createCommentForRange } from "./lib/extensions/comments.ts";
 
 export type TextDoc = {
@@ -30,11 +30,11 @@ export type TextDoc = {
 };
 
 type CommentEntry = {
-  targetRef: AutomergeUrl;
+  targetUrl: AutomergeUrl;
 };
 
 const PATH = ["content"];
-const VERSION = "v2.0.34-comments";
+const VERSION = "v2.0.39-comments";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const isReadOnly = props.handle.isReadOnly();
@@ -65,17 +65,20 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     { initialValue: [] }
   );
 
-  // `resolveRefsInDoc` resolves refs asynchronously, so drive it through a
-  // resource keyed on the focus doc. Emphasis is selection ∪ highlight.
+  // CommentsView writes selected comment targets into `selection`/`highlight`.
+  // Read those URL keys directly so this memo updates when the maps change;
+  // using `focusDoc()` itself doesn't trigger a change when the selection and highlight array inside of it change
+  const focusRefUrls = createMemo(() => {
+    const doc = focusDoc();
+    return [
+      ...Object.keys(doc?.selection ?? {}),
+      ...Object.keys(doc?.highlight ?? {}),
+    ] as AutomergeUrl[];
+  });
+
   const [emphasisTargets] = createResource(
-    () => focusDoc(),
-    async (doc) => {
-      const [selection, highlight] = await Promise.all([
-        resolveRefsInDoc(doc?.selection, props.handle.url, props.repo),
-        resolveRefsInDoc(doc?.highlight, props.handle.url, props.repo),
-      ]);
-      return Array.from(new Set([...selection, ...highlight]));
-    },
+    focusRefUrls,
+    async (urls) => resolveSubDocUrlsOfDoc(urls, props.handle.url, props.repo),
     { initialValue: [] }
   );
 
@@ -155,8 +158,8 @@ function prefersDarkMode(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-// The comments provider already scopes entries to this doc by `targetRef`,
-// so this just dedupes and resolves each ref to a `Ref` on the handle.
+// The comments provider already scopes entries to this doc by `targetUrl`,
+// so this just dedupes and resolves each url to a `DocHandle`.
 async function getDedupedCommentTargets(
   comments: CommentEntry[] | undefined,
   docUrl: AutomergeUrl,
@@ -165,24 +168,23 @@ async function getDedupedCommentTargets(
   if (!comments) return [];
   const overlappingRefs = new Set<DocHandle<unknown>>();
   for (const comment of comments) {
-    if (comment.targetRef.startsWith(docUrl)) {
-      const target = await repo.find(comment.targetRef);
+    if (comment.targetUrl.startsWith(docUrl)) {
+      const target = await repo.find(comment.targetUrl);
       overlappingRefs.add(target);
     }
   }
   return Array.from(overlappingRefs);
 }
 
-// Scopes a map of refs to this doc and resolves each one to a `DocHandle`.
+// Scopes ref urls to this doc and resolves each one to a `DocHandle`.
 // Used for both our own `selection` and other views' `highlight`.
-async function resolveRefsInDoc(
-  map: Record<AutomergeUrl, true> | undefined,
+async function resolveSubDocUrlsOfDoc(
+  urls: AutomergeUrl[],
   docUrl: AutomergeUrl,
   repo: Repo
 ): Promise<DocHandle<unknown>[]> {
-  if (!map) return [];
   const refs = new Set<DocHandle<unknown>>();
-  for (const url of Object.keys(map) as AutomergeUrl[]) {
+  for (const url of urls) {
     if (url.startsWith(docUrl)) {
       refs.add(await repo.find(url));
     }

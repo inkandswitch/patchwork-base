@@ -32,7 +32,7 @@ export function createCommentForRange(
   to: number,
   contactUrl: AutomergeUrl
 ): void {
-  const targetRef = handle.sub(...path, cursor(from, to)).url;
+  const targetUrl = handle.sub(...path, cursor(from, to)).url;
   const threadId = crypto.randomUUID();
   const commentId = crypto.randomUUID();
 
@@ -40,7 +40,7 @@ export function createCommentForRange(
     doc["@comments"] ??= { threads: [] };
     doc["@comments"].threads.push({
       id: threadId,
-      refs: [targetRef],
+      refs: [targetUrl],
       isResolved: false,
       comments: [
         {

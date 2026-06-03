@@ -33,7 +33,7 @@ export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
 
   const commentEntries = subscribe<
-    { targetRef: AutomergeUrl; threadRef: AutomergeUrl }[]
+    { targetUrl: AutomergeUrl; threadUrl: AutomergeUrl }[]
   >(props.element, { type: "patchwork:comments" }, []);
 
   // `selection` is read-only input (driven by the active editor), `highlight`
@@ -52,26 +52,23 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   const threadUrls = createMemo<AutomergeUrl[]>(() => {
     const entries = commentEntries();
-    const seen = new Set<AutomergeUrl>();
-    const urls: AutomergeUrl[] = [];
-    for (const { threadRef } of entries) {
-      if (seen.has(threadRef)) continue;
-      seen.add(threadRef);
-      urls.push(threadRef);
+    const threadUrls = new Set<AutomergeUrl>();
+    for (const { threadUrl } of entries) {
+      threadUrls.add(threadUrl);
     }
-    return urls;
+    return Array.from(threadUrls);
   });
 
   const threadTargetUrlMap = createMemo<Map<AutomergeUrl, AutomergeUrl[]>>(
     () => {
       const entries = commentEntries();
       const map = new Map<AutomergeUrl, AutomergeUrl[]>();
-      for (const { targetRef, threadRef } of entries) {
-        const existing = map.get(threadRef);
+      for (const { targetUrl, threadUrl } of entries) {
+        const existing = map.get(threadUrl);
         if (existing) {
-          if (!existing.includes(targetRef)) existing.push(targetRef);
+          if (!existing.includes(targetUrl)) existing.push(targetUrl);
         } else {
-          map.set(threadRef, [targetRef]);
+          map.set(threadUrl, [targetUrl]);
         }
       }
       return map;
@@ -231,32 +228,7 @@ function threadOverlapsSelection(
   targets: DocHandle<unknown>[],
   selection: DocHandle<unknown>[]
 ): boolean {
-  return targets.some((t) => selection.some((s) => handlesOverlap(s, t)));
-}
-
-// True when two sub-handles target overlapping content in the same doc. Tries
-// the built-in handle checks first (equality, parent/child containment, range
-// overlap), then falls back to a point-in-range check so a bare cursor still
-// matches an enclosing cursor range — `overlaps()` uses strict `<` and rejects
-// zero-width ranges.
-function handlesOverlap(a: DocHandle<unknown>, b: DocHandle<unknown>): boolean {
-  if (a.documentId !== b.documentId) return false;
-  try {
-    if (a.equals(b) || a.contains(b) || b.contains(a) || a.overlaps(b)) {
-      return true;
-    }
-    const aPos = a.rangePositions();
-    const bPos = b.rangePositions();
-    if (!aPos || !bPos) return false;
-    const aIsCursor = aPos[0] === aPos[1];
-    const bIsCursor = bPos[0] === bPos[1];
-    if (!aIsCursor && !bIsCursor) return false;
-    const point = aIsCursor ? aPos[0] : bPos[0];
-    const [rangeStart, rangeEnd] = aIsCursor ? bPos : aPos;
-    return rangeStart <= point && point <= rangeEnd;
-  } catch {
-    return false;
-  }
+  return targets.some((t) => selection.some((s) => s.overlaps(t)));
 }
 
 function ThreadView(props: {

@@ -11,7 +11,7 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 import type { DocWithComments } from "@inkandswitch/patchwork-comments";
 
-type CommentEntry = { targetRef: AutomergeUrl; threadRef: AutomergeUrl };
+type CommentEntry = { targetUrl: AutomergeUrl; threadUrl: AutomergeUrl };
 
 /**
  * Answers `patchwork:comments` subscriptions. Watches every mounted doc for
@@ -19,7 +19,7 @@ type CommentEntry = { targetRef: AutomergeUrl; threadRef: AutomergeUrl };
  *
  * Subscriptions are scoped:
  *
- * - `{ url }` → only entries whose `targetRef` lives in that doc. The
+ * - `{ url }` → only entries whose `targetUrl` lives in that doc. The
  *   subscriber is re-notified only when its own slice changes.
  * - no args → the flat list of every entry across all mounted docs.
  */
@@ -37,7 +37,7 @@ export const CommentsProvider = (element: HTMLElement) => {
   const handlesByUrl = new Map<AutomergeUrl, DocHandle<DocWithComments>>();
 
   // Two indices over the same entries: keyed by the doc that *stores* the
-  // threads, and regrouped by the doc each entry's `targetRef` points at.
+  // threads, and regrouped by the doc each entry's `targetUrl` points at.
   const entriesByStorageUrl = new Map<AutomergeUrl, CommentEntry[]>();
   let entriesByTargetUrl = new Map<AutomergeUrl, CommentEntry[]>();
   let flatEntries: CommentEntry[] = [];
@@ -149,7 +149,7 @@ export const CommentsProvider = (element: HTMLElement) => {
 
     const nextByTarget = new Map<AutomergeUrl, CommentEntry[]>();
     for (const entry of nextFlat) {
-      const targetDocUrl = docUrlOfRef(entry.targetRef);
+      const targetDocUrl = docUrlOfRef(entry.targetUrl);
       if (!targetDocUrl) continue;
       let bucket = nextByTarget.get(targetDocUrl);
       if (!bucket) nextByTarget.set(targetDocUrl, (bucket = []));
@@ -182,11 +182,11 @@ export const CommentsProvider = (element: HTMLElement) => {
     const threads = handle.doc()?.["@comments"]?.threads ?? [];
     for (const thread of threads) {
       if (thread.isResolved) continue;
-      const threadRef = handle.sub("@comments", "threads", {
+      const threadUrl = handle.sub("@comments", "threads", {
         id: thread.id,
       }).url;
-      for (const targetRef of thread.refs) {
-        entries.push({ targetRef, threadRef });
+      for (const targetUrl of thread.refs) {
+        entries.push({ targetUrl, threadUrl });
       }
     }
     return entries;
@@ -224,7 +224,7 @@ function docUrlOfRef(ref: AutomergeUrl): AutomergeUrl | undefined {
 }
 
 const entriesEqual = (a: CommentEntry, b: CommentEntry) =>
-  a.targetRef === b.targetRef && a.threadRef === b.threadRef;
+  a.targetUrl === b.targetUrl && a.threadUrl === b.threadUrl;
 
 const entryListsEqual = (a: CommentEntry[], b: CommentEntry[]) => {
   if (a.length !== b.length) return false;
