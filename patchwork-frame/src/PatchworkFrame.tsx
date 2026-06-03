@@ -1,11 +1,6 @@
 import "@inkandswitch/patchwork-elements";
 import { useDocHandle } from "@automerge/automerge-repo-solid-primitives";
-import type {
-  AutomergeUrl,
-  Doc,
-  DocHandle,
-  Repo,
-} from "@automerge/automerge-repo";
+import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import type { AccountDoc } from "./types";
 import {
   useSidebarState,
@@ -18,14 +13,14 @@ import { Sidebar } from "./components/Sidebar";
 import { DocumentToolbar } from "./components/DocumentToolbar";
 import { MainDocumentView } from "./components/MainDocumentView";
 import {
-  type Accessor,
   createEffect,
   createMemo,
   createSignal,
   onCleanup,
+  onMount,
   Show,
 } from "solid-js";
-import { subscribe } from "@inkandswitch/patchwork-providers-solid";
+import { subscribe } from "@inkandswitch/patchwork-providers";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
@@ -109,7 +104,7 @@ export const PatchworkFrame = ({
               ref={setAccountProviderElement}
             >
               <Show when={areProvidersReady()}>
-                <InnerPatchworkFrame handle={handle} repo={repo} />
+                <PatchworkFrameInner handle={handle} repo={repo} />
               </Show>
             </patchwork-view>
           </patchwork-view>
@@ -119,7 +114,7 @@ export const PatchworkFrame = ({
   );
 };
 
-function InnerPatchworkFrame(props: {
+function PatchworkFrameInner(props: {
   handle: DocHandle<AccountDoc>;
   repo: Repo;
 }) {
@@ -166,62 +161,44 @@ function InnerPatchworkFrame(props: {
     clearAll,
   } = useDebugRegistryToast();
 
-  const [innerElement, setInnerElement] = createSignal<HTMLElement>();
+  let element!: HTMLDivElement;
+  const [selectedView, setSelectedView] = createSignal<SelectedView | null>(
+    null
+  );
+
+  onMount(() => {
+    const unsubscribeSelectedView = subscribe<SelectedView | null>(
+      element,
+      { type: "patchwork:selected-view" },
+      (view) => setSelectedView(view)
+    );
+
+    onCleanup(unsubscribeSelectedView);
+  });
 
   return (
-    <div ref={setInnerElement} style={{ display: "contents" }}>
+    <div ref={element} style={{ display: "contents" }}>
       <DebugRegistryToast
         events={debugEvents()}
         onDismiss={dismissEvent}
         onClearAll={clearAll}
       />
-      <Show when={innerElement()} keyed>
-        {(element) => (
-          <InnerPatchworkFrameContent
-            element={element}
-            accountDoc={accountDoc}
-            accountDocUrl={accountDocUrl}
-            sidebarState={sidebarState}
-            sidebarResize={sidebarResize}
-          />
-        )}
-      </Show>
-    </div>
-  );
-}
 
-function InnerPatchworkFrameContent(props: {
-  element: HTMLElement;
-  accountDoc: Accessor<Doc<AccountDoc> | undefined>;
-  accountDocUrl: AutomergeUrl;
-  sidebarState: ReturnType<typeof useSidebarState>;
-  sidebarResize: ReturnType<typeof useSidebarResize>;
-}) {
-  // Subscribe from an element inside the provider wrappers so events bubble to
-  // whichever provider owns the selector.
-  const selectedView = subscribe<SelectedView | null>(
-    props.element,
-    { type: "patchwork:selected-view" },
-    null
-  );
-
-  return (
-    <>
-      {props.accountDoc()?.accountSidebarToolId && (
+      {accountDoc()?.accountSidebarToolId && (
         <Sidebar
           side="left"
-          isCollapsed={props.sidebarState.isSidebarCollapsed}
-          width={props.sidebarState.leftSidebarWidth}
-          toolId={props.accountDoc()!.accountSidebarToolId}
-          docUrl={props.accountDocUrl}
-          onMouseDown={props.sidebarResize.handleMouseDown}
-          onToggleClick={props.sidebarResize.handleToggleClick}
+          isCollapsed={sidebarState.isSidebarCollapsed}
+          width={sidebarState.leftSidebarWidth}
+          toolId={accountDoc()!.accountSidebarToolId}
+          docUrl={accountDocUrl}
+          onMouseDown={sidebarResize.handleMouseDown}
+          onToggleClick={sidebarResize.handleToggleClick}
         />
       )}
 
       <div class="main-area">
         <DocumentToolbar
-          toolIds={() => props.accountDoc()?.documentToolbarToolIds}
+          toolIds={() => accountDoc()?.documentToolbarToolIds}
           docUrl={() => selectedView()?.url}
         />
         <MainDocumentView
@@ -231,17 +208,17 @@ function InnerPatchworkFrameContent(props: {
         />
       </div>
 
-      {props.accountDoc()?.contextSidebarToolId && (
+      {accountDoc()?.contextSidebarToolId && (
         <Sidebar
           side="right"
-          isCollapsed={props.sidebarState.isRightSidebarCollapsed}
-          width={props.sidebarState.rightSidebarWidth}
-          toolId={props.accountDoc()!.contextSidebarToolId}
-          docUrl={props.accountDocUrl}
-          onMouseDown={props.sidebarResize.handleMouseDown}
-          onToggleClick={props.sidebarResize.handleToggleClick}
+          isCollapsed={sidebarState.isRightSidebarCollapsed}
+          width={sidebarState.rightSidebarWidth}
+          toolId={accountDoc()!.contextSidebarToolId}
+          docUrl={accountDocUrl}
+          onMouseDown={sidebarResize.handleMouseDown}
+          onToggleClick={sidebarResize.handleToggleClick}
         />
       )}
-    </>
+    </div>
   );
 }
