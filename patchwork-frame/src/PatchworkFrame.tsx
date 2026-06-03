@@ -26,7 +26,7 @@ import { useSelectedView } from "./hooks/useSelectedDocument";
 const MIN_SIDEBAR_WIDTH = 48;
 const DRAG_THRESHOLD = 3;
 
-const VERSION = "v1.0.7-comments";
+const VERSION = "v1.0.8-comments";
 
 export const PatchworkFrame = ({
   handle,

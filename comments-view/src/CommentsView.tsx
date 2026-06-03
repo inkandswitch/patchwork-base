@@ -21,14 +21,13 @@ import {
   type Repo,
 } from "@automerge/automerge-repo";
 
-import { subscribeDoc, subscribe } from "@inkandswitch/patchwork-providers-solid";
 import {
-  createReply,
-  type Comment,
-  type CommentThread,
-} from "@inkandswitch/patchwork-comments";
+  subscribeDoc,
+  subscribe,
+} from "@inkandswitch/patchwork-providers-solid";
+import { createReply, type Comment, type CommentThread } from "./comments";
 
-const VERSION = "v2.3.10-comments";
+const VERSION = "v2.3.11-comments";
 
 export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
@@ -45,10 +44,9 @@ export function CommentsView(props: { element: HTMLElement }) {
     highlight: Record<AutomergeUrl, true>;
   }>(props.element, { type: "patchwork:focus" });
 
-  const [, contactHandle] = subscribeDoc<Record<string, never>>(
-    props.element,
-    { type: "patchwork:contact" }
-  );
+  const [, contactHandle] = subscribeDoc<Record<string, never>>(props.element, {
+    type: "patchwork:contact",
+  });
   const currentContactUrl = () =>
     contactHandle()?.url as AutomergeUrl | undefined;
 
@@ -64,19 +62,21 @@ export function CommentsView(props: { element: HTMLElement }) {
     return urls;
   });
 
-  const threadTargetUrlMap = createMemo<Map<AutomergeUrl, AutomergeUrl[]>>(() => {
-    const entries = commentEntries();
-    const map = new Map<AutomergeUrl, AutomergeUrl[]>();
-    for (const { targetRef, threadRef } of entries) {
-      const existing = map.get(threadRef);
-      if (existing) {
-        if (!existing.includes(targetRef)) existing.push(targetRef);
-      } else {
-        map.set(threadRef, [targetRef]);
+  const threadTargetUrlMap = createMemo<Map<AutomergeUrl, AutomergeUrl[]>>(
+    () => {
+      const entries = commentEntries();
+      const map = new Map<AutomergeUrl, AutomergeUrl[]>();
+      for (const { targetRef, threadRef } of entries) {
+        const existing = map.get(threadRef);
+        if (existing) {
+          if (!existing.includes(targetRef)) existing.push(targetRef);
+        } else {
+          map.set(threadRef, [targetRef]);
+        }
       }
+      return map;
     }
-    return map;
-  });
+  );
 
   const selectedHandles = useResolvedHandles(
     () => Object.keys(focusDoc()?.selection ?? {}) as AutomergeUrl[],
@@ -96,7 +96,9 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   // Tiebreaker for when several threads share the same range — without it
   // the second of two threads on the same target would be unselectable.
-  const [pinnedThread, setPinnedThread] = createSignal<AutomergeUrl | undefined>();
+  const [pinnedThread, setPinnedThread] = createSignal<
+    AutomergeUrl | undefined
+  >();
 
   const primaryThreadUrl = createMemo<AutomergeUrl | undefined>(() => {
     const overlaps = overlappingThreads();
@@ -125,7 +127,10 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   // Clicking a thread card pins it and jumps `selection` to its targets;
   // the editor's next cursor move will overwrite `selection` again.
-  const onSelectThread = (threadUrl: AutomergeUrl, targetUrls: AutomergeUrl[]) => {
+  const onSelectThread = (
+    threadUrl: AutomergeUrl,
+    targetUrls: AutomergeUrl[]
+  ) => {
     const handle = focusHandle();
     if (!handle) return;
     const wasPrimary = primaryThreadUrl() === threadUrl;
@@ -361,14 +366,10 @@ function ThreadView(props: {
   };
 
   const onReplyToComment = () => {
-    const h = threadHandle();
+    const handle = threadHandle();
     const contactUrl = props.currentContactUrl();
-    if (!h || !contactUrl) return;
-    createReply({
-      threadRef: h as any,
-      content: "",
-      contactUrl,
-    });
+    if (!handle || !contactUrl) return;
+    createReply({ threadHandle: handle, content: "", contactUrl });
   };
 
   const onDeleteComment = (commentHandle: DocHandle<Comment>) => {
@@ -419,10 +420,12 @@ function ThreadView(props: {
             <For each={commentIds()}>
               {(commentId) => {
                 const commentHandle = createMemo(() => {
-                  const h = threadHandle();
+                  const handle = threadHandle();
                   const t = thread();
-                  if (!h || !t) return undefined;
-                  return h.sub("comments", { id: commentId }) as DocHandle<Comment>;
+                  if (!handle || !t) return undefined;
+                  return handle.sub("comments", {
+                    id: commentId,
+                  }) as DocHandle<Comment>;
                 });
                 return (
                   <Show when={commentHandle()}>

@@ -15,7 +15,7 @@
     "@inkandswitch/patchwork-comments": "^0.1.2",
     "@inkandswitch/patchwork-elements": "^0.2.0",
     "@inkandswitch/patchwork-plugins": "^0.0.11",
-    "@inkandswitch/patchwork-providers": "^0.2.0"
+    "@inkandswitch/patchwork-providers": "^0.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",

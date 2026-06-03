@@ -34,7 +34,7 @@ type CommentEntry = {
 };
 
 const PATH = ["content"];
-const VERSION = "v2.0.33-comments";
+const VERSION = "v2.0.34-comments";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const isReadOnly = props.handle.isReadOnly();
