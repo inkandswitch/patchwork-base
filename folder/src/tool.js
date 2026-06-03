@@ -105,11 +105,11 @@ export const FolderTool = (handle, element) => {
 
   const countEl = el("span", { className: "badge badge-ghost" });
   const listEl = el("div", {
-    className: "flex flex-col gap-3 overflow-y-auto flex-1 pb-4",
+    className: "flex flex-col gap-3 pb-4",
   });
   const shell = el(
     "div",
-    { className: "p-4 h-full overflow-hidden flex flex-col gap-4" },
+    { className: "p-4 h-full overflow-auto flex flex-col gap-4" },
     el(
       "div",
       {
