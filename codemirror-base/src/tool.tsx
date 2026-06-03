@@ -2,8 +2,8 @@ import { CodeMirror } from "./lib/codemirror.tsx";
 
 /** CodeMirror Extensions */
 import { RangeSet, type Extension, type Range } from "@codemirror/state";
-import { Decoration, WidgetType } from "@codemirror/view";
-import { commentButtonGutter } from "./lib/comments/commentButtonGutter.ts";
+import { Decoration } from "@codemirror/view";
+import { commentButtonGutter } from "./lib/extensions/commentButtonGutter.ts";
 
 /** Automerge */
 import type { PatchworkToolProps } from "./types.ts";
@@ -16,7 +16,6 @@ import {
 
 /** Patchwork */
 import { getRegistry } from "@inkandswitch/patchwork-plugins";
-import { createComment } from "@inkandswitch/patchwork-comments";
 import {
   subscribeDoc,
   subscribe,
@@ -24,20 +23,27 @@ import {
 
 /** Styles */
 import { createResource, createSignal, onMount } from "solid-js";
+import { createCommentForRange } from "./lib/extensions/comments.ts";
 
 export type TextDoc = {
   content: string;
 };
 
+type CommentEntry = {
+  targetRef: AutomergeUrl;
+};
+
 const PATH = ["content"];
-const VERSION = "v2.0.25-comments";
+const VERSION = "v2.0.33-comments";
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const isReadOnly = props.handle.isReadOnly();
 
-  const commentEntries = subscribe<
-    { targetRef: AutomergeUrl; threadRef: AutomergeUrl }[]
-  >(props.element, { type: "patchwork:comments" }, []);
+  const commentEntries = subscribe<CommentEntry[]>(
+    props.element,
+    { type: "patchwork:comments" },
+    []
+  );
 
   // We own `selection` (cursor) and only read `highlight` (other views'
   // emphasis). Splitting the two avoids any feedback loop.
@@ -106,7 +112,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
       console.warn("Cannot create comment: no contactUrl available");
       return;
     }
-    void createCommentForRange(props.handle, PATH, from, to, url);
+    createCommentForRange(props.handle, PATH, from, to, url);
   };
 
   // Base CodeMirror extensions (context-specific, not language-specific)
@@ -152,7 +158,7 @@ function prefersDarkMode(): boolean {
 // The comments provider already scopes entries to this doc by `targetRef`,
 // so this just dedupes and resolves each ref to a `Ref` on the handle.
 async function getDedupedCommentTargets(
-  comments: { targetRef: AutomergeUrl }[] | undefined,
+  comments: CommentEntry[] | undefined,
   docUrl: AutomergeUrl,
   repo: Repo
 ): Promise<DocHandle<unknown>[]> {
@@ -217,25 +223,6 @@ function commentTargetStyle(isEmphasised: boolean, dark: boolean): string {
         border-bottom: 2px solid ${dark ? "#ca8a04" : "#eab308"};
         background-color: ${dark ? "#713f12" : "#fef9c3"};
       `;
-}
-
-async function createCommentForRange(
-  handle: DocHandle<unknown>,
-  path: readonly string[],
-  from: number,
-  to: number,
-  contactUrl: AutomergeUrl
-): Promise<void> {
-  const targetRef = handle.sub(...path, cursor(from, to));
-  await createComment({
-    refs: [
-      targetRef as unknown as Parameters<
-        typeof createComment
-      >[0]["refs"][number],
-    ],
-    content: "",
-    contactUrl,
-  });
 }
 
 async function loadCodeMirrorExtensionsForDoc(

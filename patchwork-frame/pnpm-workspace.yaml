@@ -1,8 +1,4 @@
 allowBuilds:
   cbor-extract: false
   esbuild: false
-minimumReleaseAgeExclude:
-  - '@inkandswitch/patchwork-elements@1.0.3'
-  - '@inkandswitch/patchwork-providers@0.1.2'
-  - '@inkandswitch/patchwork-bootloader@0.2.4'
-  - '@inkandswitch/patchwork-elements@0.2.0'
+minimumReleaseAge: 0
