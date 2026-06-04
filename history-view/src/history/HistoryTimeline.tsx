@@ -1,12 +1,12 @@
 import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
 import { Show } from "solid-js";
-import { $selectedDocUrls } from "@inkandswitch/annotations-selection";
-import { useSubscribe } from "@inkandswitch/subscribables-solid";
+import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { DocHistoryView } from "./components/DocHistoryView";
 import "../styles.css";
 
 export interface PatchworkToolProps {
   repo: Repo;
+  element: HTMLElement;
 }
 
 /**
@@ -16,7 +16,11 @@ export interface PatchworkToolProps {
  * editor never spawns a second history panel below the original.
  */
 export function HistoryTimeline(props: PatchworkToolProps) {
-  const selectedDocUrls = useSubscribe($selectedDocUrls);
+  const selectedDocUrls = subscribe<AutomergeUrl[]>(
+    props.element,
+    { type: "patchwork:selected-doc" },
+    []
+  );
   const primaryUrl = () => selectedDocUrls()[0] as AutomergeUrl | undefined;
 
   return (

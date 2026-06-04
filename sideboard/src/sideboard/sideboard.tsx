@@ -18,8 +18,7 @@ import { SearchIcon } from "./icons.tsx";
 import { DocumentList } from "./document-list/document-list.tsx";
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
-import { useSubscribe } from "@inkandswitch/subscribables-solid";
-import { $selectedDocUrls } from "@inkandswitch/annotations-selection";
+import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { createSignal, Show } from "solid-js";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
 
@@ -36,7 +35,11 @@ export function Sideboard(
     "moduleSettingsUrl" in doc ? doc.moduleSettingsUrl : undefined;
   const accountDocUrl = () => props.handle.url;
   const contactUrl = () => ("contactUrl" in doc ? doc.contactUrl : undefined);
-  const selectedDocUrls = useSubscribe($selectedDocUrls);
+  const selectedDocUrls = subscribe<AutomergeUrl[]>(
+    props.element,
+    { type: "patchwork:selected-doc" },
+    []
+  );
 
   function open(detail: OpenDocumentEventDetail) {
     props.element.dispatchEvent(createOpenEvent(detail));
@@ -145,7 +148,7 @@ export function Sideboard(
           handle={folderHandle.latest!}
           open={open}
           hive={props.element.hive}
-          selectedDocUrls={(selectedDocUrls() as AutomergeUrl[]) ?? []}
+          selectedDocUrls={selectedDocUrls()}
           element={props.element}
           rootFolderHandle={folderHandle.latest!}
         />

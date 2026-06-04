@@ -52,13 +52,23 @@ class CommentButtonWidget extends WidgetType {
       button.style.backgroundColor = "transparent";
     });
 
+    // Without this, the browser focuses the button on mousedown, the editor
+    // blurs, the selection collapses, our `markers(view)` returns
+    // RangeSet.empty, and CodeMirror tears down the button before `click`
+    // fires — so the first press silently does nothing and the user has to
+    // click twice. Swallowing mousedown keeps the editor focused and the
+    // selection (and marker) alive long enough for the click to land.
+    button.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
     button.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (this.onComment) {
         this.onComment(this.from, this.to, this.view);
       } else {
-        // fallback: Log if no callback provided
         console.log("Comment button clicked for range:", this.from, this.to);
       }
     });

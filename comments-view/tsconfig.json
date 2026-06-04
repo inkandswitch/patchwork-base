@@ -6,10 +6,12 @@
     "outDir": "dist",
     "declaration": true,
     "lib": ["ESNext", "DOM"],
+    "types": ["vite/client"],
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "jsx": "react-jsx"
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js"
   },
   "include": ["src"]
 }

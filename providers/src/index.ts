@@ -10,4 +10,31 @@ export const plugins: Plugin<any>[] = [
       return CommentsProvider;
     },
   },
+  {
+    type: "patchwork:component",
+    id: "patchwork-focus-provider",
+    name: "Focus Provider",
+    async load() {
+      const { FocusProvider } = await import("./FocusProvider.js");
+      return FocusProvider;
+    },
+  },
+  {
+    type: "patchwork:component",
+    id: "patchwork-account-provider",
+    name: "Account Provider",
+    async load() {
+      const { AccountProvider } = await import("./AccountProvider.js");
+      return AccountProvider;
+    },
+  },
+  {
+    type: "patchwork:component",
+    id: "patchwork-selected-doc-provider",
+    name: "Selected Doc Provider",
+    async load() {
+      const { SelectedDocProvider } = await import("./SelectedDocProvider.js");
+      return SelectedDocProvider;
+    },
+  },
 ];

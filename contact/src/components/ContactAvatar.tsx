@@ -4,12 +4,13 @@ import {
   useDocHandle,
   useRemoteAwareness,
 } from "@automerge/automerge-repo-react-hooks";
+import { useSubscribeDoc } from "@inkandswitch/patchwork-providers-react";
 import type { ContactDoc } from "../types";
 import { Avatar, AvatarFallback, AvatarImage } from "./Avatar";
 import { User as UserIcon } from "lucide-react";
 import { generateColorFromString } from "../ui";
 import { useMemo } from "react";
-import { automergeUrlToServiceWorkerUrl } from "@inkandswitch/patchwork-filesystem";
+import { getImportableUrlFromAutomergeUrl } from "@inkandswitch/patchwork-filesystem";
 import type { TinyPatchworkLayoutDoc } from "../types";
 
 // Extend the Window interface to include accountDocHandle
@@ -19,21 +20,34 @@ declare global {
   }
 }
 
-export const ContactAvatar = ({ docUrl }: { docUrl: AutomergeUrl }) => {
+export const ContactAvatar = ({
+  docUrl,
+  element,
+}: {
+  docUrl: AutomergeUrl;
+  element: HTMLElement;
+}) => {
   const [contact] = useDocument<ContactDoc>(docUrl);
   const handle = useDocHandle(docUrl, { suspense: true });
 
-  const accountDocHandle = window.accountDocHandle;
-  const [currentAccount] = useDocument<TinyPatchworkLayoutDoc>(
-    accountDocHandle?.url
+  const [ownContact, ownContactHandle] = useSubscribeDoc<ContactDoc>(
+    element,
+    { type: "patchwork:contact" }
   );
-  const [self] = useDocument<ContactDoc>(currentAccount?.contactUrl);
+  const accountDocHandle = window.accountDocHandle;
+  const [fallbackAccount] = useDocument<TinyPatchworkLayoutDoc>(
+    ownContactHandle ? undefined : accountDocHandle?.url
+  );
+  const [fallbackSelf] = useDocument<ContactDoc>(
+    ownContactHandle ? undefined : fallbackAccount?.contactUrl
+  );
+  const self = ownContact ?? fallbackSelf;
 
   const avatarHandle = useDocHandle(
     contact?.type === "registered" ? contact.avatarUrl : undefined
   );
   const avatarImgUrl =
-    avatarHandle && automergeUrlToServiceWorkerUrl(avatarHandle.url);
+    avatarHandle && getImportableUrlFromAutomergeUrl(avatarHandle.url);
 
   // Listen for presence on this contact's awareness
   const [_, heartbeats] = useRemoteAwareness({

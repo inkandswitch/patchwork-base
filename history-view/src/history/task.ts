@@ -38,6 +38,9 @@ interface WorkingChange {
  * strategy, and writes the aggregated items back into the history doc.
  */
 export default async function (source: AutomergeUrl) {
+  // `repo` is the worker-global declared by @inkandswitch/patchwork-providers
+  // as `Repo | undefined`; bail if it hasn't been set up yet.
+  if (!repo) return;
   const now = Date.now();
   const sourceDocHandle = await repo.find<HasPatchworkMetadata>(source);
   const sourceDoc = sourceDocHandle.doc();

@@ -1,5 +1,4 @@
 import { createMemo, Accessor } from "solid-js";
-import type { DocHandle } from "@automerge/automerge-repo";
 import {
   getType,
   HasPatchworkMetadata,
@@ -8,11 +7,10 @@ import { useDatatypes } from "../lib/solid-plugins";
 import { isLoadedPlugin } from "@inkandswitch/patchwork-plugins/dist/registry/guards";
 
 /**
- * Hook to compute document metadata (title and ref)
+ * Hook to compute document metadata (title)
  */
 export function useDocumentMetadata(
-  doc: Accessor<HasPatchworkMetadata | undefined>,
-  handle: Accessor<DocHandle<HasPatchworkMetadata> | undefined>
+  doc: Accessor<HasPatchworkMetadata | undefined>
 ) {
   const datatypes = useDatatypes();
 
@@ -28,13 +26,7 @@ export function useDocumentMetadata(
     return "";
   });
 
-  const docRef = createMemo(() => {
-    const h = handle();
-    return h ? h.ref() : undefined;
-  });
-
   return {
     title,
-    docRef,
   };
 }

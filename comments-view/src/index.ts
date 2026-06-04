@@ -9,7 +9,7 @@ export const plugins: Plugin<any>[] = [
     icon: "Comments",
     supportedDatatypes: ["account"],
     async load() {
-      const { renderCommentsView } = await import("./CommentsView");
+      const { renderCommentsView } = await import("./main");
       return renderCommentsView;
     },
   },

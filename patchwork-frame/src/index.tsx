@@ -25,13 +25,7 @@ export const plugins: Plugin<any>[] = [
       const { PatchworkFrame } = await import("./PatchworkFrame");
       return (handle, element) => {
         return render(
-          () => (
-            <PatchworkFrame
-              handle={handle}
-              element={element}
-              repo={element.repo}
-            />
-          ),
+          () => <PatchworkFrame handle={handle} repo={element.repo} />,
           element
         );
       };

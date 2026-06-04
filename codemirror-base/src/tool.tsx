@@ -1,168 +1,116 @@
 import { CodeMirror } from "./lib/codemirror.tsx";
 
 /** CodeMirror Extensions */
-import { RangeSet, type Extension } from "@codemirror/state";
-import { Decoration, WidgetType } from "@codemirror/view";
-import { commentButtonGutter } from "./lib/comments/commentButtonGutter.ts";
+import { RangeSet, type Extension, type Range } from "@codemirror/state";
+import { Decoration } from "@codemirror/view";
+import { commentButtonGutter } from "./lib/extensions/commentButtonGutter.ts";
 
 /** Automerge */
 import type { PatchworkToolProps } from "./types.ts";
-import { parseAutomergeUrl, cursor } from "@automerge/automerge-repo";
-import type { DocHandle, Ref } from "@automerge/automerge-repo";
+import {
+  cursor,
+  type AutomergeUrl,
+  DocHandle,
+  Repo,
+} from "@automerge/automerge-repo";
 
 /** Patchwork */
 import { getRegistry } from "@inkandswitch/patchwork-plugins";
-import { annotations as globalAnnotations } from "@inkandswitch/annotations-context";
-import { Diff } from "@inkandswitch/annotations-diff";
-import { IsSelected } from "@inkandswitch/annotations-selection";
 import {
-  CommentThread,
-  createComment,
-} from "@inkandswitch/annotations-comments";
+  subscribeDoc,
+  subscribe,
+} from "@inkandswitch/patchwork-providers-solid";
 
 /** Styles */
-import { createSignal, onMount, onCleanup } from "solid-js";
-import { useSubscribe } from "@inkandswitch/subscribables-solid";
-import { AnnotationSet } from "@inkandswitch/annotations";
+import { createMemo, createResource, createSignal, onMount } from "solid-js";
+import { createCommentForRange } from "./lib/extensions/comments.ts";
 
 export type TextDoc = {
   content: string;
 };
 
+type CommentEntry = {
+  targetUrl: AutomergeUrl;
+};
+
 const PATH = ["content"];
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
-  const contentRef = () => (props.handle as DocHandle<TextDoc>).ref(...PATH);
+  const isReadOnly = props.handle.isReadOnly();
 
-  const isReadOnly = () => !!parseAutomergeUrl(props.handle.url).heads;
-
-  // TODO: what if contentRef() is undefined?
-
-  const contentAnnotations = globalAnnotations.onChildrenOf(contentRef());
-  const diffAnnotations = useSubscribe(contentAnnotations.ofType(Diff));
-
-  // Get all IsSelected annotations from global context (not just content children)
-  // This allows CommentsView to highlight text by adding IsSelected to thread refs
-  const allSelectionAnnotations = useSubscribe(
-    globalAnnotations.ofType(IsSelected)
+  const commentEntries = subscribe<CommentEntry[]>(
+    props.element,
+    { type: "patchwork:comments" },
+    []
   );
 
-  const commentAnnotations = useSubscribe(
-    contentAnnotations.ofType(CommentThread)
+  const [focusDoc, focusHandle] = subscribeDoc<{
+    selection: Record<AutomergeUrl, true>;
+    highlight: Record<AutomergeUrl, true>;
+  }>(props.element, { type: "patchwork:focus" });
+
+  const contactUrl = subscribe<AutomergeUrl>(props.element, {
+    type: "patchwork:contact",
+  });
+
+  const [commentTargets] = createResource(
+    commentEntries,
+    (entries) =>
+      getDedupedCommentTargets(entries, props.handle.url, props.repo),
+    { initialValue: [] }
   );
 
-  // Check if a ref overlaps with any selected ref
-  const isSelected = (targetRef: Ref) =>
-    Array.from(allSelectionAnnotations()).some(([selectedRef]) =>
-      selectedRef.overlaps(targetRef)
-    );
+  // CommentsView writes selected comment targets into `selection`/`highlight`.
+  // Read those URL keys directly so this memo updates when the maps change;
+  // using `focusDoc()` itself doesn't trigger a change when the selection and highlight array inside of it change
+  const focusRefUrls = createMemo(() => {
+    const doc = focusDoc();
+    return [
+      ...Object.keys(doc?.selection ?? {}),
+      ...Object.keys(doc?.highlight ?? {}),
+    ] as AutomergeUrl[];
+  });
 
-  // compute decorations
-  const decorations = () =>
-    RangeSet.of<Decoration>(
+  const [emphasisTargets] = createResource(
+    focusRefUrls,
+    async (urls) => resolveSubDocUrlsOfDoc(urls, props.handle.url, props.repo),
+    { initialValue: [] }
+  );
+
+  let lastEmittedUrl: AutomergeUrl | undefined;
+
+  const onChangeSelection = (from: number, to: number) => {
+    const handle = focusHandle();
+    if (!handle) return;
+    const nextUrl = props.handle.sub(...PATH, cursor(from, to)).url;
+    if (nextUrl === lastEmittedUrl) return;
+    handle.change((doc) => {
+      doc.selection = { [nextUrl]: true };
+    });
+    lastEmittedUrl = nextUrl;
+  };
+
+  const decorations = () => {
+    const dark = prefersDarkMode();
+    const targetRefs = commentTargets();
+    const emphasisRefs = emphasisTargets();
+    return RangeSet.of<Decoration>(
       [
-        // decorations for diffs
-        ...Array.from(diffAnnotations()).flatMap(([ref, diff]) => {
-          const [start, end] = ref.rangePositions!;
-
-          if (diff.value.type === "deleted") {
-            return Decoration.widget({
-              widget: new DeletionMarker(
-                diff.value.before as string,
-                isSelected(ref)
-              ),
-              side: 1,
-            }).range(start);
-          }
-
-          // Skip zero-length ranges for non-deletion diffs
-          if (start === end) return [];
-
-          if (diff.value.type === "added") {
-            const isDarkMode = window.matchMedia(
-              "(prefers-color-scheme: dark)"
-            ).matches;
-            return Decoration.mark({
-              attributes: {
-                style: `
-                border-bottom: 2px solid ${isDarkMode ? "#4ade80" : "#22c55e"};
-                background-color: ${
-                  isSelected(ref)
-                    ? isDarkMode
-                      ? "#16a34a"
-                      : "#86efac"
-                    : isDarkMode
-                      ? "#14532d"
-                      : "#dcfce7"
-                };
-              `,
-              },
-            }).range(start, end);
-          }
-
-          return [];
-        }),
-        // decorations for comments
-        ...Array.from(commentAnnotations()).flatMap(([ref]) => {
-          const [start, end] = ref.rangePositions!;
-          if (start === end) return [];
-          const isDarkMode = window.matchMedia(
-            "(prefers-color-scheme: dark)"
-          ).matches;
-          const selected = isSelected(ref);
-          return Decoration.mark({
-            attributes: {
-              style: `
-                  border-bottom: 2px solid ${isDarkMode ? "#facc15" : "#eab308"};
-                  background-color: ${
-                    selected
-                      ? isDarkMode
-                        ? "#ca8a04"
-                        : "#fde047"
-                      : isDarkMode
-                        ? "#713f12"
-                        : "#fef9c3"
-                  };
-                `,
-            },
-          }).range(start, end);
-        }),
+        // TODO: replace this once we have branches
+        // ...buildDiffDecorations(diffAnnotations(), dark),
+        ...buildCommentDecorations(targetRefs, emphasisRefs, dark),
       ],
       true // sort ranges
     );
-
-  // Local annotation set for editor text selections
-  const editorSelectionAnnotations = new AnnotationSet();
-  globalAnnotations.add(editorSelectionAnnotations);
-
-  onCleanup(() => {
-    globalAnnotations.remove(editorSelectionAnnotations);
-  });
-
-  // handle selection changes - broadcast to annotation context
-  const onChangeSelection = (from: number, to: number) => {
-    editorSelectionAnnotations.change(() => {
-      editorSelectionAnnotations.clear();
-
-      const selectedRef = props.handle.ref(...PATH, cursor(from, to));
-      editorSelectionAnnotations.add(selectedRef, IsSelected(true));
-    });
   };
 
-  // handle comment creation
-  // todo: we should have a better way to get the contactUrl of the current account
-  const onComment = async (from: number, to: number) => {
-    const accountDoc = (window as any).accountDocHandle?.doc?.();
-    const contactUrl = accountDoc?.contactUrl;
-    if (!contactUrl) {
+  const onComment = (from: number, to: number) => {
+    const url = contactUrl();
+    if (!url) {
       console.warn("Cannot create comment: no contactUrl available");
       return;
     }
-    createComment({
-      refs: [props.handle.ref(...PATH, cursor(from, to))],
-      content: "",
-      contactUrl,
-    });
+    createCommentForRange(props.handle, PATH, from, to, url);
   };
 
   // Base CodeMirror extensions (context-specific, not language-specific)
@@ -170,35 +118,13 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     commentButtonGutter(onComment),
   ]);
 
-  // Load CodeMirror extensions dynamically on mount
   onMount(async () => {
-    // Get document type from handle
-    const docType = (props.handle.doc() as any)?.["@patchwork"]?.type;
-
-    // Load extensions that support this document type
-    const extensionsRegistry = getRegistry<any>("codemirror:extension");
-
-    const loadedExtensions = await extensionsRegistry.loadAll(
-      extensionsRegistry.filter((ext) => {
-        return (
-          ext.supportedDatatypes === "*" ||
-          (Array.isArray(ext.supportedDatatypes) &&
-            ext.supportedDatatypes.includes(docType))
-        );
-      })
-    );
-
-    // Flatten and add to existing extensions
-    const flattenedExts = loadedExtensions.flatMap((ext) => {
-      const impl = ext.module;
-      return Array.isArray(impl) ? impl : [impl];
-    });
-
-    setExtensions((exts) => [...exts, ...flattenedExts]);
+    const loaded = await loadCodeMirrorExtensionsForDoc(props.handle);
+    setExtensions((exts) => [...exts, ...loaded]);
   });
 
   return (
-    <div class="w-full h-full overflow-auto bg-base">
+    <div class="w-full h-full overflow-auto bg-base relative">
       <div class="p-4 h-full">
         <div class="flex h-full">
           <div class="relative flex-1 h-full">
@@ -207,8 +133,8 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
               path={PATH}
               decorations={decorations}
               extensions={extensions()}
+              readOnly={isReadOnly}
               onChangeSelection={onChangeSelection}
-              readOnly={isReadOnly()}
             />
           </div>
         </div>
@@ -217,78 +143,95 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   );
 }
 
-class DeletionMarker extends WidgetType {
-  deletedText: string;
-  isActive: boolean;
+function prefersDarkMode(): boolean {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
 
-  constructor(deletedText: string, isActive: boolean) {
-    super();
-    this.deletedText = deletedText;
-    this.isActive = isActive;
-  }
-
-  toDOM(): HTMLElement {
-    const box = document.createElement("div");
-    box.style.display = "inline-block";
-    box.style.boxSizing = "border-box";
-    box.style.padding = "0 2px";
-    box.style.color = "rgb(239 68 68)"; // red-500
-    box.style.margin = "0 4px";
-    box.style.fontSize = "0.8em";
-    box.style.backgroundColor = this.isActive
-      ? "rgb(239 68 68 / 20%)" // red-500 with opacity
-      : "rgb(239 68 68 / 10%)";
-    box.style.borderRadius = "3px";
-    box.style.cursor = "default";
-    box.innerText = "⌫";
-
-    const hoverText = document.createElement("div");
-    hoverText.style.position = "absolute";
-    hoverText.style.zIndex = "1";
-    hoverText.style.padding = "5px";
-    hoverText.style.backgroundColor = "rgb(254 242 242)"; // red-50
-    hoverText.style.fontSize = "15px";
-    hoverText.style.color = "rgb(17 24 39)"; // gray-900
-    hoverText.style.border = "1px solid rgb(185 28 28)"; // red-700
-    hoverText.style.boxShadow = "0px 0px 6px rgba(0, 0, 0, 0.1)";
-    hoverText.style.borderRadius = "3px";
-    hoverText.style.visibility = "hidden";
-    hoverText.innerText = this.deletedText;
-
-    // Add dark mode styles
-    const isDarkMode =
-      document.documentElement.classList.contains("dark") ||
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    if (isDarkMode) {
-      box.style.color = "rgb(248 113 113)"; // red-400 for dark mode
-      box.style.backgroundColor = this.isActive
-        ? "rgb(248 113 113 / 20%)"
-        : "rgb(248 113 113 / 10%)";
-      hoverText.style.backgroundColor = "rgb(69 10 10)"; // red-950
-      hoverText.style.color = "rgb(254 226 226)"; // red-100
-      hoverText.style.border = "1px solid rgb(153 27 27)"; // red-800
+// The comments provider already scopes entries to this doc by `targetUrl`,
+// so this just dedupes and resolves each url to a `DocHandle`.
+async function getDedupedCommentTargets(
+  comments: CommentEntry[] | undefined,
+  docUrl: AutomergeUrl,
+  repo: Repo
+): Promise<DocHandle<unknown>[]> {
+  if (!comments) return [];
+  const overlappingRefs = new Set<DocHandle<unknown>>();
+  for (const comment of comments) {
+    if (comment.targetUrl.startsWith(docUrl)) {
+      const target = await repo.find(comment.targetUrl);
+      overlappingRefs.add(target);
     }
-
-    box.appendChild(hoverText);
-
-    box.onmouseover = function () {
-      hoverText.style.visibility = "visible";
-    };
-    box.onmouseout = function () {
-      hoverText.style.visibility = "hidden";
-    };
-
-    return box;
   }
+  return Array.from(overlappingRefs);
+}
 
-  eq(other: DeletionMarker) {
-    return (
-      other.deletedText === this.deletedText && other.isActive === this.isActive
+// Scopes ref urls to this doc and resolves each one to a `DocHandle`.
+// Used for both our own `selection` and other views' `highlight`.
+async function resolveSubDocUrlsOfDoc(
+  urls: AutomergeUrl[],
+  docUrl: AutomergeUrl,
+  repo: Repo
+): Promise<DocHandle<unknown>[]> {
+  const refs = new Set<DocHandle<unknown>>();
+  for (const url of urls) {
+    if (url.startsWith(docUrl)) {
+      refs.add(await repo.find(url));
+    }
+  }
+  return Array.from(refs);
+}
+
+// Targets that overlap `emphasisRefs` (selection ∪ highlight) render in
+// darker yellow; the rest stay in light yellow.
+function buildCommentDecorations(
+  targetRefs: DocHandle<unknown>[],
+  emphasisRefs: DocHandle<unknown>[],
+  dark: boolean
+): Range<Decoration>[] {
+  const out: Range<Decoration>[] = [];
+  for (const ref of targetRefs) {
+    const positions = ref.rangePositions();
+    if (!positions) continue;
+    const [start, end] = positions;
+    if (start === end) continue;
+    const isEmphasised = emphasisRefs.some((s) => s.overlaps(ref));
+    out.push(
+      Decoration.mark({
+        attributes: { style: commentTargetStyle(isEmphasised, dark) },
+      }).range(start, end)
     );
   }
+  return out;
+}
 
-  ignoreEvent() {
-    return true;
-  }
+function commentTargetStyle(isEmphasised: boolean, dark: boolean): string {
+  return isEmphasised
+    ? `
+        border-bottom: 2px solid ${dark ? "#facc15" : "#ca8a04"};
+        background-color: ${dark ? "#a16207" : "#fde047"};
+      `
+    : `
+        border-bottom: 2px solid ${dark ? "#ca8a04" : "#eab308"};
+        background-color: ${dark ? "#713f12" : "#fef9c3"};
+      `;
+}
+
+async function loadCodeMirrorExtensionsForDoc(
+  handle: DocHandle<unknown>
+): Promise<Extension[]> {
+  const docType = (handle.doc() as any)?.["@patchwork"]?.type;
+  const registry = getRegistry<any>("codemirror:extension");
+  const loaded = await registry.loadAll(
+    registry.filter((ext) => {
+      return (
+        ext.supportedDatatypes === "*" ||
+        (Array.isArray(ext.supportedDatatypes) &&
+          ext.supportedDatatypes.includes(docType))
+      );
+    })
+  );
+  return loaded.flatMap((ext) => {
+    const impl = ext.module;
+    return Array.isArray(impl) ? impl : [impl];
+  });
 }

@@ -13,7 +13,13 @@ export const plugins = [
       const { CodeMirrorEditor } = await import("./tool.tsx");
       return function (handle, element) {
         return render(
-          () => <CodeMirrorEditor handle={handle} repo={element.repo} />,
+          () => (
+            <CodeMirrorEditor
+              handle={handle}
+              repo={element.repo}
+              element={element}
+            />
+          ),
           element
         );
       };

@@ -5,7 +5,6 @@ import type { HasPatchworkMetadata } from "@inkandswitch/patchwork-filesystem";
 import {
   useDocumentMetadata,
   useHistorySelection,
-  useViewHeadsAnnotation,
   useCachedHistory,
 } from "../hooks";
 import { type GroupingStrategyConfig, type HistoryItem } from "../../types";
@@ -37,7 +36,7 @@ export function DocHistoryView(props: DocHistoryViewProps) {
     repo: props.repo,
   });
 
-  const { title, docRef } = useDocumentMetadata(doc, handle);
+  const { title } = useDocumentMetadata(doc);
 
   const { items: groupedItems, isInitializing, isRecalculating, forceRecompute, setLabel } = useCachedHistory(
     handle,
@@ -45,9 +44,7 @@ export function DocHistoryView(props: DocHistoryViewProps) {
     props.repo
   );
 
-  const { viewHeads, selectedItems, selectItem, extendSelection, clearSelection } = useHistorySelection();
-
-  useViewHeadsAnnotation(viewHeads, docRef);
+  const { selectedItems, selectItem, extendSelection, clearSelection } = useHistorySelection();
 
   const handleSelectItem = (item: HistoryItem, shiftHeld: boolean) => {
     if (shiftHeld) {

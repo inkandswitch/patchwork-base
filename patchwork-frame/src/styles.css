@@ -8,9 +8,22 @@
 /* Layout */
 
 .frame {
+  position: relative;
   display: flex;
   width: 100%;
   height: 100%;
+}
+
+.frame__version {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 10;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
 }
 
 .sidebar {

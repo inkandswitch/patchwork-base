@@ -41,7 +41,10 @@ export const plugins: Plugin<any>[] = [
     async load(): Promise<ToolImplementation<any>> {
       const { HistoryTimeline } = await import("./history/HistoryTimeline");
       return function (_handle, element) {
-        return render(() => <HistoryTimeline repo={element.repo} />, element);
+        return render(
+          () => <HistoryTimeline repo={element.repo} element={element} />,
+          element
+        );
       };
     },
   },
