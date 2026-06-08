@@ -278,7 +278,10 @@ function PluginItem(props: {
       if (!props.plugin.id) return "unknown";
       const active = activeImportUrl();
       if (!active) return "inactive";
-      if (active === props.sourceUrl || sameAutomergeDoc(active, props.sourceUrl)) {
+      if (
+        active === props.sourceUrl ||
+        sameAutomergeDoc(active, props.sourceUrl)
+      ) {
         return "active";
       }
       return "shadowed";

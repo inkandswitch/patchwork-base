@@ -10,7 +10,10 @@ export type BranchesDoc = {
 };
 
 // Until @inkandswitch/patchwork-filesystem ships .branches in ModuleSettingsDoc.
-export type ModuleSettingsDocWithBranches = Omit<ModuleSettingsDoc, "modules"> & {
+export type ModuleSettingsDocWithBranches = Omit<
+  ModuleSettingsDoc,
+  "modules"
+> & {
   modules: ModuleEntry[];
   branches?: Record<AutomergeUrl, string>;
 };

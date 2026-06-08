@@ -182,7 +182,9 @@ export function ModuleFilters(props: ModuleFiltersProps) {
           setPreview({
             kind: "direct",
             error:
-              error instanceof Error ? error.message : "Failed to import module",
+              error instanceof Error
+                ? error.message
+                : "Failed to import module",
           });
         } finally {
           setIsLoading(false);
@@ -370,8 +372,7 @@ export function ModuleFilters(props: ModuleFiltersProps) {
                   </Show>
                   <Show
                     when={
-                      preview()?.kind !== "branches" &&
-                      !preview()?.packageInfo
+                      preview()?.kind !== "branches" && !preview()?.packageInfo
                     }
                   >
                     <div class="module-settings-module-input__no-package">
@@ -446,4 +447,3 @@ function isPackagePlugin(
 ): plugin is { id?: string; name?: string; type: string } {
   return Boolean(plugin && typeof plugin === "object" && "type" in plugin);
 }
-

@@ -154,21 +154,20 @@ export function useModulePlugins(params: UseModulePluginsParams) {
             }
           }
 
-          const enriched = plugins.map((plugin): EnrichedPlugin => ({
-            ...plugin,
-            importUrl: url,
-            packageName: pkgInfo?.name,
-            packageTitle: pkgInfo?.title,
-            isValidUrl: validAutomergeUrl,
-            datatypesDisplay: getSupportedDatatypesDisplay(
-              "supportedDatatypes" in plugin
-                ? (plugin.supportedDatatypes as
-                    | string[]
-                    | string
-                    | undefined)
-                : undefined
-            ),
-          }));
+          const enriched = plugins.map(
+            (plugin): EnrichedPlugin => ({
+              ...plugin,
+              importUrl: url,
+              packageName: pkgInfo?.name,
+              packageTitle: pkgInfo?.title,
+              isValidUrl: validAutomergeUrl,
+              datatypesDisplay: getSupportedDatatypesDisplay(
+                "supportedDatatypes" in plugin
+                  ? (plugin.supportedDatatypes as string[] | string | undefined)
+                  : undefined
+              ),
+            })
+          );
 
           return { folderUrl, pkgInfo, plugins: enriched };
         }
@@ -216,7 +215,9 @@ export function useModulePlugins(params: UseModulePluginsParams) {
     return Array.from(types).sort();
   });
 
-  const uniqueDataTypes = createMemo(() => extractUniqueDatatypes(allPlugins()));
+  const uniqueDataTypes = createMemo(() =>
+    extractUniqueDatatypes(allPlugins())
+  );
 
   const sortedPlugins = createMemo(() => {
     const plugins = allPlugins();
@@ -254,7 +255,9 @@ export function useModulePlugins(params: UseModulePluginsParams) {
           plugin.id?.toLowerCase().includes(query) ||
           plugin.packageName?.toLowerCase().includes(query) ||
           plugin.packageTitle?.toLowerCase().includes(query) ||
-          String(plugin.importUrl ?? "").toLowerCase().includes(query);
+          String(plugin.importUrl ?? "")
+            .toLowerCase()
+            .includes(query);
         if (!matchesQuery) return false;
       }
 

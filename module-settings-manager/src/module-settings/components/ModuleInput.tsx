@@ -144,7 +144,9 @@ export function ModuleInput(props: ModuleInputProps) {
             isFolder: false,
             isDirect: true,
             error:
-              error instanceof Error ? error.message : "Failed to import module",
+              error instanceof Error
+                ? error.message
+                : "Failed to import module",
           });
         } finally {
           setIsLoading(false);
