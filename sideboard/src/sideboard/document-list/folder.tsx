@@ -26,6 +26,7 @@ import {
   copyMode,
 } from "../dnd/dnd.ts";
 import { executeDrop } from "../dnd/operations.ts";
+import { getDndPayload } from "../dnd/payload.ts";
 import { log } from "../dnd/debug.ts";
 
 export default function Folder(props: {
@@ -118,19 +119,20 @@ export default function Folder(props: {
       return;
     }
 
-    const dndData = event.dataTransfer?.getData("text/x-patchwork-dnd");
-    if (!dndData) {
-      log("No dnd data in drop event");
+    const payload = getDndPayload(event);
+    if (!payload) {
+      log("No dnd data in drop event. types:", event.dataTransfer?.types);
       return;
     }
 
-    const { source, items } = JSON.parse(dndData);
+    const { source, items } = payload;
     log("Drop data:", { source, items, folderUrl });
 
     executeDrop(
       {
         draggedIds: items.map((i: any) => i.id),
         draggedUrls: items.map((i: any) => i.url),
+        draggedItems: items,
         targetId: folderUrl,
         position: "inside",
         sourceToolId: source,

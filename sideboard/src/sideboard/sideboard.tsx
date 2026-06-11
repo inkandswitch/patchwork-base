@@ -21,6 +21,9 @@ import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { createSignal, Show } from "solid-js";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
+import { copyMode } from "./dnd/dnd.ts";
+import { executeDrop } from "./dnd/operations.ts";
+import { getDndPayload, hasDocumentDrag } from "./dnd/payload.ts";
 
 export function Sideboard(
   props: PatchworkToolProps<TinyPatchworkAccountDoc | FolderDoc>
@@ -110,11 +113,17 @@ export function Sideboard(
         role="tree"
         aria-multiselectable="true"
         onDragOver={(event: DragEvent) => {
-          // Only handle file drops from OS
+          // File drops from OS
           if (event.dataTransfer?.types.includes("Files")) {
             event.preventDefault();
             event.dataTransfer.dropEffect = "copy";
             setIsDraggingFile(true);
+            return;
+          }
+          // Item drags (dropping into the list's empty space appends to root)
+          if (hasDocumentDrag(event.dataTransfer)) {
+            event.preventDefault();
+            event.dataTransfer!.dropEffect = copyMode() ? "copy" : "move";
           }
         }}
         onDragLeave={(event: DragEvent) => {
@@ -138,7 +147,32 @@ export function Sideboard(
               "inside",
               insertIndex
             );
+            return;
           }
+
+          const payload = getDndPayload(event);
+          if (!payload || !folderHandle()) return;
+
+          const { source, items } = payload;
+          const rootUrl = folderHandle()!.url;
+          const docsLength = folderHandle()!.doc()?.docs?.length ?? 0;
+
+          executeDrop(
+            {
+              draggedIds: items.map((i: { id: string }) => i.id),
+              draggedUrls: items.map((i: { url: AutomergeUrl }) => i.url),
+              draggedItems: items,
+              // Append after the last root item; "inside" root if empty
+              targetId:
+                docsLength > 0 ? `${rootUrl}/${docsLength - 1}` : rootUrl,
+              position: docsLength > 0 ? "below" : "inside",
+              sourceToolId: source,
+              copyMode: copyMode(),
+            },
+            props.repo,
+            folderHandle.latest!,
+            props.element.toolId!
+          );
         }}
       >
         <DocumentList

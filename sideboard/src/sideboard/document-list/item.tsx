@@ -33,6 +33,7 @@ import {
 } from "@automerge/automerge-repo";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { executeDrop } from "../dnd/operations.ts";
+import { getDndPayload } from "../dnd/payload.ts";
 import { handleFilesDrop } from "./file-drop.ts";
 import { log } from "../dnd/debug.ts";
 
@@ -99,19 +100,20 @@ export default function Item(props: {
       return;
     }
 
-    const dndData = event.dataTransfer?.getData("text/x-patchwork-dnd");
-    if (!dndData) {
-      log("No dnd data in drop event");
+    const payload = getDndPayload(event);
+    if (!payload) {
+      log("No dnd data in drop event. types:", event.dataTransfer?.types);
       return;
     }
 
-    const { source, items } = JSON.parse(dndData);
+    const { source, items } = payload;
     log("Drop data:", { source, items, targetId, position });
 
     executeDrop(
       {
         draggedIds: items.map((i: any) => i.id),
         draggedUrls: items.map((i: any) => i.url),
+        draggedItems: items,
         targetId,
         position,
         sourceToolId: source,

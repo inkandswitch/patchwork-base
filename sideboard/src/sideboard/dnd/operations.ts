@@ -2,6 +2,7 @@ import type { DocHandle, Repo, AutomergeUrl } from "@automerge/automerge-repo";
 import type { FolderDoc, DocLink } from "@inkandswitch/patchwork-filesystem";
 import { deleteAt } from "@automerge/automerge-repo";
 import { log } from "./debug.ts";
+import { docLinkFromUrl } from "../lib/doc-link.ts";
 
 // Track loaded folders to prevent memory leaks
 const folderCache = new Map<AutomergeUrl, DocHandle<FolderDoc>>();
@@ -25,6 +26,9 @@ function extractPlainDocLink(docLink: DocLink): DocLink {
 export interface DropOperation {
   draggedIds: string[];
   draggedUrls: AutomergeUrl[];
+  // Full payload items, used to add links when the dragged docs
+  // aren't part of this sideboard's folder tree
+  draggedItems?: Array<{ url: AutomergeUrl; name?: string; type?: string }>;
   targetId: string;
   position: "above" | "below" | "inside";
   sourceToolId: string;
@@ -60,26 +64,15 @@ export async function executeDrop(
     sourceToolId: operation.sourceToolId,
   });
 
-  // 1. Validate source - only accept drops from the same tool instance
-  if (operation.sourceToolId !== toolId) {
-    log(
-      "Drop from external source not yet supported:",
-      operation.sourceToolId,
-      "expected:",
-      toolId
-    );
-    return;
-  }
-
-  // 2. Validate we have items to drop
-  if (operation.draggedIds.length === 0 || operation.draggedUrls.length === 0) {
+  // 1. Validate we have items to drop
+  if (operation.draggedUrls.length === 0) {
     log("No items to drop");
     return;
   }
 
   log("Starting location finding...");
 
-  // 3. Find source and target locations
+  // 2. Find source and target locations
   const locations = await findItemLocations(
     rootFolderHandle,
     operation.draggedUrls,
@@ -89,10 +82,15 @@ export async function executeDrop(
   );
 
   if (!locations) {
-    log(
-      "Could not find source or target locations. Target:",
-      operation.targetId
-    );
+    log("Could not find target location. Target:", operation.targetId);
+    return;
+  }
+
+  // 3. Drops from another tool instance (or of docs that aren't in this
+  // tree) can't be moved - add links to the target folder instead
+  if (operation.sourceToolId !== toolId || locations.sourceItems.length === 0) {
+    log("External drop, adding links. Source:", operation.sourceToolId);
+    await performAdd(repo, rootFolderHandle, locations, operation);
     return;
   }
 
@@ -243,7 +241,7 @@ async function findItemLocations(
     targetIndex = 0;
   }
 
-  if (!targetFolder || !targetFolderPath || sourceItems.length === 0) {
+  if (!targetFolder || !targetFolderPath) {
     return null;
   }
 
@@ -414,6 +412,62 @@ async function performMove(
     if (targetHandle) {
       targetHandle.change((doc) => {
         doc.docs.splice(finalTargetIndex, 0, ...removedItems);
+      });
+    }
+  }
+}
+
+// Add links for docs dragged in from outside this sideboard's folder tree
+async function performAdd(
+  repo: Repo,
+  rootFolderHandle: DocHandle<FolderDoc>,
+  locations: ItemLocations,
+  operation: DropOperation
+) {
+  const candidates = (operation.draggedItems ?? []).filter(
+    (item) => item.url && item.url !== locations.targetFolder
+  );
+
+  const links = (
+    await Promise.all(
+      candidates.map(async (item): Promise<DocLink | null> => {
+        if (item.name && item.type) {
+          return { url: item.url, name: item.name, type: item.type };
+        }
+        // Bare url (e.g. dragged link text) - resolve name/type from the doc
+        try {
+          return await docLinkFromUrl(repo, item.url);
+        } catch (error) {
+          log("Failed to resolve dropped doc:", item.url, error);
+          return null;
+        }
+      })
+    )
+  ).filter((link): link is DocLink => link !== null);
+
+  if (links.length === 0) {
+    log("No addable items in external drop");
+    return;
+  }
+
+  let finalTargetIndex = locations.targetIndex;
+  if (operation.position === "below") {
+    finalTargetIndex++;
+  } else if (operation.position === "inside") {
+    finalTargetIndex = 0;
+  }
+
+  log(`Adding ${links.length} link(s) at index:`, finalTargetIndex);
+
+  if (locations.targetFolder === rootFolderHandle.url) {
+    rootFolderHandle.change((doc) => {
+      doc.docs.splice(finalTargetIndex, 0, ...links);
+    });
+  } else {
+    const targetHandle = folderCache.get(locations.targetFolder);
+    if (targetHandle) {
+      targetHandle.change((doc) => {
+        doc.docs.splice(finalTargetIndex, 0, ...links);
       });
     }
   }

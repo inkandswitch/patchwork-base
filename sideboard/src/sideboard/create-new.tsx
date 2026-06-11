@@ -14,10 +14,8 @@ import {
 } from "@inkandswitch/patchwork-plugins";
 import { createSignal, For, Show } from "solid-js";
 import { PlusIcon } from "./icons.tsx";
-import type {
-  FolderDoc,
-  HasPatchworkMetadata,
-} from "@inkandswitch/patchwork-filesystem";
+import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
+import { docLinkFromUrl } from "./lib/doc-link.ts";
 import { useFilteredDatatypes } from "./lib/solid-plugins";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
@@ -50,26 +48,6 @@ async function createNew(
   };
 }
 
-async function addByUrl(repo: Repo, url: AutomergeUrl) {
-  const handle = await repo.find<Partial<HasPatchworkMetadata>>(url);
-  const doc = handle.doc();
-  const type = doc?.["@patchwork"]?.type ?? "";
-  let name = "Untitled";
-
-  if (type) {
-    const registry = getRegistry("patchwork:datatype");
-    const datatype = registry.get(type);
-    if (datatype) {
-      await registry.load(datatype.id);
-      if (isLoadedPlugin(datatype)) {
-        name = datatype.module.getTitle(doc) || name;
-      }
-    }
-  }
-
-  return { name, type, url };
-}
-
 export interface CreateNewProps {
   repo: Repo;
   hive?: AutomergeRepoKeyhive;
@@ -98,7 +76,7 @@ export default function CreateNew(props: CreateNewProps) {
   async function handleUrlSubmit(url: string) {
     const trimmed = url.trim();
     if (!isValidAutomergeUrl(trimmed)) return;
-    const docLink = await addByUrl(props.repo, trimmed as AutomergeUrl);
+    const docLink = await docLinkFromUrl(props.repo, trimmed as AutomergeUrl);
     props.changeFolder((doc) => {
       doc.docs.push(docLink);
     });
