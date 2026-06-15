@@ -462,7 +462,7 @@ packages:
       '@inkandswitch/patchwork-filesystem': ^0.0.8
 
   '@inkandswitch/patchwork-providers-solid@file:../../patchwork-next-2/packages/providers/frameworks/solid/dist/inkandswitch-patchwork-providers-solid-0.2.3.tgz':
-    resolution: {integrity: sha512-DFfyNN50+jp/eSb2OOh1shKkxuJ/JSsCtj0vxGcIG8MqP4xAOp2f6KjE5pYCnKHyX9Ls5PbUVrZGOUV/Y7m09Q==, tarball: file:../../patchwork-next-2/packages/providers/frameworks/solid/dist/inkandswitch-patchwork-providers-solid-0.2.3.tgz}
+    resolution: {integrity: sha512-ipcoBT3/Cq1KQwk9HN3J+NtXe0AOt2PlH7xvjBejdGMXoT9QdLzwmPb8v4DBnETO0ejhc28VptxY3tKOaqVSGQ==, tarball: file:../../patchwork-next-2/packages/providers/frameworks/solid/dist/inkandswitch-patchwork-providers-solid-0.2.3.tgz}
     version: 0.2.3
     peerDependencies:
       '@automerge/automerge-repo': '*'
