@@ -2,7 +2,6 @@ import "./styles.css";
 import { createMemo, For, Show } from "solid-js";
 import { useDocument } from "@automerge/automerge-repo-solid-primitives";
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
-
 import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
 import type {
   CloneEntry,
