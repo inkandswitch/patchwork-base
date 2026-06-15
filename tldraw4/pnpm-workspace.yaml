@@ -2,3 +2,6 @@ allowBuilds:
   cbor-extract: true
   core-js: true
   esbuild: true
+overrides:
+  "@inkandswitch/patchwork-providers": "file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz"
+  "@inkandswitch/patchwork-providers-react": "file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz"
