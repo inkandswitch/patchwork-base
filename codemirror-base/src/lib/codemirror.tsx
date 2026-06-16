@@ -6,11 +6,12 @@ import { EditorState, type Extension, Compartment } from "@codemirror/state";
 
 /** Automerge */
 import type { Prop as AutomergeProp } from "@automerge/automerge";
-import type { DocHandle } from "@automerge/automerge-repo";
+import type { DocHandle, UrlHeads } from "@automerge/automerge-repo";
 import {
   createSyncExtension,
   createReadOnlyExtension,
   createDecorationsExtension,
+  createDiffExtension,
 } from "./extensions";
 
 /** Utility function to lookup a value along the specified pathin an Automerge document */
@@ -29,6 +30,9 @@ type CodeMirrorProps<T> = {
   handle: DocHandle<T>;
   path: AutomergeProp[];
   decorations: () => DecorationSet;
+  // When provided, renders a diff of `path` against these baseline heads.
+  // `null` (no fork point) renders no diff.
+  baseline?: () => UrlHeads | null;
   extensions?: Extension[];
   onChangeSelection?: (from: number, to: number) => void;
   readOnly?: boolean;
@@ -51,6 +55,12 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   const [decorationsExtension, createEffectReconfigureDecorations] =
     createDecorationsExtension(() => props.decorations?.());
 
+  const [diffExtension, createEffectReconfigureDiff] = createDiffExtension(
+    () => props.handle as DocHandle<unknown>,
+    () => props.path,
+    () => props.baseline?.() ?? null
+  );
+
   // Create a compartment for user-provided extensions so they can be reconfigured
   const userExtensionsCompartment = new Compartment();
 
@@ -66,6 +76,7 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   const extensions = [
     selectionExtension,
     decorationsExtension,
+    diffExtension,
     userExtensionsCompartment.of(props.extensions || []),
     syncExtension,
     readOnlyExtension,
@@ -86,6 +97,7 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   createEffectReconfigureSync(view);
   createEffectReconfigureReadOnly(view);
   createEffectReconfigureDecorations?.(view);
+  createEffectReconfigureDiff(view);
 
   // Reconfigure user extensions when props.extensions changes
   createEffect(() => {

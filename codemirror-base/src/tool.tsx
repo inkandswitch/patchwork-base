@@ -12,6 +12,7 @@ import {
   type AutomergeUrl,
   DocHandle,
   Repo,
+  type UrlHeads,
 } from "@automerge/automerge-repo";
 
 /** Patchwork */
@@ -33,10 +34,24 @@ type CommentEntry = {
   targetUrl: AutomergeUrl;
 };
 
+// Diff baseline served by the draft overlay (`patchwork:baseline`). `heads` is
+// `null` when there is no baseline yet (e.g. the doc hasn't been COW'd in the
+// active draft, or "main" is selected), in which case no diff is rendered.
+type Baseline = { heads: UrlHeads | null };
+
 const PATH = ["content"];
 
 export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   const isReadOnly = props.handle.isReadOnly();
+
+  // Diff baseline from the active draft overlay; plain JSON `{ heads }`. Fed to
+  // the CodeMirror diff extension, which recomputes spans on every doc change
+  // (driven by the sync plugin's transactions, so no manual tick is needed).
+  const baseline = subscribe<Baseline>(
+    props.element,
+    { type: "patchwork:baseline", url: props.handle.url },
+    { heads: null }
+  );
 
   const commentEntries = subscribe<CommentEntry[]>(
     props.element,
@@ -95,11 +110,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     const targetRefs = commentTargets();
     const emphasisRefs = emphasisTargets();
     return RangeSet.of<Decoration>(
-      [
-        // TODO: replace this once we have branches
-        // ...buildDiffDecorations(diffAnnotations(), dark),
-        ...buildCommentDecorations(targetRefs, emphasisRefs, dark),
-      ],
+      buildCommentDecorations(targetRefs, emphasisRefs, dark),
       true // sort ranges
     );
   };
@@ -132,6 +143,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
               handle={props.handle as DocHandle<TextDoc>}
               path={PATH}
               decorations={decorations}
+              baseline={() => baseline()?.heads ?? null}
               extensions={extensions()}
               readOnly={isReadOnly}
               onChangeSelection={onChangeSelection}
