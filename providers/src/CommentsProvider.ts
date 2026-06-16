@@ -8,6 +8,7 @@ import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 import type {
   MountedEvent,
   UnmountedEvent,
+  PatchworkViewElement,
 } from "@inkandswitch/patchwork-elements";
 import type { DocWithComments } from "@inkandswitch/patchwork-comments";
 
@@ -23,15 +24,7 @@ type CommentEntry = { targetUrl: AutomergeUrl; threadUrl: AutomergeUrl };
  *   subscriber is re-notified only when its own slice changes.
  * - no args → the flat list of every entry across all mounted docs.
  */
-export const CommentsProvider = (element: HTMLElement) => {
-  const repo = "repo" in window ? window.repo : undefined;
-  if (!repo) {
-    console.warn(
-      "[providers/comments] window.repo is not set; comments disabled"
-    );
-    return () => {};
-  }
-
+export const CommentsProvider = (element: PatchworkViewElement) => {
   // Mount bookkeeping survives the `await repo.find` below.
   const mountCounts = new Map<AutomergeUrl, number>();
   const handlesByUrl = new Map<AutomergeUrl, DocHandle<DocWithComments>>();
@@ -93,7 +86,7 @@ export const CommentsProvider = (element: HTMLElement) => {
 
     let handle: DocHandle<DocWithComments>;
     try {
-      handle = await repo!.find<DocWithComments>(url);
+      handle = await element.repo.find<DocWithComments>(url);
     } catch (error) {
       console.error(`[providers] failed to watch comments on ${url}`, error);
       return;

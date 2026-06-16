@@ -495,7 +495,7 @@ packages:
       react: ^18.0.0
 
   '@inkandswitch/patchwork-providers@file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz':
-    resolution: {integrity: sha512-YfLLu9oPMv/UWFVCW0rjBwjXWMxY1r2JUyxbMWDh4Tlz24POT5qZf8W6zwpBe+xB7L3RXWNrQBOahFYxSlWmEg==, tarball: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz}
+    resolution: {integrity: sha512-4jspZjzO/4jFK9SD8uSt30YquqZn7V9/2eeCGJjHxGcBliQU3YzKUqgCHqOLcJ3V/N3iliyIyaiSNwPeRW/fiw==, tarball: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz}
     version: 0.2.2
     peerDependencies:
       '@automerge/automerge-repo': '*'

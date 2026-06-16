@@ -47,6 +47,7 @@ export type Baseline = {
 // `DraftDoc`, which in turn may have its own sub-drafts via `DraftDoc.drafts`.
 export type HasDrafts = {
   "@patchwork"?: {
+    type?: string;
     drafts?: AutomergeUrl[];
   };
 };

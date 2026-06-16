@@ -418,7 +418,7 @@ packages:
     engines: {node: '>=18.18'}
 
   '@inkandswitch/patchwork-elements@file:../../patchwork-next-2/core/elements/dist/inkandswitch-patchwork-elements-1.0.0.tgz':
-    resolution: {integrity: sha512-ETjXrVaNCo4dSrP25Ji8PU0uYmpAkKHAOJH2gLxu87vIz//n+MtTkJVVuvgjpS0ieAfws2SxWWCkQj8GYPzw2w==, tarball: file:../../patchwork-next-2/core/elements/dist/inkandswitch-patchwork-elements-1.0.0.tgz}
+    resolution: {integrity: sha512-4am9BbQiHLRz7mh25cIWBkVvqEjQUP7APLy2j3TpAO/fjWkL9kmIkUIHYwpLLInb+XyOR3rMdVujJC13A8p/UA==, tarball: file:../../patchwork-next-2/core/elements/dist/inkandswitch-patchwork-elements-1.0.0.tgz}
     version: 1.0.0
     peerDependencies:
       '@automerge/automerge-repo': '*'
@@ -458,7 +458,7 @@ packages:
       solid-js: ^1.9.0
 
   '@inkandswitch/patchwork-providers@file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz':
-    resolution: {integrity: sha512-ZO2Vl2ZQ9pedmd1FsrH+dsyFIvrwp0pKAmbtbGyHlw1jRmcBHe7Crrg6p/Fyl9GqtY1ZyZTUATZ4M2AmNh9BLA==, tarball: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz}
+    resolution: {integrity: sha512-4jspZjzO/4jFK9SD8uSt30YquqZn7V9/2eeCGJjHxGcBliQU3YzKUqgCHqOLcJ3V/N3iliyIyaiSNwPeRW/fiw==, tarball: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz}
     version: 0.2.2
     peerDependencies:
       '@automerge/automerge-repo': '*'

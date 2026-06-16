@@ -1,5 +1,6 @@
 import { type AutomergeUrl, type DocHandle } from "@automerge/automerge-repo";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
+import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 
 const CONTACT_SELECTOR = "patchwork:contact";
 
@@ -10,7 +11,7 @@ type AccountDocLike = {
 
 // Answers `patchwork:contact` subscriptions with the `AutomergeUrl` of the
 // current user's contact doc, holding the emission until `contactUrl` is set.
-export const AccountProvider = (element: HTMLElement) => {
+export const AccountProvider = (element: PatchworkViewElement) => {
   const onSubscribe = (event: SubscribeEvent) => {
     if (event.detail.selector.type !== CONTACT_SELECTOR) return;
     accept<AutomergeUrl>(event, (respond) => {
@@ -25,13 +26,7 @@ export const AccountProvider = (element: HTMLElement) => {
         return;
       }
 
-      const repo = "repo" in window ? window.repo : undefined;
-      if (!repo) {
-        console.warn(
-          "[providers/account] no global repo available; cannot resolve contact doc"
-        );
-        return;
-      }
+      const repo = element.repo;
 
       void repo
         .find<AccountDocLike>(accountDocUrl)

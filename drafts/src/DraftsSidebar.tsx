@@ -10,7 +10,7 @@ import type {
   HasDrafts,
 } from "./draft-types";
 
-const VERSION = "v0.6.0-overlay";
+const VERSION = "v0.6.1-overlay";
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
@@ -26,6 +26,11 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     () => state()?.selectedDraft ?? null
   );
   const isMainSelected = createMemo(() => selected() === null);
+  // Drafting off a folder isn't supported yet, so creating a draft is disabled
+  // while viewing a folder on Main.
+  const isFolder = createMemo(
+    () => hostDoc()?.["@patchwork"]?.type === "folder"
+  );
 
   const selectDraft = (url: AutomergeUrl | null) => {
     stateHandle()?.change((d) => {
@@ -37,6 +42,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     "repo" in window ? window.repo : undefined;
 
   const onCreateDraft = async () => {
+    if (isFolder()) return;
     const docHandle = hostDocHandle();
     if (!docHandle) return;
     const repo = getRepo();
@@ -106,15 +112,26 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
           </For>
         </div>
 
-        <div class="flex justify-end">
+        <div class="flex flex-col items-end gap-1">
           <Show when={isMainSelected()}>
             <button
               class="btn btn-sm btn-primary"
+              classList={{ "btn-disabled": isFolder() }}
+              disabled={isFolder()}
               onClick={onCreateDraft}
-              title="Create a new draft off this document"
+              title={
+                isFolder()
+                  ? "Drafts aren't supported for folders yet"
+                  : "Create a new draft off this document"
+              }
             >
               New draft
             </button>
+            <Show when={isFolder()}>
+              <span class="text-xs text-gray-400 italic">
+                Drafts aren't supported for folders yet.
+              </span>
+            </Show>
           </Show>
           <Show when={!isMainSelected()}>
             <button
