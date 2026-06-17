@@ -92,6 +92,23 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     { initialValue: [] }
   );
 
+  // Bounding range of the focused targets (selection ∪ highlight). Recomputes
+  // when the targets change -- e.g. selecting a comment thread elsewhere -- so
+  // the editor can scroll the freshly focused region into view. Positions are
+  // read imperatively; the resource re-emitting on focus change is the trigger.
+  const scrollTarget = createMemo<readonly [number, number] | null>(() => {
+    let from = Infinity;
+    let to = -Infinity;
+    for (const ref of emphasisTargets()) {
+      const positions = ref.rangePositions();
+      if (!positions) continue;
+      const [start, end] = positions;
+      from = Math.min(from, start);
+      to = Math.max(to, end);
+    }
+    return from <= to ? [from, to] : null;
+  });
+
   let lastEmittedUrl: AutomergeUrl | undefined;
 
   const onChangeSelection = (from: number, to: number) => {
@@ -147,6 +164,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
               extensions={extensions()}
               readOnly={isReadOnly}
               onChangeSelection={onChangeSelection}
+              scrollTarget={scrollTarget}
             />
           </div>
         </div>

@@ -12,6 +12,7 @@ import {
   createReadOnlyExtension,
   createDecorationsExtension,
   createDiffExtension,
+  createScrollHighlightIntoViewExtension,
 } from "./extensions";
 
 /** Utility function to lookup a value along the specified pathin an Automerge document */
@@ -35,6 +36,9 @@ type CodeMirrorProps<T> = {
   baseline?: () => UrlHeads | null;
   extensions?: Extension[];
   onChangeSelection?: (from: number, to: number) => void;
+  // When the returned range changes, the editor scrolls it into view -- unless
+  // it's already visible. Used to follow focus driven by other views.
+  scrollTarget?: () => readonly [number, number] | null;
   readOnly?: boolean;
   withView?(view: EditorView): void;
 };
@@ -61,6 +65,9 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
     () => props.baseline?.() ?? null
   );
 
+  const [scrollHighlightIntoViewExtension, createEffectScrollHighlightIntoView] =
+    createScrollHighlightIntoViewExtension(() => props.scrollTarget?.() ?? null);
+
   // Create a compartment for user-provided extensions so they can be reconfigured
   const userExtensionsCompartment = new Compartment();
 
@@ -77,6 +84,7 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
     selectionExtension,
     decorationsExtension,
     diffExtension,
+    scrollHighlightIntoViewExtension,
     userExtensionsCompartment.of(props.extensions || []),
     syncExtension,
     readOnlyExtension,
@@ -98,6 +106,7 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   createEffectReconfigureReadOnly(view);
   createEffectReconfigureDecorations?.(view);
   createEffectReconfigureDiff(view);
+  createEffectScrollHighlightIntoView(view);
 
   // Reconfigure user extensions when props.extensions changes
   createEffect(() => {
