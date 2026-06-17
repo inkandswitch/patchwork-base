@@ -10,8 +10,6 @@ import type {
   HasDrafts,
 } from "./draft-types";
 
-const VERSION = "v0.6.1-overlay";
-
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
     type: "patchwork:host-doc",
@@ -86,7 +84,6 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     <div class="h-full flex flex-col p-2 gap-2">
       <div class="flex items-center justify-between text-xs text-gray-400">
         <span class="font-medium">Drafts</span>
-        <span>{VERSION}</span>
       </div>
 
       <Show
