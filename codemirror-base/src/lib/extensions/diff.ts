@@ -65,7 +65,10 @@ export function createDiffExtension(
         const doc = handle()?.doc();
         if (!heads || !doc) return Decoration.none;
         return RangeSet.of(
-          buildDiffDecorations(diffContent(doc, heads, path()), prefersDarkMode()),
+          buildDiffDecorations(
+            diffContent(doc, heads, path()),
+            prefersDarkMode()
+          ),
           true // sort ranges
         );
       }
@@ -195,12 +198,19 @@ class DeletionMarker extends WidgetType {
 
   toDOM(): HTMLElement {
     const box = document.createElement("div");
+    // Pin the badge to its own metrics so a tall line-height (e.g. on heading
+    // lines) can't stretch it into a vertical rectangle. `position: relative`
+    // anchors the hover tooltip to the badge so it can left-align to it.
     box.style.display = "inline-block";
+    box.style.position = "relative";
+    box.style.lineHeight = "1";
+    box.style.verticalAlign = "middle";
     box.style.boxSizing = "border-box";
-    box.style.padding = "0 2px";
+    box.style.padding = "2px 3px";
     box.style.color = "rgb(239 68 68)"; // red-500
     box.style.margin = "0 4px";
-    box.style.fontSize = "0.8em";
+    box.style.fontSize = "1.2em";
+    box.style.whiteSpace = "nowrap";
     box.style.backgroundColor = this.isActive
       ? "rgb(239 68 68 / 20%)" // red-500 with opacity
       : "rgb(239 68 68 / 10%)";
@@ -210,6 +220,8 @@ class DeletionMarker extends WidgetType {
 
     const hoverText = document.createElement("div");
     hoverText.style.position = "absolute";
+    hoverText.style.top = "100%";
+    hoverText.style.left = "0";
     hoverText.style.zIndex = "1";
     hoverText.style.padding = "5px";
     hoverText.style.backgroundColor = "rgb(254 242 242)"; // red-50

@@ -65,8 +65,12 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
     () => props.baseline?.() ?? null
   );
 
-  const [scrollHighlightIntoViewExtension, createEffectScrollHighlightIntoView] =
-    createScrollHighlightIntoViewExtension(() => props.scrollTarget?.() ?? null);
+  const [
+    scrollHighlightIntoViewExtension,
+    createEffectScrollHighlightIntoView,
+  ] = createScrollHighlightIntoViewExtension(
+    () => props.scrollTarget?.() ?? null
+  );
 
   // Create a compartment for user-provided extensions so they can be reconfigured
   const userExtensionsCompartment = new Compartment();
@@ -83,10 +87,11 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   const extensions = [
     selectionExtension,
     decorationsExtension,
+    // syncExtension must come before diffExtension so diff stays in sync with edits.
+    syncExtension,
     diffExtension,
     scrollHighlightIntoViewExtension,
     userExtensionsCompartment.of(props.extensions || []),
-    syncExtension,
     readOnlyExtension,
   ].filter(Boolean) as Extension[];
 
