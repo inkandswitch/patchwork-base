@@ -8,14 +8,14 @@ import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 
 import type { DraftDoc, DraftsState, HasDrafts } from "../draft-types.js";
 
-const HOST_DOC_SELECTOR = "patchwork:host-doc";
-const DRAFTS_SELECTOR = "patchwork:drafts";
+const ROOT_DOC_SELECTOR = "draft:root-doc";
+const DRAFT_LIST_SELECTOR = "draft:list";
 
 const ATTR_DOC_URL = "doc-url";
 
 // Mounts on a document URL and exposes that document's per-doc draft list:
-//   - `patchwork:host-doc` → AutomergeUrl of the doc this provider is on
-//   - `patchwork:drafts`   → AutomergeUrl of the ephemeral DraftsState doc
+//   - `draft:root-doc` → AutomergeUrl of the doc this provider is on
+//   - `draft:list`   → AutomergeUrl of the ephemeral DraftsState doc
 //
 // Consumers recover the live `DocHandle`s from the realm-local `window.repo`,
 // so only plain `AutomergeUrl`s cross the subscription channel.
@@ -48,7 +48,7 @@ export const DraftListProvider = (element: HTMLElement) => {
   let draftsStateHandle: DocHandle<DraftsState> | null = null;
   const trackedDrafts = new Map<AutomergeUrl, DocHandle<DraftDoc>>();
 
-  // `patchwork:drafts` subscribers that arrived before the ephemeral
+  // `draft:list` subscribers that arrived before the ephemeral
   // DraftsState doc was created; flushed once it exists.
   const pendingDraftsSubscribers = new Set<(url: AutomergeUrl) => void>();
 
@@ -84,14 +84,14 @@ export const DraftListProvider = (element: HTMLElement) => {
   const onSubscribe = (event: SubscribeEvent) => {
     const { type } = event.detail.selector;
 
-    if (type === HOST_DOC_SELECTOR) {
+    if (type === ROOT_DOC_SELECTOR) {
       accept<AutomergeUrl>(event, (respond) => {
         respond(docUrl);
       });
       return;
     }
 
-    if (type === DRAFTS_SELECTOR) {
+    if (type === DRAFT_LIST_SELECTOR) {
       accept<AutomergeUrl>(event, (respond) => {
         if (draftsStateHandle) {
           respond(draftsStateHandle.url);

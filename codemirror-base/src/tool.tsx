@@ -34,7 +34,7 @@ type CommentEntry = {
   targetUrl: AutomergeUrl;
 };
 
-// Diff baseline served by the draft overlay (`patchwork:baseline`). `heads` is
+// Diff baseline served by the draft overlay (`draft:baseline`). `heads` is
 // `null` when there is no baseline yet (e.g. the doc hasn't been COW'd in the
 // active draft, or "main" is selected), in which case no diff is rendered.
 type Baseline = { heads: UrlHeads | null };
@@ -49,7 +49,7 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   // (driven by the sync plugin's transactions, so no manual tick is needed).
   const baseline = subscribe<Baseline>(
     props.element,
-    { type: "patchwork:baseline", url: props.handle.url },
+    { type: "draft:baseline", url: props.handle.url },
     { heads: null }
   );
 

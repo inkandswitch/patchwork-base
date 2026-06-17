@@ -13,8 +13,8 @@ import {
 
 import type { Baseline, DraftDoc } from "../draft-types.js";
 
-const DOCHANDLE_SELECTOR = "patchwork:dochandle";
-const BASELINE_SELECTOR = "patchwork:baseline";
+const HANDLE_DESCRIPTOR_SELECTOR = "repo:handle-descriptor";
+const BASELINE_SELECTOR = "draft:baseline";
 
 // HACK: datatypes the draft overlay must never clone into a draft.
 //
@@ -38,15 +38,15 @@ const SKIPPED_DATATYPES: ReadonlySet<string> = new Set(["account", "contact"]);
 //
 // Under the new provider model the host `<patchwork-view>` wraps legacy tool
 // document resolution in an `OverlayRepo` that asks the provider tree for a
-// `patchwork:dochandle` descriptor. This provider answers with
+// `repo:handle-descriptor` descriptor. This provider answers with
 // `{ url, cloneUrl }`: the clone is forked eagerly the first time a document is
 // requested in this draft (recorded in `DraftDoc.clones`), and the editor then
 // reads and writes the clone while still reporting the original url. The fork
-// point is published as `patchwork:baseline { heads }` so consumers can render
+// point is published as `draft:baseline { heads }` so consumers can render
 // a diff against the pre-draft state.
 //
 // If the `url` attribute is absent or empty the provider becomes a no-op: it
-// registers no listeners and lets `patchwork:dochandle`/`patchwork:baseline`
+// registers no listeners and lets `repo:handle-descriptor`/`draft:baseline`
 // subscriptions bubble up to the root `<repo-provider>`, so the frame can mount
 // this component unconditionally and have "main" fall through to the host repo.
 export const DraftOverlayProvider = (element: HTMLElement) => {
@@ -75,7 +75,7 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
 
   // One eager-clone resolution per original url; de-dupes concurrent requests.
   const cloneResolutions = new Map<AutomergeUrl, Promise<AutomergeUrl>>();
-  // `patchwork:baseline` subscribers keyed by the canonical target url.
+  // `draft:baseline` subscribers keyed by the canonical target url.
   const baselineSubscribers = new Map<
     AutomergeUrl,
     Set<(baseline: Baseline) => void>
@@ -97,7 +97,7 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
   const onSubscribe = (event: SubscribeEvent) => {
     const selector = event.detail.selector;
 
-    if (selector.type === DOCHANDLE_SELECTOR) {
+    if (selector.type === HANDLE_DESCRIPTOR_SELECTOR) {
       const rawTarget = selector.url;
       if (typeof rawTarget !== "string" || !isValidAutomergeUrl(rawTarget)) {
         return;
@@ -143,7 +143,7 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
     cloneResolutions.clear();
   };
 
-  // Resolve a `patchwork:dochandle` request: skipped docs (account, contacts)
+  // Resolve a `repo:handle-descriptor` request: skipped docs (account, contacts)
   // resolve straight to the real doc (no `cloneUrl` -> no fork); everything
   // else is forked into this draft via `resolveClone`.
   async function resolveDescriptor(

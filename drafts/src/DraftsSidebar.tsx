@@ -12,11 +12,11 @@ import type {
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
-    type: "patchwork:host-doc",
+    type: "draft:root-doc",
   });
 
   const [state, stateHandle] = subscribeDoc<DraftsState>(props.element, {
-    type: "patchwork:drafts",
+    type: "draft:list",
   });
 
   const drafts = createMemo<AutomergeUrl[]>(() => state()?.drafts ?? []);

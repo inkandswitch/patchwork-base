@@ -39,7 +39,7 @@ import {
 } from "./DiffShapeWrapper.tsx";
 
 // Diff baseline (fork-point heads) served by the draft overlay
-// (`patchwork:baseline`). `heads` is `null` when there is no baseline and no
+// (`draft:baseline`). `heads` is `null` when there is no baseline and no
 // diff is rendered (e.g. on "main"). It is `null` rather than optional so the
 // value is a valid structured-cloneable `JSONValue` crossing the provider
 // channel.
@@ -111,7 +111,7 @@ export function TldrawTool({
 
   const baseline = useSubscribe<Baseline>(
     element,
-    { type: "patchwork:baseline", url: docUrl },
+    { type: "draft:baseline", url: docUrl },
     { heads: null }
   );
   const diff = useShapeDiff(handle, baseline.heads ?? undefined);

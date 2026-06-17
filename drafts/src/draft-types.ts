@@ -31,7 +31,7 @@ export type DraftsState = {
   selectedDraft: AutomergeUrl | null;
 };
 
-// Response shape for `patchwork:baseline { url }`. The draft overlay
+// Response shape for `draft:baseline { url }`. The draft overlay
 // publishes `heads` as the document's fork-point heads (`clones[url].clonedAt`)
 // once the doc has been cloned in this draft; consumers compute a diff
 // against the live doc state from there. `heads` is `null` while there is no

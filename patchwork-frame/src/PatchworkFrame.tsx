@@ -295,7 +295,7 @@ function DraftDocumentArea(props: {
   sidebarResize: SidebarResize;
 }) {
   const [draftsState] = subscribeDoc<DraftsState>(props.host, {
-    type: "patchwork:drafts",
+    type: "draft:list",
   });
 
   const draftProviderKey = createMemo<AutomergeUrl | "main">(
