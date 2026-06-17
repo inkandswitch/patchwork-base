@@ -1,5 +1,6 @@
 {
   "name": "@tiny-patchwork/patchwork-frame",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {

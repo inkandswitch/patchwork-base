@@ -16,7 +16,7 @@ export const plugins: Plugin<any>[] = [
   },
   {
     type: "patchwork:tool",
-    id: "patchwork-frame-2",
+    id: "patchwork-frame",
     tags: ["frame-tool"],
     name: "Patchwork Frame",
     icon: "Window",
