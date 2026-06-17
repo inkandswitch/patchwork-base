@@ -32,8 +32,8 @@
     "@inkandswitch/patchwork-bootloader": "link:../../patchwork-next-2/core/bootloader",
     "@inkandswitch/patchwork-filesystem": "^0.0.8",
     "@inkandswitch/patchwork-plugins": "^0.0.11",
-    "@inkandswitch/patchwork-providers": "file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz",
-    "@inkandswitch/patchwork-providers-solid": "file:../../patchwork-next-2/packages/providers/frameworks/solid/dist/inkandswitch-patchwork-providers-solid-0.2.3.tgz",
+    "@inkandswitch/patchwork-providers": "0.2.2",
+    "@inkandswitch/patchwork-providers-solid": "0.2.3",
     "solid-js": "^1.9.9",
     "vite-plugin-wasm": "^3.5.0"
   },

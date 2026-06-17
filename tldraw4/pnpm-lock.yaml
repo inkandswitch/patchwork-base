@@ -5,8 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@inkandswitch/patchwork-providers': file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz
-  '@inkandswitch/patchwork-providers-react': file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz
+  '@inkandswitch/patchwork-providers': 0.2.2
+  '@inkandswitch/patchwork-providers-react': 0.2.2
 
 importers:
 
@@ -28,11 +28,11 @@ importers:
         specifier: ^0.0.5
         version: 0.0.5
       '@inkandswitch/patchwork-providers':
-        specifier: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz
-        version: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz(@automerge/automerge-repo@2.6.0-subduction.12)
+        specifier: 0.2.2
+        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.12)
       '@inkandswitch/patchwork-providers-react':
-        specifier: file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz
-        version: file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz(@automerge/automerge-repo-react-hooks@2.6.0-subduction.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@automerge/automerge-repo@2.6.0-subduction.12)(react@18.3.1)
+        specifier: 0.2.2
+        version: 0.2.2(@automerge/automerge-repo-react-hooks@2.6.0-subduction.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@automerge/automerge-repo@2.6.0-subduction.12)(react@18.3.1)
       '@tldraw/tldraw':
         specifier: 4.3.1
         version: 4.3.1(@floating-ui/dom@1.7.6)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -486,17 +486,15 @@ packages:
   '@inkandswitch/patchwork-plugins@0.0.5':
     resolution: {integrity: sha512-pQv5M7asDdN8J2moTmLoSnqA8FC/vcOuNJnKveL3MzjEhH0GQdIl6vV3k5jxs83ZpB8stwceE85Zsve/QRnVSA==}
 
-  '@inkandswitch/patchwork-providers-react@file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz':
-    resolution: {integrity: sha512-TB9HnYFV1Ftu/YGEEHdDvUzdhzFskwlHM83KGMbBAIfBa/ZAzOdVvMfcps/wbgrAtPCi3r9X9JPznsIaRjEx0w==, tarball: file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz}
-    version: 0.2.2
+  '@inkandswitch/patchwork-providers-react@0.2.2':
+    resolution: {integrity: sha512-PskNu7rtsYjaT0Ar5l/M359QVFCAf5dUefuwTN6B0yaFIryC9JIu3nV9bqbC7xlOSpcr/zOy/u6sW+PCi9BTRw==}
     peerDependencies:
       '@automerge/automerge-repo': '*'
       '@automerge/automerge-repo-react-hooks': '*'
       react: ^18.0.0
 
-  '@inkandswitch/patchwork-providers@file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz':
-    resolution: {integrity: sha512-4jspZjzO/4jFK9SD8uSt30YquqZn7V9/2eeCGJjHxGcBliQU3YzKUqgCHqOLcJ3V/N3iliyIyaiSNwPeRW/fiw==, tarball: file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz}
-    version: 0.2.2
+  '@inkandswitch/patchwork-providers@0.2.2':
+    resolution: {integrity: sha512-Yh/21N+1gBbtZmf2MRqmkK9y0PGS7LIHHq7fgzVS07IfDtELS36fhasODtHCUQ7+LDKTdNNlw9CkFLHSMlZY8Q==}
     peerDependencies:
       '@automerge/automerge-repo': '*'
 
@@ -3004,14 +3002,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-providers-react@file:../../patchwork-next-2/packages/providers/frameworks/react/dist/inkandswitch-patchwork-providers-react-0.2.2.tgz(@automerge/automerge-repo-react-hooks@2.6.0-subduction.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@automerge/automerge-repo@2.6.0-subduction.12)(react@18.3.1)':
+  '@inkandswitch/patchwork-providers-react@0.2.2(@automerge/automerge-repo-react-hooks@2.6.0-subduction.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@automerge/automerge-repo@2.6.0-subduction.12)(react@18.3.1)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.12
       '@automerge/automerge-repo-react-hooks': 2.6.0-subduction.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@inkandswitch/patchwork-providers': file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz(@automerge/automerge-repo@2.6.0-subduction.12)
+      '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.6.0-subduction.12)
       react: 18.3.1
 
-  '@inkandswitch/patchwork-providers@file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz(@automerge/automerge-repo@2.6.0-subduction.12)':
+  '@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.12)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.12
 

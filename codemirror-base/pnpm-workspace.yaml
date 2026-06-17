@@ -3,5 +3,5 @@ allowBuilds:
   esbuild: false
 minimumReleaseAge: 0
 overrides:
-  "@inkandswitch/patchwork-providers": "file:../../patchwork-next-2/packages/providers/core/dist/inkandswitch-patchwork-providers-0.2.2.tgz"
-  "@inkandswitch/patchwork-providers-solid": "file:../../patchwork-next-2/packages/providers/frameworks/solid/dist/inkandswitch-patchwork-providers-solid-0.2.3.tgz"
+  "@inkandswitch/patchwork-providers": "0.2.2"
+  "@inkandswitch/patchwork-providers-solid": "0.2.3"
