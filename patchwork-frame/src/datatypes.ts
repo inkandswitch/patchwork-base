@@ -9,7 +9,6 @@ export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
   init(doc) {
     doc.frameToolId = "patchwork-frame";
     doc.accountSidebarToolId = "chee/sideboard";
-    doc.contextSidebarToolId = "context-sidebar";
     doc.contextToolIds = ["comments-view", "history-view", "context-view"];
     doc.documentToolbarToolIds = [
       "document-title",

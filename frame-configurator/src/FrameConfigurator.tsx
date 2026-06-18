@@ -314,15 +314,6 @@ export function FrameConfigurator({
     [allTools]
   );
 
-  const contextSidebarOptions = useMemo(
-    () =>
-      allTools
-        .filter((t) => (t.tags ?? []).includes("sidebar-context"))
-        .map((t) => ({ id: t.id, name: t.name || t.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [allTools]
-  );
-
   const documentToolbarOptions = useMemo(
     () =>
       allTools
@@ -386,13 +377,6 @@ export function FrameConfigurator({
         value={accountDoc.accountSidebarToolId}
         onChange={(v) => setField("accountSidebarToolId", v as any)}
         options={sidebarOptions}
-      />
-
-      <SingleSelect
-        label="Context Sidebar"
-        value={accountDoc.contextSidebarToolId}
-        onChange={(v) => setField("contextSidebarToolId", v as any)}
-        options={contextSidebarOptions}
       />
 
       <SortableList

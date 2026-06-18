@@ -7,7 +7,6 @@ export type TinyPatchworkLayoutDoc = {
 
   frameToolId: string;
   accountSidebarToolId: string;
-  contextSidebarToolId: string;
   contextToolIds: string[];
   documentToolbarToolIds: string[];
 };

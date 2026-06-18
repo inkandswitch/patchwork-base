@@ -11,7 +11,6 @@ import { AutomergeUrl } from "@automerge/automerge-repo";
 export type AccountDoc = {
   frameToolId: string;
   accountSidebarToolId: string;
-  contextSidebarToolId: string;
   contextToolIds: string[];
   documentToolbarToolIds: string[];
 
