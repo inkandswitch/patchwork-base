@@ -29,7 +29,7 @@
   "dependencies": {
     "@automerge/automerge-repo-react-hooks": "^2.6.0-subduction.9",
     "@automerge/react": "^2.6.0-subduction.9",
-    "@inkandswitch/patchwork-bootloader": "link:../../patchwork-next-2/core/bootloader",
+    "@inkandswitch/patchwork-bootloader": "^0.2.8",
     "@inkandswitch/patchwork-filesystem": "^0.0.3",
     "@inkandswitch/patchwork-plugins": "^0.0.5",
     "@inkandswitch/patchwork-providers": "0.2.2",
