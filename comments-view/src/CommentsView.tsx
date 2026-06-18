@@ -80,8 +80,21 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   const threadTargetHandleMap = useResolvedHandleMap(threadTargetUrlMap, repo);
 
+  // A thread is only worth showing if at least one of its targets still
+  // resolves to a real, non-empty span. Targets that resolve to an empty
+  // string (a collapsed range) or an undefined value (an anchor that no
+  // longer resolves) are excluded — see `targetIsVisible`.
+  const threadsWithVisibleTarget = useThreadsWithVisibleTarget(
+    threadTargetUrlMap,
+    repo
+  );
+
+  const renderableThreadUrls = createMemo<AutomergeUrl[]>(() =>
+    threadUrls().filter((url) => threadsWithVisibleTarget().has(url))
+  );
+
   const overlappingThreads = createMemo<AutomergeUrl[]>(() =>
-    threadUrls().filter((url) =>
+    renderableThreadUrls().filter((url) =>
       threadOverlapsSelection(
         threadTargetHandleMap().get(url) ?? [],
         selectedHandles()
@@ -147,10 +160,7 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   return (
     <div class="h-full flex flex-col p-2 gap-2">
-      <div class="flex items-center justify-between text-xs text-gray-400">
-        <span class="font-medium">Comments</span>
-      </div>
-      <For each={threadUrls()}>
+      <For each={renderableThreadUrls()}>
         {(threadUrl) => (
           <ThreadView
             threadUrl={threadUrl}
@@ -219,6 +229,74 @@ function useResolvedHandleMap(
     });
   });
   return resolved;
+}
+
+// Resolves each thread's target urls into live span handles and reports which
+// threads have at least one visible target. Re-runs when the url map changes,
+// and recomputes live when any resolved target doc changes — so a thread whose
+// commented text gets deleted disappears without waiting for a re-resolve.
+function useThreadsWithVisibleTarget(
+  map: () => Map<AutomergeUrl, AutomergeUrl[]>,
+  repo: Repo
+): () => Set<AutomergeUrl> {
+  const [visible, setVisible] = createSignal<Set<AutomergeUrl>>(new Set());
+  createEffect(() => {
+    const m = map();
+    let cancelled = false;
+    let resolved = new Map<AutomergeUrl, DocHandle<unknown>[]>();
+
+    const recompute = () => {
+      if (cancelled) return;
+      const next = new Set<AutomergeUrl>();
+      for (const [threadUrl, handles] of resolved) {
+        if (handles.some(targetIsVisible)) next.add(threadUrl);
+      }
+      setVisible(next);
+    };
+
+    void (async () => {
+      const out = new Map<AutomergeUrl, DocHandle<unknown>[]>();
+      for (const [threadUrl, urls] of m) {
+        const handles = await Promise.all(
+          urls.map((u) => repo.find(u).catch(() => undefined))
+        );
+        out.set(
+          threadUrl,
+          handles.filter((h): h is DocHandle<unknown> => Boolean(h))
+        );
+      }
+      if (cancelled) return;
+      resolved = out;
+      for (const h of flatHandles(resolved)) h.on("change", recompute);
+      recompute();
+    })();
+
+    onCleanup(() => {
+      cancelled = true;
+      for (const h of flatHandles(resolved)) h.off("change", recompute);
+    });
+  });
+  return visible;
+}
+
+function flatHandles(
+  map: Map<AutomergeUrl, DocHandle<unknown>[]>
+): DocHandle<unknown>[] {
+  const out: DocHandle<unknown>[] = [];
+  for (const handles of map.values()) out.push(...handles);
+  return out;
+}
+
+// A target "points to" a real value only when its anchored range still
+// resolves (`rangePositions` is defined) and spans at least one character
+// (`start !== end`). A missing range is an undefined value (the anchor no
+// longer resolves); an empty range is an empty string (the commented text was
+// deleted). Mirrors `buildCommentDecorations` in the codemirror tool.
+function targetIsVisible(handle: DocHandle<unknown>): boolean {
+  const positions = handle.rangePositions();
+  if (!positions) return false;
+  const [start, end] = positions;
+  return start !== end;
 }
 
 function threadOverlapsSelection(
