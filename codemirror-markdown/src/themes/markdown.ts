@@ -28,7 +28,7 @@ const MARKDOWN_STYLES: Record<string, any> = {
     overflow: "auto",
   },
   ".cm-scroller": {
-    background: "var(--color-base)",
+    background: "var(--studio-fill)",
   },
   ".cm-gutter": {
     background: "transparent",
@@ -39,9 +39,9 @@ const MARKDOWN_STYLES: Record<string, any> = {
     // textAlign: "justify",
     textWrap: "pretty",
     lineHeight: "1.5rem",
-    color: "var(--color-base-content)",
-    caretColor: "var(--color-base-content)",
-    background: "var(--color-base-100)",
+    color: "var(--text-editor-line)",
+    caretColor: "var(--text-editor-cursor-fill)",
+    background: "var(--text-editor-fill)",
     marginBlock: "2rem",
     marginInline: "auto",
     // lol i guess this is the same as box-sizing: content-box
@@ -60,8 +60,8 @@ const MARKDOWN_STYLES: Record<string, any> = {
 
   ".frontmatter, .frontmatter *": {
     fontSize: "14px",
-    fontFamily: "monospace",
-    color: "#666",
+    fontFamily: "var(--studio-family-code, monospace)",
+    color: "var(--syntax-comment, #666)",
     textDecoration: "none",
     fontWeight: "normal",
     lineHeight: "0.8em",
@@ -70,7 +70,7 @@ const MARKDOWN_STYLES: Record<string, any> = {
   ".cm-gutters": {
     borderRight: "0",
     border: "0",
-    background: "var(--color-base-100)",
+    background: "var(--text-editor-gutter-fill)",
   },
 
   ".cm-comment-gutter": {
@@ -82,18 +82,18 @@ const MARKDOWN_STYLES: Record<string, any> = {
   },
 
   ".cm-folded-range-gutter": {
-    background: "var(--color-base-100)",
+    background: "var(--text-editor-fill)",
     borderRight: "0px",
     width: "40px",
   },
 
   ".cm-folded-line-widget": {
-    background: "var(--color-base-100)",
+    background: "var(--text-editor-fill)",
     border: "0px",
   },
 
   ".cm-folded-range": {
-    background: "var(--color-base-100)",
+    background: "var(--text-editor-fill)",
   },
 
   ".codeblock": {
@@ -119,7 +119,7 @@ const baseHeadingStyles = {
 };
 
 const baseCodeStyles = {
-  fontFamily: "monospace",
+  fontFamily: "var(--studio-family-code, monospace)",
   fontSize: "1em",
 };
 
@@ -166,17 +166,17 @@ const markdownSyntaxHighlighting = (style: "serif" | "sans") =>
     },
     {
       tag: tags.comment,
-      color: "#555",
-      fontFamily: "monospace",
+      color: "var(--syntax-comment, #555)",
+      fontFamily: "var(--studio-family-code, monospace)",
     },
-    { tag: tags.quote, fontStyle: "italic" },
+    { tag: tags.quote, fontStyle: "var(--syntax-style-quote, italic)" },
     {
       tag: tags.strong,
-      fontWeight: "bold",
+      fontWeight: "var(--syntax-weight-strong, bold)",
     },
     {
       tag: tags.emphasis,
-      fontStyle: "italic",
+      fontStyle: "var(--syntax-style-emphasis, italic)",
     },
     {
       tag: tags.strikethrough,
@@ -185,10 +185,10 @@ const markdownSyntaxHighlighting = (style: "serif" | "sans") =>
     {
       tag: [tags.meta],
       fontWeight: 300,
-      color: "#999",
+      color: "var(--syntax-meta, #999)",
       fontFamily: '"Merriweather Sans", sans-serif',
     },
-    { tag: tags.keyword, ...baseCodeStyles, color: "#708" },
+    { tag: tags.keyword, ...baseCodeStyles, color: "var(--syntax-keyword, #708)" },
     {
       tag: [
         tags.atom,
@@ -198,32 +198,32 @@ const markdownSyntaxHighlighting = (style: "serif" | "sans") =>
         tags.labelName,
       ],
       ...baseCodeStyles,
-      color: "var(--color-secondary)",
+      color: "var(--syntax-atom, var(--studio-secondary))",
     },
-    { tag: [tags.literal, tags.inserted], ...baseCodeStyles, color: "#164" },
-    { tag: [tags.string, tags.deleted], ...baseCodeStyles, color: "#5f67b5" },
+    { tag: [tags.literal, tags.inserted], ...baseCodeStyles, color: "var(--syntax-inserted, #164)" },
+    { tag: [tags.string, tags.deleted], ...baseCodeStyles, color: "var(--syntax-string, #5f67b5)" },
     {
       tag: [tags.regexp, tags.escape, tags.special(tags.string)],
       ...baseCodeStyles,
-      color: "#e40",
+      color: "var(--syntax-regexp, #e40)",
     },
     {
       tag: tags.definition(tags.variableName),
       ...baseCodeStyles,
-      color: "#00f",
+      color: "var(--syntax-definition--variable-name, #00f)",
     },
-    { tag: tags.local(tags.variableName), ...baseCodeStyles, color: "#30a" },
-    { tag: [tags.typeName, tags.namespace], ...baseCodeStyles, color: "#085" },
-    { tag: tags.className, ...baseCodeStyles, color: "#167" },
+    { tag: tags.local(tags.variableName), ...baseCodeStyles, color: "var(--syntax-variable-name, #30a)" },
+    { tag: [tags.typeName, tags.namespace], ...baseCodeStyles, color: "var(--syntax-type-name, #085)" },
+    { tag: tags.className, ...baseCodeStyles, color: "var(--syntax-class-name, #167)" },
     {
       tag: [tags.special(tags.variableName), tags.macroName],
       ...baseCodeStyles,
-      color: "#256",
+      color: "var(--syntax-special--variable-name, #256)",
     },
     {
       tag: tags.definition(tags.propertyName),
       ...baseCodeStyles,
-      color: "#00c",
+      color: "var(--syntax-function--property-name, #00c)",
     },
     { tag: tags.monospace, ...baseCodeStyles },
   ]);

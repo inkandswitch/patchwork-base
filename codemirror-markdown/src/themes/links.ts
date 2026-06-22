@@ -5,15 +5,7 @@ export const linkTheme = EditorView.baseTheme({
     textDecoration: "underline",
     cursor: "pointer",
     fontFamily: '"Merriweather Sans", sans-serif',
-  },
-  "&light .cm-link": {
-    color: "#0066cc",
-    "&:hover": {
-      color: "inherit",
-    },
-  },
-  "&dark .cm-link": {
-    color: "#3399ff",
+    color: "var(--syntax-link, #0066cc)",
     "&:hover": {
       color: "inherit",
     },
