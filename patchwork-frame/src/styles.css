@@ -1,13 +1,29 @@
+@layer patchwork {
 /* Layout */
+
+:root,
+:host,
+[theme] {
+  --patchwork-frame-bg: var(--studio-fill, white);
+  --patchwork-frame-fg: var(--studio-line, black);
+  --patchwork-frame-muted: var(--studio-line-offset-50, #999);
+  --patchwork-frame-family: var(--studio-family-sans, system-ui, sans-serif);
+  --patchwork-frame-family-code: var(--studio-family-code, ui-monospace, monospace);
+  --patchwork-frame-toolbar: var(--studio-fill, white);
+  --patchwork-frame-toolbar-border: var(--studio-fill-offset-20, #ccc);
+  --patchwork-frame-sidebar-toggle-hover: var(--studio-line, black);
+  --patchwork-frame-resize-accent: color-mix(in oklch, var(--studio-secondary, #33ccf8), transparent 50%);
+  --patchwork-frame-resize-indicator: var(--studio-line-offset-50, #999);
+}
 
 .frame {
   position: relative;
   display: flex;
   width: 100%;
   height: 100%;
-  font-family: var(--studio-family-sans, system-ui, sans-serif);
-  color: var(--studio-line, black);
-  background: var(--studio-fill, white);
+  font-family: var(--patchwork-frame-family);
+  color: var(--patchwork-frame-fg);
+  background: var(--patchwork-frame-bg);
 }
 
 .frame__version {
@@ -15,7 +31,7 @@
   top: 4px;
   right: 8px;
   z-index: 10;
-  color: var(--studio-line-offset-50, #999);
+  color: var(--patchwork-frame-muted);
   font-size: 0.75rem;
   font-weight: 500;
   pointer-events: none;
@@ -34,11 +50,11 @@
 }
 
 .sidebar[data-side="left"] {
-  background: var(--studio-fill, white);
+  background: var(--patchwork-frame-bg);
 }
 
 .sidebar[data-side="right"] {
-  background: var(--studio-fill, white);
+  background: var(--patchwork-frame-bg);
 }
 
 .main-area {
@@ -55,8 +71,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: var(--studio-fill-offset-10, #e5e5e5);
-  border-bottom: 1px solid var(--studio-fill-offset-20, #ccc);
+  background: var(--patchwork-frame-toolbar);
+  border-bottom: 1px solid var(--patchwork-frame-toolbar-border);
 }
 
 .toolbar patchwork-view {
@@ -83,7 +99,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--studio-line, black);
+  color: var(--patchwork-frame-fg);
 }
 
 .sidebar patchwork-view {
@@ -99,7 +115,7 @@
   right: 1rem;
   z-index: 9999;
   max-width: 360px;
-  font-family: var(--studio-family-code, ui-monospace, monospace);
+  font-family: var(--patchwork-frame-family-code);
   font-size: 0.75rem;
   background: oklch(0.15 0.01 270);
   border: 1px solid oklch(0.35 0.03 270);
@@ -237,7 +253,7 @@
     margin-left: -10px;
   }
   &:hover {
-    background: var(--studio-line, black);
+    background: var(--patchwork-frame-sidebar-toggle-hover);
   }
 }
 
@@ -265,7 +281,7 @@
 
 .sidebar-resize-handle:hover,
 .sidebar-resize-handle:active {
-  background-color: color-mix(in oklch, var(--studio-secondary, #33ccf8), transparent 50%);
+  background-color: var(--patchwork-frame-resize-accent);
 }
 
 .sidebar-resize-handle::after {
@@ -276,7 +292,7 @@
   transform: translate(-50%, -50%);
   width: 2px;
   height: 32px;
-  background-color: var(--studio-line-offset-50, #999);
+  background-color: var(--patchwork-frame-resize-indicator);
   border-radius: 1px;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -292,4 +308,5 @@
 
 .sidebar-resize-handle--left {
   left: 0;
+}
 }

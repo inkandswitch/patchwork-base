@@ -1,29 +1,34 @@
-:root {
-  --sideboard-fill: oklch(0.86 0.16 87.44 / 1);
+@layer package {
+:root,
+:host,
+[theme] {
+  --sideboard-fill: light-dark(
+    color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
+    black
+  );
   --sideboard-fill-offset: color-mix(
     in oklab,
     var(--sideboard-fill),
     oklch(1 0 0 / 1) 10%
   );
 
-  --sideboard-line: black;
-  --sideboard-widget-fill: white;
+  --sideboard-line: var(--studio-line, black);
+  --sideboard-widget-fill: var(--studio-fill, white);
   --sideboard-widget-line: var(--sideboard-line);
 
   --sideboard-padding-x: 0.5rem;
 
   --sideboard-radius: 0.275rem;
-  --placeholder-line: #808e80;
-  --sideboard-search-line: #000;
+  --placeholder-line: var(--studio-line-offset-50, #808e80);
+  --sideboard-search-line: var(--studio-line, #000);
 
-  --sideboard-fill: oklch(from #99eeff l c h);
-  --sideboard-primary: oklch(from #d9f4ff l c h);
+  --sideboard-primary: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 60%);
 
-  --sideboard-create-new-fill: white;
+  --sideboard-create-new-fill: var(--studio-fill, white);
   --sideboard-create-new-line: color-mix(
     in oklch,
     var(--sideboard-primary),
-    black 30%
+    var(--studio-line, black) 30%
   );
   --sideboard-create-new-border-line: color-mix(
     in oklch,
@@ -35,19 +40,15 @@
     var(--sideboard-fill),
     var(--sideboard-line) 10%
   );
-}
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --sideboard-fill: black;
-    --sideboard-line: white;
-    --sideboard-widget-fill: var(--sideboard-fill-offset);
-    --sideboard-create-new-fill: #333;
-    --sideboard-create-new-line: #ccc;
-    --sideboard-create-new-shadow-color: #111;
-    --sideboard-create-new-border-line: #555;
-    --sideboard-primary: #0099cc;
-  }
+  --sideboard-family: var(--studio-family-sans, system-ui, sans-serif);
+  --sideboard-family-code: var(--studio-family-code, ui-monospace, monospace);
+  --sideboard-muted: var(--studio-line-offset-40, #666);
+  --sideboard-border: var(--studio-fill-offset-10, #e5e5e5);
+  --sideboard-border-strong: var(--studio-fill-offset-20, #ccc);
+  --sideboard-added: var(--studio-added, #35f7ca);
+  --sideboard-danger: var(--studio-danger, #ff6a90);
+  --sideboard-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
 }
 
 .sideboard {
@@ -56,7 +57,7 @@
   height: 100%;
   flex-direction: column;
   gap: 0.75rem;
-  font-family: system-ui, sans-serif;
+  font-family: var(--sideboard-family);
   padding-inline: var(--sideboard-padding-x);
   padding-bottom: env(safe-area-inset-bottom);
   --depth: 0;
@@ -128,7 +129,7 @@
   }
   &:focus-within {
     .search-icon {
-      stroke: #000;
+      stroke: var(--sideboard-line);
     }
   }
 }
@@ -205,7 +206,7 @@
   &:focus-visible {
     outline-color: #000;
     outline-offset: -2px;
-    box-shadow: 0 0 0 4px #fff;
+    box-shadow: 0 0 0 4px var(--sideboard-widget-fill);
     border-radius: var(--sideboard-radius);
   }
 
@@ -293,7 +294,7 @@
   margin-left: -0.75ch;
   padding-inline: 0.25ch;
   &:hover {
-    background: #00000011;
+    background: var(--sideboard-toggle-hover);
   }
 }
 
@@ -304,7 +305,7 @@
 .document-list-folder__circular-ref {
   padding: 0.5rem;
   padding-left: calc(2.2rem * var(--depth));
-  color: #666;
+  color: var(--sideboard-muted);
   font-style: italic;
   font-size: 0.9em;
 }
@@ -405,7 +406,7 @@
   background-color: var(--sideboard-widget-fill);
   font-size: 0.8rem;
   border-radius: 6px;
-  border: 1px solid hsl(240 6% 90%);
+  border: 1px solid var(--sideboard-border);
   box-shadow:
     0 4px 6px -1px rgb(0 0 0 / 0.1),
     0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -443,7 +444,7 @@
 .popmenu__checkbox-item[data-disabled],
 .popmenu__radio-item[data-disabled],
 .popmenu__sub-trigger[data-disabled] {
-  color: hsl(240 5% 65%);
+  color: var(--sideboard-muted);
   opacity: 0.5;
   pointer-events: none;
 }
@@ -499,7 +500,7 @@
   box-sizing: border-box;
   padding: 6px 8px;
   font-size: 0.8rem;
-  border: 1px solid hsl(240 6% 80%);
+  border: 1px solid var(--sideboard-border-strong);
   border-radius: 4px;
   background: var(--sideboard-widget-fill);
   color: var(--sideboard-widget-line);
@@ -511,7 +512,7 @@
 }
 
 .create-new-filter__input::placeholder {
-  color: hsl(240 5% 65%);
+  color: var(--sideboard-muted);
 }
 
 /* Share Modal */
@@ -624,7 +625,7 @@
   background: var(--sideboard-widget-fill);
   color: var(--sideboard-widget-line);
   font-size: 0.875rem;
-  font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+  font-family: var(--sideboard-family-code);
   resize: vertical;
   min-height: 4rem;
 }
@@ -716,7 +717,7 @@
 }
 
 .share-modal__member-id {
-  font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+  font-family: var(--sideboard-family-code);
   font-size: 0.8rem;
 }
 
@@ -726,7 +727,7 @@
 
 .share-modal__member-id--public {
   font-weight: 600;
-  color: #22c55e;
+  color: var(--sideboard-added);
 }
 
 .share-modal__you-label {
@@ -754,44 +755,8 @@
 }
 
 .share-modal__remove-button:hover {
-  color: #ef4444;
+  color: var(--sideboard-danger);
   background: color-mix(in oklch, #ef4444, transparent 90%);
 }
-
-/* Dark mode overrides for share modal */
-@media (prefers-color-scheme: dark) {
-  .share-modal__header {
-    border-bottom-color: color-mix(
-      in oklab,
-      var(--sideboard-widget-fill),
-      white 15%
-    );
-  }
-
-  .share-modal__close:hover {
-    background: color-mix(in oklab, var(--sideboard-widget-fill), white 10%);
-  }
-
-  .share-modal__input,
-  .share-modal__select {
-    border-color: color-mix(in oklab, var(--sideboard-widget-fill), white 15%);
-  }
-
-  .share-modal__divider {
-    border-top-color: color-mix(
-      in oklab,
-      var(--sideboard-widget-fill),
-      white 15%
-    );
-  }
-
-  .share-modal__member {
-    background: color-mix(in oklab, var(--sideboard-widget-fill), white 8%);
-  }
-
-  .share-modal__error {
-    background: color-mix(in oklch, #ef4444, black 70%);
-    border-color: color-mix(in oklch, #ef4444, black 50%);
-    color: #fca5a5;
-  }
 }
+
