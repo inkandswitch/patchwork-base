@@ -386,7 +386,7 @@ Use these variables (with fallbacks) instead of hardcoded values:
 Every tool's CSS follows this structure:
 
 1. **Define local variables in `:root, :host, [theme]`** so they re-evaluate when a theme is
-   applied (the theme system sets a `[theme]` attribute):
+   applied (the theme system sets a `[theme]` attribute on `<html>`):
 
 ```css
 :root,
@@ -398,8 +398,15 @@ Every tool's CSS follows this structure:
   --my-tool-border: var(--studio-fill-offset-20, #ccc);
   --my-tool-accent: var(--studio-primary, #35f7ca);
   --my-tool-hover: color-mix(in oklch, var(--studio-fill), var(--studio-line) 5%);
+  --my-tool-family: var(--studio-family-sans, system-ui, sans-serif);
+  --my-tool-family-code: var(--studio-family-code, ui-monospace, monospace);
 }
 ```
+
+**Important:** Global `--studio-*` variables must NEVER be used directly in CSS rules. They
+should ONLY appear inside `:root, :host, [theme]` derivation blocks. The derived
+`--my-tool-*` variables are what you use in actual rules. This ensures themes re-evaluate
+correctly when the `[theme]` attribute changes (e.g. switching between light/dark mode).
 
 2. **Composition classes** (if needed) for layout patterns:
 
@@ -409,13 +416,17 @@ Every tool's CSS follows this structure:
 }
 ```
 
+Note: spacing (`--studio-space-*`), radius (`--studio-radius-*`), and transition
+(`--studio-transition-*`) vars are layout concerns and may be used directly in rules with
+their fallbacks — only color, font, and background vars need to be derived.
+
 3. **Block classes** using the local variables:
 
 ```css
 .my-tool {
   background: var(--my-tool-bg);
   color: var(--my-tool-fg);
-  font-family: var(--studio-family-sans, system-ui, sans-serif);
+  font-family: var(--my-tool-family);
 }
 
 .my-tool .header {
@@ -472,7 +483,42 @@ Register a theme plugin to contribute a color scheme:
   async load() { return {} } }
 ```
 
-The CSS file should set `:root, :host, [theme]` variables (same shape as the default theme).
+The CSS file should use **only** `[theme="my-theme"]` as its selector — **not** `:root, :host`.
+Theme CSS targets the specific `[theme]` attribute value so multiple themes can coexist in the
+document simultaneously (the theming system includes all theme CSS files and switches by setting
+`[theme]` on `<html>`). The default theme (`theme.css`) uses `:root, :host, [theme]` to provide
+base values; individual themes override with `[theme="name"]` only.
+
+### CSS cascade layers
+
+Tool CSS is wrapped in `@layer package { }` so that theme CSS (which is unlayered) always
+wins over it, regardless of load order or specificity. Unlayered CSS beats all layered CSS
+in the cascade.
+
+| CSS type | Layer | Priority |
+|---|---|---|
+| Base system variables (`theme.css`) | `@layer patchwork` | lowest |
+| Tool/component CSS | `@layer package` | middle |
+| Theme CSS (lychee, gloom, custom) | unlayered | highest (always wins) |
+
+**Every tool CSS file must wrap its content in `@layer package { }`:**
+
+```css
+@layer package {
+:root,
+:host,
+[theme] {
+  --my-tool-bg: var(--studio-fill, white);
+}
+
+.my-tool {
+  background: var(--my-tool-bg);
+}
+}
+```
+
+Theme CSS files (`lychee.css`, `gloom.css`, custom themes) must **not** be wrapped in any
+layer — they stay unlayered so they reliably override everything.
 
 ## 12. Build & sync
 
