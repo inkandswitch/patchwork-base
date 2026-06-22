@@ -4,6 +4,7 @@
 [theme] {
 	color-scheme: light;
 	color: var(--studio-line);
+	accent-color: var(--studio-primary);
 	--default-tab-size: 2;
 	--studio-fill: white;
 	--studio-fill-offset-10: color-mix(
@@ -462,5 +463,10 @@
 	--syntax-fill-content-separator: var(--text-editor-text-fill);
 	--syntax-style-content-separator: var(--text-editor-text-style);
 	--syntax-weight-content-separator: var(--text-editor-text-weight);
+}
+
+::selection {
+	background: var(--studio-selection-fill);
+	color: var(--studio-selection-line);
 }
 }
