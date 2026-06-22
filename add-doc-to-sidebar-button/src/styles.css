@@ -1,4 +1,3 @@
-@layer package {
 .add-doc-to-sidebar {
   display: flex;
   align-items: center;
@@ -18,5 +17,4 @@
 
 .add-doc-to-sidebar button:hover {
   background: color-mix(in srgb, currentColor 10%, transparent);
-}
 }

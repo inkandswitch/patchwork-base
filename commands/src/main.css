@@ -12,6 +12,7 @@
   --command-palette-accent-hover: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-line, black) 20%);
   --command-palette-font-size: var(--studio-font-size, 16px);
 }
+}
 
 .command-palette-backdrop {
   position: fixed;
@@ -223,5 +224,4 @@
 
 .command-palette-arg-button-submit:hover {
   background: var(--command-palette-accent-hover);
-}
 }

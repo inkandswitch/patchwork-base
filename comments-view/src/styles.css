@@ -10,6 +10,7 @@
   --comments-font: var(--studio-family-sans, system-ui, sans-serif);
   --comments-accent: var(--studio-secondary, #33ccf8);
 }
+}
 
 .comments-panel {
   height: 100%;
@@ -158,5 +159,4 @@
 
 .comment-btn:hover {
   background: var(--comments-hover-bg);
-}
 }

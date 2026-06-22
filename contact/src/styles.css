@@ -8,6 +8,7 @@
   --contact-fallback-bg: var(--studio-fill-offset-20, #ccc);
   --contact-fallback-fg: var(--studio-line-offset-30, #4d4d4d);
 }
+}
 
 /* Avatar */
 
@@ -73,5 +74,4 @@
   margin: 0;
   font-size: 0.875rem;
   color: var(--contact-muted-fg);
-}
 }

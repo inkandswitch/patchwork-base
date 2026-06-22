@@ -11,6 +11,7 @@
   --sync-hover: var(--studio-fill-offset-10, #e5e5e5);
   --sync-family-code: var(--studio-family-code, ui-monospace, monospace);
 }
+}
 
 .sync-trigger {
   padding: 4px;
@@ -155,5 +156,4 @@
 .sync-copy-btn:hover {
   background: var(--sync-hover);
   color: var(--sync-fg);
-}
 }

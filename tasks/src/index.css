@@ -12,6 +12,7 @@
   --task-danger: var(--studio-danger, #ff6a90);
   --task-success: var(--studio-added, #35f7ca);
 }
+}
 
 .task-browser {
   margin: 4pt;
@@ -108,5 +109,4 @@
 patchwork-view[tool-id='contact-inline'] {
   display: inline-block;
   width: auto;
-}
 }

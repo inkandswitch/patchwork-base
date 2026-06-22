@@ -1,9 +1,9 @@
-@layer package {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
+@layer package {
 :root,
 :host,
 [theme] {
@@ -34,6 +34,7 @@
   --history-hover: var(--studio-fill-offset-10, #e5e5e5);
   --history-active-bg: var(--studio-fill-offset-10, #e5e5e5);
   --history-active-border: var(--studio-fill-offset-30, #b3b3b3);
+}
 }
 
 /* Hide timeline line on last item in each date group */
@@ -211,5 +212,4 @@
 .timeline-card[data-selected] {
   border-color: var(--history-accent);
   background: color-mix(in oklch, var(--history-accent) 10%, var(--history-card-bg));
-}
 }
