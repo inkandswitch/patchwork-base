@@ -82,7 +82,14 @@ export function ModuleFilters(props: ModuleFiltersProps) {
     }
 
     const valid = isValidAutomergeUrl(value);
-    setIsValid(valid);
+    const looksLikeModule = valid || /^(https?:\/\/|\.\/|\.\.\/|\/)/.test(value);
+    setIsValid(looksLikeModule ? valid : null);
+
+    if (!looksLikeModule) {
+      setPreview(null);
+      setPreviewUrl(null);
+      return;
+    }
 
     if (valid) {
       // Debounce the fetch
