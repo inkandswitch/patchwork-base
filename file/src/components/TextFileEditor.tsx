@@ -1,4 +1,4 @@
-import {onCleanup, createSignal, createEffect} from "solid-js"
+import {onCleanup} from "solid-js"
 import {
 	EditorView,
 	lineNumbers,
@@ -8,13 +8,8 @@ import {
 	rectangularSelection,
 	keymap,
 } from "@codemirror/view"
+import {EditorState} from "@codemirror/state"
 import {
-	EditorState,
-	type Extension,
-	Compartment,
-} from "@codemirror/state"
-import {
-	syntaxHighlighting,
 	indentUnit,
 	bracketMatching,
 	foldGutter,
@@ -32,8 +27,7 @@ import {
 	emacsStyleKeymap,
 } from "@codemirror/commands"
 import {automergeSyncPlugin} from "@automerge/automerge-codemirror"
-import {draculaTheme, draculaHighlightStyle} from "../dracula"
-import {lycheeTheme, lycheeHighlightStyle} from "../lychee"
+import codemirrorTheme from "../codemirror-theme"
 import {getLanguageExtension} from "../languages"
 import type {FileDoc} from "../types"
 
@@ -66,24 +60,8 @@ export const isTextFile = (doc: FileDoc) => {
 	)
 }
 
-function isDarkMode() {
-	return window.matchMedia("(prefers-color-scheme: dark)").matches
-}
-
 export function TextFileEditor(props: {doc: FileDoc; handle: any}) {
 	let container!: HTMLDivElement
-	const themeCompartment = new Compartment()
-
-	const lightTheme: Extension = [
-		lycheeTheme,
-		syntaxHighlighting(lycheeHighlightStyle),
-	]
-	const darkTheme: Extension = [
-		draculaTheme,
-		syntaxHighlighting(draculaHighlightStyle),
-	]
-
-	const [dark, setDark] = createSignal(isDarkMode())
 
 	const languageExtension = getLanguageExtension(
 		props.doc.extension,
@@ -127,30 +105,12 @@ export function TextFileEditor(props: {doc: FileDoc; handle: any}) {
 				...defaultKeymap,
 			]),
 			languageExtension,
-			themeCompartment.of(dark() ? darkTheme : lightTheme),
-			EditorView.theme({
-				"&": {height: "100%", fontSize: "16px"},
-				".cm-scroller": {
-					overflow: "auto",
-				},
-			}),
+			...codemirrorTheme,
 			automergeSyncPlugin({handle: props.handle, path: ["content"]}),
 		],
 	})
 
-	const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-	const handleChange = (e: MediaQueryListEvent) => setDark(e.matches)
-	mediaQuery.addEventListener("change", handleChange)
-
-	createEffect(() => {
-		const theme = dark() ? darkTheme : lightTheme
-		view.dispatch({
-			effects: themeCompartment.reconfigure(theme),
-		})
-	})
-
 	onCleanup(() => {
-		mediaQuery.removeEventListener("change", handleChange)
 		view.destroy()
 	})
 
