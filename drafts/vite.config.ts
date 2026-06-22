@@ -12,7 +12,7 @@ export default defineConfig({
     emptyOutDir: true,
     minify: false,
     rollupOptions: {
-      external: [...externals, "@automerge/automerge-repo-solid-primitives"],
+      external: externals,
       input: "./src/index.ts",
       output: {
         format: "es",
