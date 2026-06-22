@@ -1,21 +1,13 @@
-import { AutomergeUrl, DocHandle } from "@automerge/automerge-repo";
-import {
-  FolderDoc,
-  getType,
-  HasPatchworkMetadata,
-} from "@inkandswitch/patchwork-filesystem";
-import {
-  getRegistry,
-  ToolElement,
-  type DatatypeDescription,
-  type DatatypeImplementation,
-} from "@inkandswitch/patchwork-plugins";
-import "./styles.css";
+import { getType } from "@inkandswitch/patchwork-filesystem";
+import { getRegistry } from "@inkandswitch/patchwork-plugins";
 
-export function renderAddDocToSidebarButton(
-  handle: DocHandle<HasPatchworkMetadata>,
-  element: ToolElement
-) {
+const cssURL = new URL("./styles.css", import.meta.url);
+const link = document.createElement("link");
+link.rel = "stylesheet";
+link.href = cssURL.href;
+document.head.appendChild(link);
+
+export default function renderAddDocToSidebarButton(handle, element) {
   const wrapper = document.createElement("div");
   wrapper.className = "add-doc-to-sidebar";
 
@@ -26,8 +18,8 @@ export function renderAddDocToSidebarButton(
   // hidden by default until we confirm there's a datatype
   wrapper.style.display = "none";
 
-  let docDatatypeId: string | undefined;
-  let title: string | undefined;
+  let docDatatypeId;
+  let title;
 
   function update() {
     const doc = handle.doc();
@@ -39,11 +31,10 @@ export function renderAddDocToSidebarButton(
       return;
     }
 
-    const registry = getRegistry<DatatypeDescription>("patchwork:datatype");
+    const registry = getRegistry("patchwork:datatype");
     const loaded = registry.get(docDatatypeId);
     if (loaded && "module" in loaded) {
-      const impl = loaded.module as DatatypeImplementation;
-      title = impl.getTitle(doc) || undefined;
+      title = loaded.module.getTitle(doc) || undefined;
     }
 
     wrapper.style.display = "";
@@ -53,19 +44,17 @@ export function renderAddDocToSidebarButton(
     const repo = element.repo;
 
     // hack: get reference to the account doc handle through window
-    const accountDocHandle = (window as any).accountDocHandle as DocHandle<{
-      rootFolderUrl: AutomergeUrl;
-    }>;
+    const accountDocHandle = window.accountDocHandle;
 
-    const rootFolderDocHandle = await repo.find<FolderDoc>(
-      accountDocHandle.doc()!.rootFolderUrl
+    const rootFolderDocHandle = await repo.find(
+      accountDocHandle.doc().rootFolderUrl
     );
 
     rootFolderDocHandle.change((doc) => {
       doc.docs.unshift({
         name: title ?? "Untitled",
         url: handle.url,
-        type: docDatatypeId!,
+        type: docDatatypeId,
       });
     });
   }
@@ -79,7 +68,7 @@ export function renderAddDocToSidebarButton(
   if (doc) {
     const datatypeId = getType(doc);
     if (datatypeId) {
-      const registry = getRegistry<DatatypeDescription>("patchwork:datatype");
+      const registry = getRegistry("patchwork:datatype");
       registry.load(datatypeId).then(() => update());
     }
   }
