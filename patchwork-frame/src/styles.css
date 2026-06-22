@@ -1,4 +1,4 @@
-@layer patchwork {
+@layer package {
 /* Layout */
 
 :root,
@@ -76,12 +76,16 @@
 }
 
 .toolbar patchwork-view {
-  flex: none !important;
-  min-width: auto !important;
   display: flex;
-  width: fit-content;
   height: 2rem;
   overflow: hidden;
+  width: auto;
+}
+
+.toolbar patchwork-view[tool-id="document-title"],
+.toolbar patchwork-view[tool-id="spacer"] {
+  flex: 1;
+  min-width: 0;
 }
 
 .document-view {
