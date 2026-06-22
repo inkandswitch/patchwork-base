@@ -229,277 +229,257 @@ export const AccountPicker = (props: PatchworkToolProps<any>) => {
 
   return (
     <div class="account-picker">
-      {/* HEADER */}
-      <div class="header">
-        <div class="sr-only">Account</div>
-        <div class="sr-only">Manage your account settings</div>
-        <Show when={currentAccount?.contactUrl}>
-          <input
-            ref={(el) => (avatarInputRef = el)}
-            type="file"
-            accept="image/*"
-            class="sr-only"
-            onChange={onAvatarChange}
-          />
-          <button
-            type="button"
-            class={`avatar-button${isLoggedIn() ? "" : " disabled"}`}
-            onClick={() => isLoggedIn() && avatarInputRef?.click()}
-            title={isLoggedIn() ? "Click to change avatar" : undefined}
-          >
-            <patchwork-view
-              doc-url={currentAccount.contactUrl}
-              tool-id="contact"
-            />
-          </button>
-        </Show>
-      </div>
-
-      {/* CONTENT */}
-      <div class="content">
-        <Show when={!isLoggedIn()}>
-          <Tabs
-            defaultValue={AccountPickerTab.SignUp}
-            onChange={(tab: string) => setActiveTab(tab)}
-            value={activeTab()}
-          >
-            <TabsList class="tabs-list">
-              <TabsTrigger value={AccountPickerTab.SignUp} class="tabs-trigger">
-                Sign up
-              </TabsTrigger>
-              <TabsTrigger value={AccountPickerTab.LogIn} class="tabs-trigger">
-                Log in
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value={AccountPickerTab.SignUp} class="tabs-content">
-              <div class="field-group">
-                <Label for="name">Name</Label>
-                <Input
-                  id="name"
-                  value={signupName()}
-                  onInput={(e) => setSignupName(e.currentTarget.value)}
-                  placeholder="Enter your name"
-                />
-                <Button
-                  type="submit"
-                  onClick={onSignUp}
-                  disabled={!canSignUp()}
-                >
-                  Sign up
-                </Button>
-              </div>
-            </TabsContent>
-            <TabsContent value={AccountPickerTab.LogIn} class="tabs-content">
-              <form class="field-group" onSubmit={(e) => { e.preventDefault(); if (canLogIn()) onLogIn(); }}>
-                <p class="hint">
-                  To login, paste your account token.
-                </p>
-                <p class="hint">
-                  You can find your token by accessing the account dialog on any
-                  device where you are currently logged in.
-                </p>
-                <Label for="accountUrl">Account token</Label>
-
-                <div class="input-row">
-                  <Input
-                    class={accountTokenToLoginStatus() === "valid" ? "valid" : ""}
-                    id="accountUrl"
-                    value={accountTokenToLogin()}
-                    onInput={(e) =>
-                      setAccountTokenToLogin(e.currentTarget.value)
-                    }
-                    type={showAccountUrl() ? "text" : "password"}
-                    autocomplete="current-password"
-                  />
-                  <Button variant="ghost" onClick={onToggleShowAccountUrl}>
-                    <Show when={showAccountUrl()} fallback={<EyeOffIcon />}>
-                      <EyeIcon />
-                    </Show>
-                  </Button>
-                </div>
-
-                <div class="error-text">
-                  <Show when={accountTokenToLoginStatus() === "malformed"}>
-                    <div>
-                      Not a valid account token, try copy-pasting again.
-                    </div>
-                  </Show>
-                  <Show when={accountTokenToLoginStatus() === "loading"}>
-                    <div class="loading-text">Looking up account...</div>
-                  </Show>
-                  <Show when={accountTokenToLoginStatus() === "not-found"}>
-                    <div>Account not found</div>
-                  </Show>
-                </div>
-
-                <Button
-                  type="submit"
-                  onClick={onLogIn}
-                  disabled={!canLogIn()}
-                >
-                  {`Log in${
-                    contactToLogin()?.type === "registered"
-                      ? ` as ${(contactToLogin() as RegisteredContactDoc).name}`
-                      : ""
-                  }`}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </Show>
-
-        <Show when={isLoggedIn()}>
-          <div class="field-group">
-            <ColorPicker
-              value={(self() as any)?.color}
-              onChange={onColorChange}
-            />
-            <p class="hint">
-              This color will be used for your cursor and presence indicators in
-              collaborative editing.
-            </p>
-          </div>
-
-          <div class="field-group">
-            <Label for="name">Name</Label>
-            <Input
-              id="name"
-              value={name()}
-              onInput={(e) => onNameChange(e.currentTarget.value)}
-            />
-          </div>
-
-          <form class="field-group">
-            <Label for="accountUrl">Account token</Label>
-
-            <div class="input-row">
-              <Input
-                onFocus={(e) => e.currentTarget.select()}
-                value={currentAccountToken() || ""}
-                id="accountUrl"
-                type={showAccountUrl() ? "text" : "password"}
-                readOnly
-                autocomplete="off"
-              />
-
-              <Button
-                variant="ghost"
-                onClick={onToggleShowAccountUrl}
-                type="button"
-              >
-                <Show when={showAccountUrl()} fallback={<EyeOffIcon />}>
-                  <EyeIcon />
-                </Show>
-              </Button>
-
-              <Tooltip open={isCopyTooltipOpen()}>
-                <TooltipTrigger
-                  type="button"
-                  onClick={onCopy}
-                  onBlur={() => setIsCopyTooltipOpen(false)}
-                  class="tooltip-trigger"
-                >
-                  <CopyIcon />
-                </TooltipTrigger>
-                <TooltipContent class="tooltip-content">
-                  <p>Copied</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <p class="hint">
-              To log in on another device, copy your account token and paste it
-              into the login screen on the other device.
-            </p>
-            <p class="hint">
-              Warning: this app has limited security, don't use it for
-              private docs.
-            </p>
-          </form>
-
-          <Show when={props.element.hive?.active?.contactCard}>
+      <Show when={!isLoggedIn()}>
+        <Tabs
+          defaultValue={AccountPickerTab.SignUp}
+          onChange={(tab: string) => setActiveTab(tab)}
+          value={activeTab()}
+        >
+          <TabsList class="tabs-list">
+            <TabsTrigger value={AccountPickerTab.SignUp} class="tabs-trigger">
+              Sign up
+            </TabsTrigger>
+            <TabsTrigger value={AccountPickerTab.LogIn} class="tabs-trigger">
+              Log in
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value={AccountPickerTab.SignUp} class="tabs-content">
             <div class="field-group">
-              <Label>Contact Card</Label>
-              <p class="hint">
-                To share a document with someone, they'll need your contact
-                card. Copy it and send it to them.
-              </p>
-              <Tooltip open={isContactCardCopyTooltipOpen()}>
-                <TooltipTrigger
-                  as="div"
-                  onClick={onCopyContactCard}
-                  onBlur={() => setIsContactCardCopyTooltipOpen(false)}
-                >
-                  <Button variant="outline" type="button" class="wide">
-                    <CopyIcon class="icon-inline" />
-                    Copy Contact Card
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent class="tooltip-content">
-                  <p>Copied</p>
-                </TooltipContent>
-              </Tooltip>
+              <Label for="name">Name</Label>
+              <Input
+                id="name"
+                value={signupName()}
+                onInput={(e) => setSignupName(e.currentTarget.value)}
+                placeholder="Enter your name"
+              />
+              <Button
+                type="submit"
+                onClick={onSignUp}
+                disabled={!canSignUp()}
+              >
+                Sign up
+              </Button>
             </div>
-          </Show>
-
-          <Button onClick={() => setShowSignOutConfirm(true)} variant="secondary" class="sign-out">
-            Sign out
-          </Button>
-
-          <Show when={showSignOutConfirm()}>
-            <div class="modal-backdrop" onClick={() => setShowSignOutConfirm(false)} />
-            <div class="modal">
-              <p>Are you sure you want to sign out?</p>
+          </TabsContent>
+          <TabsContent value={AccountPickerTab.LogIn} class="tabs-content">
+            <form class="field-group" onSubmit={(e) => { e.preventDefault(); if (canLogIn()) onLogIn(); }}>
               <p class="hint">
-                Make sure you've copied your account token so you can log back
-                in.
+                Paste your account token to log in. You can find it in
+                account settings on any device where you're signed in.
               </p>
-
-              <Label for="signOutAccountUrl">Account token</Label>
+              <Label for="accountUrl">Account token</Label>
               <div class="input-row">
                 <Input
-                  onFocus={(e) => e.currentTarget.select()}
-                  value={currentAccountToken() || ""}
-                  id="signOutAccountUrl"
+                  class={accountTokenToLoginStatus() === "valid" ? "valid" : ""}
+                  id="accountUrl"
+                  value={accountTokenToLogin()}
+                  onInput={(e) =>
+                    setAccountTokenToLogin(e.currentTarget.value)
+                  }
                   type={showAccountUrl() ? "text" : "password"}
-                  readOnly
-                  autocomplete="off"
+                  autocomplete="current-password"
                 />
-                <Button variant="ghost" onClick={onToggleShowAccountUrl} type="button">
+                <Button variant="ghost" onClick={onToggleShowAccountUrl}>
                   <Show when={showAccountUrl()} fallback={<EyeOffIcon />}>
                     <EyeIcon />
                   </Show>
                 </Button>
               </div>
-
-              <Tooltip open={isCopyTooltipOpen()}>
-                <TooltipTrigger
-                  as="div"
-                  onClick={() => { onCopy(); }}
-                  onBlur={() => setIsCopyTooltipOpen(false)}
-                >
-                  <Button variant="outline" class="wide" type="button">
-                    <CopyIcon class="icon-inline" />
-                    Copy token
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent class="tooltip-content">
-                  <p>Copied</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <div class="sign-out-confirm-actions">
-                <Button onClick={onLogout} class="sign-out">
-                  Sign out
-                </Button>
-                <Button variant="secondary" onClick={() => setShowSignOutConfirm(false)}>
-                  Cancel
-                </Button>
+              <div class="error-text">
+                <Show when={accountTokenToLoginStatus() === "malformed"}>
+                  <div>
+                    Not a valid account token, try copy-pasting again.
+                  </div>
+                </Show>
+                <Show when={accountTokenToLoginStatus() === "loading"}>
+                  <div class="loading-text">Looking up account...</div>
+                </Show>
+                <Show when={accountTokenToLoginStatus() === "not-found"}>
+                  <div>Account not found</div>
+                </Show>
               </div>
-            </div>
+              <Button
+                type="submit"
+                onClick={onLogIn}
+                disabled={!canLogIn()}
+              >
+                {`Log in${
+                  contactToLogin()?.type === "registered"
+                    ? ` as ${(contactToLogin() as RegisteredContactDoc).name}`
+                    : ""
+                }`}
+              </Button>
+            </form>
+          </TabsContent>
+        </Tabs>
+      </Show>
+
+      <Show when={isLoggedIn()}>
+        <input
+          ref={(el) => (avatarInputRef = el)}
+          type="file"
+          accept="image/*"
+          class="sr-only"
+          onChange={onAvatarChange}
+        />
+
+        <div class="profile-header">
+          <Show when={currentAccount?.contactUrl}>
+            <button
+              type="button"
+              class="avatar-button"
+              onClick={() => avatarInputRef?.click()}
+              title="Click to change avatar"
+            >
+              <patchwork-view
+                doc-url={currentAccount.contactUrl}
+                tool-id="contact"
+              />
+            </button>
           </Show>
+          <Input
+            id="name"
+            class="profile-name-input"
+            value={name()}
+            onInput={(e) => onNameChange(e.currentTarget.value)}
+            placeholder="Your name"
+          />
+        </div>
+
+        <div class="section">
+          <ColorPicker
+            value={(self() as any)?.color}
+            onChange={onColorChange}
+          />
+          <p class="hint">
+            Your cursor color in collaborative editing.
+          </p>
+        </div>
+
+        <div class="section">
+          <Label for="accountUrl">Account token</Label>
+          <div class="input-row">
+            <Input
+              onFocus={(e) => e.currentTarget.select()}
+              value={currentAccountToken() || ""}
+              id="accountUrl"
+              type={showAccountUrl() ? "text" : "password"}
+              readOnly
+              autocomplete="off"
+            />
+            <Button
+              variant="ghost"
+              onClick={onToggleShowAccountUrl}
+              type="button"
+            >
+              <Show when={showAccountUrl()} fallback={<EyeOffIcon />}>
+                <EyeIcon />
+              </Show>
+            </Button>
+            <Tooltip open={isCopyTooltipOpen()}>
+              <TooltipTrigger
+                type="button"
+                onClick={onCopy}
+                onBlur={() => setIsCopyTooltipOpen(false)}
+                class="tooltip-trigger"
+              >
+                <CopyIcon />
+              </TooltipTrigger>
+              <TooltipContent class="tooltip-content">
+                <p>Copied</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p class="hint">
+            Copy this to log in on another device.
+          </p>
+          <p class="hint warning">
+            This app has limited security. Don't use it for private docs.
+          </p>
+        </div>
+
+        <Show when={props.element.hive?.active?.contactCard}>
+          <div class="section">
+            <Label>Contact card</Label>
+            <p class="hint">
+              Share this so others can send you documents.
+            </p>
+            <Tooltip open={isContactCardCopyTooltipOpen()}>
+              <TooltipTrigger
+                as="div"
+                onClick={onCopyContactCard}
+                onBlur={() => setIsContactCardCopyTooltipOpen(false)}
+              >
+                <Button variant="outline" type="button" class="wide">
+                  <CopyIcon class="icon-inline" />
+                  Copy contact card
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent class="tooltip-content">
+                <p>Copied</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </Show>
-      </div>
+
+        <div class="section section-footer">
+          <Button onClick={() => setShowSignOutConfirm(true)} variant="secondary" class="sign-out">
+            Sign out
+          </Button>
+        </div>
+
+        <Show when={showSignOutConfirm()}>
+          <div class="modal-backdrop" onClick={() => setShowSignOutConfirm(false)} />
+          <div class="modal">
+            <p class="modal-title">Sign out?</p>
+            <p class="hint">
+              Make sure you've saved your account token first.
+            </p>
+
+            <Label for="signOutAccountUrl">Account token</Label>
+            <div class="input-row">
+              <Input
+                onFocus={(e) => e.currentTarget.select()}
+                value={currentAccountToken() || ""}
+                id="signOutAccountUrl"
+                type={showAccountUrl() ? "text" : "password"}
+                readOnly
+                autocomplete="off"
+              />
+              <Button variant="ghost" onClick={onToggleShowAccountUrl} type="button">
+                <Show when={showAccountUrl()} fallback={<EyeOffIcon />}>
+                  <EyeIcon />
+                </Show>
+              </Button>
+            </div>
+
+            <Tooltip open={isCopyTooltipOpen()}>
+              <TooltipTrigger
+                as="div"
+                onClick={() => { onCopy(); }}
+                onBlur={() => setIsCopyTooltipOpen(false)}
+              >
+                <Button variant="outline" class="wide" type="button">
+                  <CopyIcon class="icon-inline" />
+                  Copy token
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent class="tooltip-content">
+                <p>Copied</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <div class="modal-actions">
+              <Button variant="secondary" onClick={() => setShowSignOutConfirm(false)}>
+                Cancel
+              </Button>
+              <Button onClick={onLogout} class="sign-out-confirm">
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </Show>
+      </Show>
     </div>
   );
 };
