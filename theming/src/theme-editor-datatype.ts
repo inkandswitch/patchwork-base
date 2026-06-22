@@ -1,6 +1,8 @@
 export interface CustomThemeDoc {
 	name: string
+	mode: "light" | "dark"
 	variables: Record<string, string>
+	customCss: string
 }
 
 export const EDITABLE_VARIABLES = [
@@ -52,7 +54,9 @@ export const DEFAULT_VALUES: Record<string, string> = {
 export const CustomThemeDatatype = {
 	init(doc: any) {
 		doc.name = "Custom Theme"
+		doc.mode = "light"
 		doc.variables = {...DEFAULT_VALUES}
+		doc.customCss = ""
 	},
 	getTitle(doc: any) {
 		return doc.name || "Custom Theme"

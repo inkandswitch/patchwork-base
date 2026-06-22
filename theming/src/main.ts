@@ -3,26 +3,58 @@ import themeCssUrl from "./theme.css"
 import lycheeCssUrl from "./lychee.css"
 import gloomCssUrl from "./gloom.css"
 
-const themeLink = document.createElement("link")
-themeLink.rel = "stylesheet"
-themeLink.href = themeCssUrl
-document.head.appendChild(themeLink)
+// Include bundled theme CSS files early (before registry is ready)
+const themeLinks = new Map<string, HTMLLinkElement>()
 
-/** Apply a theme by injecting a <link rel="stylesheet"> and setting [theme] on <html> */
-let activeThemeLink: HTMLLinkElement | null = null
+function ensureThemeLink(style: string) {
+	if (themeLinks.has(style)) return
+	const link = document.createElement("link")
+	link.rel = "stylesheet"
+	link.href = style
+	document.head.appendChild(link)
+	themeLinks.set(style, link)
+}
 
-function applyTheme(themeId: string, themeStyleUrl: string) {
-	document.documentElement.setAttribute("theme", themeId)
-
-	if (activeThemeLink) {
-		activeThemeLink.href = themeStyleUrl
-	} else {
-		activeThemeLink = document.createElement("link")
-		activeThemeLink.rel = "stylesheet"
-		activeThemeLink.setAttribute("data-patchwork-theme", "active")
-		activeThemeLink.href = themeStyleUrl
-		document.head.appendChild(activeThemeLink)
+function removeThemeLink(style: string) {
+	const link = themeLinks.get(style)
+	if (link) {
+		link.remove()
+		themeLinks.delete(style)
 	}
+}
+
+for (const href of [themeCssUrl, lycheeCssUrl, gloomCssUrl]) {
+	ensureThemeLink(new URL(href, import.meta.url).href)
+}
+
+// Watch the theme registry and include all theme CSS files
+function syncThemeLinks() {
+	const registry = (window as any).hive?.getRegistry?.("patchwork:theme")
+	if (!registry) return
+
+	const themes = registry.all?.() || []
+	for (const theme of themes) {
+		if (theme.style) ensureThemeLink(theme.style)
+	}
+
+	registry.on("registered", (plugin: any) => {
+		if (plugin.style) ensureThemeLink(plugin.style)
+	})
+	registry.on("removed", (id: string) => {
+		// Find and remove the link for this theme
+		const themes = registry.all?.() || []
+		const knownStyles = new Set(themes.map((t: any) => t.style).filter(Boolean))
+		for (const [style, link] of themeLinks) {
+			if (!knownStyles.has(style)) removeThemeLink(style)
+		}
+	})
+}
+syncThemeLinks()
+// Retry in case the registry isn't ready yet at module eval time
+setTimeout(syncThemeLinks, 0)
+
+function applyTheme(themeId: string) {
+	document.documentElement.setAttribute("theme", themeId)
 }
 
 /**
@@ -71,18 +103,8 @@ async function loadActiveTheme() {
 			themeId = isDark ? "gloom" : "lychee"
 		}
 
-		const registry = (window as any).hive?.getRegistry?.("patchwork:theme")
-		if (!registry) {
-			// Registry not available yet — apply default directly
-			applyTheme(themeId, new URL(isDark ? gloomCssUrl : lycheeCssUrl, import.meta.url).href)
-			return
-		}
-
-		const themes = registry.list?.() || []
-		const theme = themes.find((t: any) => t.id === themeId)
-		if (theme?.style) {
-			applyTheme(themeId, theme.style)
-		}
+		// All theme CSS is already injected via links — just set the attribute
+		applyTheme(themeId)
 	} catch {
 		// Theme loading is best-effort; fall back to default CSS variables
 	}

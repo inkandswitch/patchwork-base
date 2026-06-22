@@ -1,5 +1,3 @@
-/* @jsxRuntime automatic */
-/* @jsxImportSource solid-js */
 import {render} from "solid-js/web"
 import {createSignal, createEffect, For, onCleanup, Show} from "solid-js"
 import {EDITABLE_VARIABLES, DEFAULT_VALUES, type CustomThemeDoc} from "./theme-editor-datatype.ts"
@@ -7,11 +5,9 @@ import {EDITABLE_VARIABLES, DEFAULT_VALUES, type CustomThemeDoc} from "./theme-e
 /**
  * Generates the full CSS for a custom theme, including derived offset variables.
  */
-export function generateThemeCss(name: string, vars: Record<string, string>): string {
-	const fill = vars["--studio-fill"] || "#ffffff"
-	const line = vars["--studio-line"] || "#000000"
-
-	let css = `:root,\n:host,\n[theme="${name}"] {\n`
+export function generateThemeCss(name: string, mode: "light" | "dark", vars: Record<string, string>, customCss?: string): string {
+	let css = `[theme="${name}"] {\n`
+	css += `\tcolor-scheme: ${mode};\n`
 
 	// Write explicit variables
 	for (const [key, value] of Object.entries(vars)) {
@@ -29,7 +25,56 @@ export function generateThemeCss(name: string, vars: Record<string, string>): st
 	}
 
 	css += "}\n"
+
+	if (customCss?.trim()) {
+		css += `\n/* Custom CSS */\n${customCss}\n`
+	}
+
 	return css
+}
+
+/**
+ * Scan all stylesheets for CSS custom properties defined on :root.
+ * Returns a map of variable name -> value, excluding known editable vars.
+ */
+function discoverRootVariables(): Record<string, string> {
+	const knownKeys = new Set(EDITABLE_VARIABLES.flatMap(g => g.vars.map(v => v.key)))
+	for (const pct of [10, 20, 30, 40, 50]) {
+		knownKeys.add(`--studio-fill-offset-${pct}`)
+		knownKeys.add(`--studio-line-offset-${pct}`)
+	}
+
+	const found: Record<string, string> = {}
+
+	try {
+		for (const sheet of document.styleSheets) {
+			try {
+				for (const rule of sheet.cssRules) {
+					if (!(rule instanceof CSSStyleRule)) continue
+					if (rule.selectorText !== ":root") continue
+					for (let i = 0; i < rule.style.length; i++) {
+						const prop = rule.style[i]
+						if (!prop.startsWith("--")) continue
+						if (knownKeys.has(prop)) continue
+						found[prop] = rule.style.getPropertyValue(prop).trim()
+					}
+				}
+			} catch {
+				// cross-origin stylesheet, skip
+			}
+		}
+	} catch {
+		// no access to stylesheets
+	}
+
+	return found
+}
+
+function looksLikeColor(value: string): boolean {
+	const v = value.trim().toLowerCase()
+	return v.startsWith("#") || v.startsWith("rgb") || v.startsWith("hsl")
+		|| v.startsWith("oklch") || v.startsWith("oklab") || v.startsWith("lch")
+		|| v.startsWith("lab") || v.startsWith("color(") || v.startsWith("color-mix(")
 }
 
 export function ThemeEditorTool(handle: any, element: HTMLElement) {
@@ -89,16 +134,44 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 		})
 	}
 
+	function toggleMode() {
+		handle.change((d: any) => {
+			d.mode = d.mode === "dark" ? "light" : "dark"
+		})
+	}
+
+	function setCustomCss(css: string) {
+		handle.change((d: any) => {
+			d.customCss = css
+		})
+	}
+
 	function resetToDefaults() {
 		handle.change((d: any) => {
 			d.variables = {...DEFAULT_VALUES}
 		})
 	}
 
+	const [rootVars, setRootVars] = createSignal<Record<string, string>>({})
+	// Discover :root variables on mount
+	setTimeout(() => setRootVars(discoverRootVariables()), 0)
+
 	function exportCss(): string {
 		const d = doc()
-		return generateThemeCss(d.name?.toLowerCase().replace(/\s+/g, "-") || "custom", d.variables || {})
+		return generateThemeCss(d.name?.toLowerCase().replace(/\s+/g, "-") || "custom", d.mode || "light", d.variables || {}, d.customCss)
 	}
+
+	// Live preview for custom CSS
+	const customCssPreviewEl = document.createElement("style")
+	element.appendChild(customCssPreviewEl)
+	createEffect(() => {
+		if (!livePreview()) {
+			customCssPreviewEl.textContent = ""
+			return
+		}
+		customCssPreviewEl.textContent = doc()?.customCss || ""
+	})
+	onCleanup(() => customCssPreviewEl.remove())
 
 	function copyToClipboard() {
 		navigator.clipboard.writeText(exportCss())
@@ -160,6 +233,26 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 			background: var(--studio-primary, #35f7ca);
 			border-color: var(--studio-primary, #35f7ca);
 			color: var(--studio-fill, white);
+		}
+		.theme-editor .mode-toggle {
+			display: flex;
+			align-items: center;
+			gap: var(--studio-space-2xs, 0.25rem);
+			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-sm, 0.5rem);
+			border-radius: var(--studio-radius-sm, 4px);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			background: var(--studio-fill, white);
+			color: var(--studio-line, black);
+			font-size: 0.8rem;
+			font-family: inherit;
+			cursor: pointer;
+		}
+		.theme-editor .mode-toggle:hover {
+			background: color-mix(in oklch, var(--studio-fill, white), var(--studio-line, black) 5%);
+		}
+		.theme-editor .mode-icon {
+			font-size: 1em;
+			line-height: 1;
 		}
 		.theme-editor .group {
 			display: flex;
@@ -262,6 +355,44 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 			max-height: 200px;
 			overflow-y: auto;
 		}
+		.theme-editor .css-textarea {
+			font-family: var(--studio-family-code, ui-monospace, monospace);
+			font-size: 0.8rem;
+			min-height: 6rem;
+			resize: vertical;
+			padding: var(--studio-space-sm, 0.5rem);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--studio-fill, white);
+			color: var(--studio-line, black);
+			tab-size: 2;
+			white-space: pre;
+			overflow-x: auto;
+		}
+		.theme-editor .css-textarea:focus {
+			outline: 2px solid var(--studio-primary, #35f7ca);
+			outline-offset: 1px;
+		}
+		.theme-editor .discovered-label {
+			font-family: var(--studio-family-code, ui-monospace, monospace);
+			font-size: 0.75rem;
+			min-width: 8rem;
+			color: color-mix(in oklch, var(--studio-line, black), transparent 30%);
+			word-break: break-all;
+		}
+		.theme-editor .btn-sm {
+			padding: 2px var(--studio-space-xs, 0.375rem);
+			border-radius: var(--studio-radius-sm, 4px);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			background: var(--studio-fill, white);
+			color: var(--studio-line, black);
+			font-size: 0.7rem;
+			font-family: inherit;
+			cursor: pointer;
+		}
+		.theme-editor .btn-sm:hover {
+			background: color-mix(in oklch, var(--studio-fill, white), var(--studio-line, black) 5%);
+		}
 	`
 	element.appendChild(style)
 
@@ -278,6 +409,10 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 						placeholder="Theme name"
 					/>
 					<div class="toolbar">
+						<button class="mode-toggle" onClick={toggleMode}>
+							<span class="mode-icon">{(doc()?.mode || "light") === "dark" ? "\u{263E}" : "\u{2600}"}</span>
+							{(doc()?.mode || "light") === "dark" ? "Dark" : "Light"}
+						</button>
 						<button
 							class="btn"
 							data-active={livePreview() ? "" : undefined}
@@ -361,6 +496,55 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 						</div>
 					)}
 				</For>
+
+				{/* Discovered :root variables */}
+				<Show when={Object.keys(rootVars()).length > 0}>
+					<div class="group">
+						<div class="group-title">Discovered :root variables</div>
+						<For each={Object.entries(rootVars())}>
+							{([key, defaultValue]) => (
+								<div class="var-row">
+									<span class="discovered-label">{key}</span>
+									<Show when={looksLikeColor(vars()[key] || defaultValue)}>
+										<input
+											class="color-input"
+											type="color"
+											value={vars()[key] || defaultValue}
+											onInput={(e) => setVar(key, e.currentTarget.value)}
+										/>
+										<span class="hex-display">
+											{vars()[key] || defaultValue}
+										</span>
+									</Show>
+									<Show when={!looksLikeColor(vars()[key] || defaultValue)}>
+										<input
+											class="text-input"
+											type="text"
+											value={vars()[key] || defaultValue}
+											onInput={(e) => setVar(key, e.currentTarget.value)}
+										/>
+									</Show>
+									<Show when={!vars()[key]}>
+										<button class="btn-sm" onClick={() => setVar(key, defaultValue)}>
+											Override
+										</button>
+									</Show>
+								</div>
+							)}
+						</For>
+					</div>
+				</Show>
+
+				{/* Custom CSS */}
+				<div class="group">
+					<div class="group-title">Custom CSS</div>
+					<textarea
+						class="css-textarea"
+						value={doc()?.customCss || ""}
+						onInput={(e) => setCustomCss(e.currentTarget.value)}
+						placeholder={"/* Additional CSS rules */\n[theme=\"my-theme\"] .some-element {\n  color: red;\n}"}
+					/>
+				</div>
 
 				{/* Export */}
 				<div class="group">

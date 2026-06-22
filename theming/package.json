@@ -38,6 +38,9 @@
     "solid-js": "^1.9.9"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/parser": "^7.28.4",
+    "babel-preset-solid": "^1.9.9",
     "@node-types/node": "npm:@types/node@^24.9.1",
     "esbuild": "^0.23.1",
     "typescript": "~5.9.3"

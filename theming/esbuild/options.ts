@@ -2,6 +2,7 @@ import type {BuildOptions, Plugin} from "esbuild"
 import externals from "@inkandswitch/patchwork-bootloader/externals"
 import process from "node:process"
 import {existsSync, rmSync} from "node:fs"
+import {solid} from "./plugin-solid.ts"
 import pushworkSync from "./plugin-pushwork-sync.ts"
 import pkgJSON from "../package.json" with {type: "json"}
 
@@ -18,6 +19,7 @@ export default {
 	sourcemap: false,
 	external: externals,
 	plugins: [
+		solid(),
 		{
 			name: "empty outdir",
 			setup(build) {
