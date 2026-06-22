@@ -299,6 +299,122 @@ type UnixFileEntry = { content: string | Uint8Array | ImmutableString; extension
 - Load a datatype at runtime: `await getRegistry("patchwork:datatype").load(id)`.
 
 
+## 11. Styling & theming
+
+**Do NOT use Tailwind, DaisyUI, or any CSS framework.** Write plain CSS with namespaced
+class names. The theming system provides CSS custom properties you should use for colors,
+fonts, spacing, radius, and shadows.
+
+### CSS variables
+
+Use these variables (with fallbacks) instead of hardcoded values:
+
+**Colors:**
+- `var(--studio-fill, white)` / `var(--studio-line, black)` — background/foreground
+- `var(--studio-fill-offset-10)` through `-50` — tinted backgrounds (mix of fill + line)
+- `var(--studio-line-offset-10)` through `-50` — muted text (mix of line + fill)
+- `var(--studio-primary, #35f7ca)`, `--studio-secondary`, `--studio-danger`, `--studio-warning`
+- `var(--studio-added)`, `--studio-deleted`, `--studio-modified`, `--studio-link`
+
+**Typography:**
+- `var(--studio-family-sans, system-ui, sans-serif)` — UI text
+- `var(--studio-family-code, ui-monospace, monospace)` — code/mono
+- `var(--studio-font-size, 16px)`, `var(--studio-line-height, 1.5)`
+
+**Spacing:**
+- `var(--studio-space-2xs)` (4px) through `var(--studio-space-2xl)` (48px)
+
+**Border radius:**
+- `var(--studio-radius-sm, 4px)` through `var(--studio-radius-xl, 16px)`
+- `var(--studio-radius-round, 9999px)` for pills
+
+**Shadows:**
+- `var(--studio-shadow-sm)` through `var(--studio-shadow-lg)`
+
+**Transitions:**
+- `var(--studio-transition-fast, 0.1s ease)` through `var(--studio-transition-slow, 0.25s ease)`
+
+### CSS structure pattern
+
+Every tool's CSS should follow this structure:
+
+1. **Define local variables in `:root, [theme]`** so they update when a theme attribute
+   is set. Derive them from `--studio-*` variables:
+
+```css
+:root,
+[theme] {
+  --my-tool-bg: var(--studio-fill, white);
+  --my-tool-fg: var(--studio-line, black);
+  --my-tool-muted: var(--studio-line-offset-50, #999);
+  --my-tool-border: var(--studio-fill-offset-20, #ccc);
+  --my-tool-accent: var(--studio-primary, #35f7ca);
+  --my-tool-hover: color-mix(in oklch, var(--studio-fill), var(--studio-line) 5%);
+}
+```
+
+2. **Wrap all rules in a namespaced class** and reference the local variables:
+
+```css
+.my-tool {
+  background: var(--my-tool-bg);
+  color: var(--my-tool-fg);
+  font-family: var(--studio-family-sans, system-ui, sans-serif);
+}
+
+.my-tool__header {
+  border-bottom: 1px solid var(--my-tool-border);
+  color: var(--my-tool-muted);
+}
+```
+
+The `:root, [theme]` selector is critical — when a theme is applied, it sets a `[theme]`
+attribute on the root element, and your variables re-evaluate against the new `--studio-*`
+values automatically.
+
+### Derive your colors from the theme
+
+**Never introduce new hex color values.** Instead, derive all colors from the theme
+variables using `color-mix()`:
+
+```css
+/* Good — derived from theme */
+background: color-mix(in oklch, var(--studio-fill), var(--studio-line) 5%);
+border-color: color-mix(in oklch, var(--studio-primary), transparent 50%);
+color: color-mix(in oklch, var(--studio-line), var(--studio-fill) 40%);
+
+/* Bad — hardcoded */
+background: #f5f5f5;
+border-color: rgba(53, 247, 202, 0.5);
+color: #666;
+```
+
+Use `color-mix(in oklch, …)` to create lighter/darker/transparent variants from the
+existing `--studio-*` color variables. The `--studio-fill-offset-*` and
+`--studio-line-offset-*` variables already do this at set percentages, but for custom
+tints, use `color-mix()` directly. For transparency, mix with `transparent`.
+
+When you need "lighter" or "darker", mix with `var(--studio-fill)` or `var(--studio-line)`
+respectively — **not** literal `white`/`black` — so the derivations invert correctly in
+dark themes.
+
+### Do not handle dark mode
+
+Never add `@media (prefers-color-scheme: dark)` blocks. The theme system handles
+light/dark by swapping the CSS variable values. Your tool just uses the variables.
+
+### Plugin type: patchwork:theme
+
+Register a theme plugin to contribute a color scheme:
+
+```js
+{ type: "patchwork:theme", id: "my-theme", name: "My Theme",
+  style: new URL("./my-theme.css", import.meta.url).href,
+  async load() { return {} } }
+```
+
+The CSS file should set `:root, [theme]` variables (same shape as the default theme).
+
 ## 12. Build & sync
 
 **Bundleless (default):** no build, no TypeScript, no toolchain. From the tool dir:
