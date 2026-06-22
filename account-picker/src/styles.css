@@ -10,6 +10,7 @@
   --account-picker-tooltip-bg: var(--studio-line, black);
   --account-picker-tooltip-fg: var(--studio-fill, white);
 }
+}
 
 .account-picker {
   width: 100%;
@@ -421,5 +422,4 @@
     justify-content: flex-end;
     margin-top: 0.25rem;
   }
-}
 }

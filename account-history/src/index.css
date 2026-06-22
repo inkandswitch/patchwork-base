@@ -59,6 +59,7 @@
   --account-history-z-sticky-date: 5;
   --account-history-z-sticky-header: 10;
 }
+}
 
 
 /* History Recorder (toolbar button) */
@@ -487,5 +488,4 @@
     opacity: 1;
   }
 
-}
 }

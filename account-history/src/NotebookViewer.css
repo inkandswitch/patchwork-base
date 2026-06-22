@@ -1,4 +1,3 @@
-@layer package {
 /* ===== Notebook Viewer Layout ===== */
 
 .notebook-viewer {
@@ -358,5 +357,4 @@
   .notebook-viewer-step-slider {
     width: 100px;
   }
-}
 }

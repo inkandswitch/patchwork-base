@@ -83,7 +83,7 @@
   --msm-text-green-light: color-mix(in oklch, var(--studio-added, #35f7ca), var(--studio-line, black) 50%);
   --msm-text-green-dark: color-mix(in oklch, var(--studio-added, #35f7ca), var(--studio-fill, white) 40%);
 }
-
+}
 
 .module-settings-manager {
   height: 100%;
@@ -923,6 +923,5 @@
   font-size: 0.875rem;
   opacity: 0.6;
   font-style: italic;
-}
 }
 

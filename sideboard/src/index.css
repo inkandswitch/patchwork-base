@@ -50,6 +50,7 @@
   --sideboard-danger: var(--studio-danger, #ff6a90);
   --sideboard-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
 }
+}
 
 .sideboard {
   background: var(--sideboard-fill);
@@ -757,6 +758,5 @@
 .share-modal__remove-button:hover {
   color: var(--sideboard-danger);
   background: color-mix(in oklch, #ef4444, transparent 90%);
-}
 }
 
