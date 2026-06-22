@@ -29,19 +29,13 @@
     "@inkandswitch/patchwork-providers": "^0.2.1",
     "@inkandswitch/patchwork-providers-react": "^0.2.1",
     "@radix-ui/react-avatar": "^1.1.10",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "esbuild-plugin-tailwindcss": "^2.1.0",
-    "lucide-react": "^0.469.0",
+"lucide-react": "^0.469.0",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "tailwind-merge": "^1.14.0",
-    "tailwindcss": "^4.1.15"
+    "react-dom": "^18.0.0"
   },
   "devDependencies": {
     "@inkandswitch/patchwork-bootloader": "^0.0.4",
     "@node-types/node": "npm:@types/node@^24.9.1",
-    "@tailwindcss/vite": "^4.1.15",
     "@types/react": "^18.3.23",
     "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-react": "^4.5.1",

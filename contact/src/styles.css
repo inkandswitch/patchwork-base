@@ -1,15 +1,74 @@
-@import "tailwindcss";
-@source "./";
-
-/* Ensure avatar fallback is visible in all contexts */
-[data-radix-avatar-fallback] {
-  background-color: #e5e7eb; /* gray-200 for light mode */
-  color: #374151; /* gray-700 for light mode */
+:root,
+[theme] {
+  --contact-fg: var(--studio-line, black);
+  --contact-muted-fg: var(--studio-line-offset-50, #999);
+  --contact-border: var(--studio-fill-offset-10, #e5e5e5);
+  --contact-fallback-bg: var(--studio-fill-offset-20, #ccc);
+  --contact-fallback-fg: var(--studio-line-offset-30, #4d4d4d);
 }
 
-@media (prefers-color-scheme: dark) {
-  [data-radix-avatar-fallback] {
-    background-color: #374151; /* gray-700 for dark mode */
-    color: #e5e7eb; /* gray-200 for dark mode */
-  }
+/* Avatar */
+
+.contact-avatar {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid var(--contact-border);
+  width: 2rem;
+  height: 2rem;
+}
+
+.contact-avatar--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.contact-avatar--lg {
+  width: 64px;
+  height: 64px;
+}
+
+.contact-avatar--present {
+  box-shadow: 0 0 0 2px var(--contact-presence-color);
+}
+
+.contact-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contact-avatar-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--contact-fallback-bg);
+  color: var(--contact-fallback-fg);
+}
+
+/* Contact Viewer */
+
+.contact-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--contact-fg);
+}
+
+.contact-viewer-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.contact-viewer-label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--contact-muted-fg);
 }

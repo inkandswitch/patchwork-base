@@ -2,7 +2,6 @@ import type { BuildOptions, Plugin } from "esbuild";
 import externals from "@inkandswitch/patchwork-bootloader/externals";
 import process from "node:process";
 import { existsSync, rmSync } from "node:fs";
-import tailwind from "esbuild-plugin-tailwindcss";
 
 import pushworkSync from "./plugin-pushwork-sync.ts";
 import pkgJSON from "../package.json" with { type: "json" };
@@ -33,8 +32,7 @@ export default {
         });
       },
     } satisfies Plugin,
-    tailwind(),
   ].concat(pushworking ? [pushworkSync()] : []),
-  loader: { ".ttf": "dataurl", ".css": "file" },
+  loader: { ".ttf": "dataurl" },
   conditions: ["style", "browser", "import"],
 } satisfies BuildOptions;

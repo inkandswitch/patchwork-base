@@ -25,13 +25,13 @@ export const InlineContactAvatar = ({ docUrl }: { docUrl: AutomergeUrl }) => {
   const isRegistered = contact.type === "registered";
 
   return (
-    <Avatar size="sm" className="shrink-0">
+    <Avatar size="sm">
       {isRegistered && avatarImgUrl && (
         <AvatarImage src={avatarImgUrl} alt={name} />
       )}
       <AvatarFallback>
         {isRegistered && name ? (
-          <span className="text-xs">
+          <span>
             {name
               .split(" ")
               .map((word) => word[0])

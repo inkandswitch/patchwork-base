@@ -1,40 +1,27 @@
 import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../ui";
 
-export const avatarVariants = cva(
-  "relative flex shrink-0 overflow-hidden rounded-full border",
-  {
-    variants: {
-      size: {
-        default: "h-8 w-8",
-        sm: "h-6 w-6",
-        lg: "h-[64px] w-[64px] text-xl",
-      },
-    },
-    defaultVariants: {
-      size: "default",
-    },
-  }
-);
+export type AvatarSize = "default" | "sm" | "lg";
 
 export interface AvatarProps
-  extends
-    React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>,
-    VariantProps<typeof avatarVariants> {}
+  extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> {
+  size?: AvatarSize;
+}
+
+const sizeClass: Record<AvatarSize, string> = {
+  default: "",
+  sm: "contact-avatar--sm",
+  lg: "contact-avatar--lg",
+};
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
   AvatarProps
->(({ className, size, ...props }, ref) => {
-  return (
-    <AvatarPrimitive.Root
-      ref={ref}
-      className={cn(avatarVariants({ size, className }))}
-      {...props}
-    />
-  );
+>(({ className, size = "default", ...props }, ref) => {
+  const classes = ["contact-avatar", sizeClass[size], className]
+    .filter(Boolean)
+    .join(" ");
+  return <AvatarPrimitive.Root ref={ref} className={classes} {...props} />;
 });
 Avatar.displayName = AvatarPrimitive.Root.displayName;
 
@@ -44,7 +31,7 @@ const AvatarImage = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
-    className={cn("aspect-square h-full w-full object-cover", className)}
+    className={["contact-avatar-image", className].filter(Boolean).join(" ")}
     {...props}
   />
 ));
@@ -56,10 +43,9 @@ const AvatarFallback = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Fallback
     ref={ref}
-    className={cn(
-      "flex h-full w-full items-center justify-center rounded-full bg-muted",
-      className
-    )}
+    className={["contact-avatar-fallback", className]
+      .filter(Boolean)
+      .join(" ")}
     {...props}
   />
 ));

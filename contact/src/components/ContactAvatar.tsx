@@ -75,10 +75,10 @@ export const ContactAvatar = ({
   return (
     <Avatar
       size="default"
-      className={`shrink-0 ${isPresent ? "ring-2" : ""}`}
+      className={isPresent ? "contact-avatar--present" : undefined}
       style={
         isPresent
-          ? ({ "--tw-ring-color": userColor } as React.CSSProperties)
+          ? ({ "--contact-presence-color": userColor } as React.CSSProperties)
           : undefined
       }
     >
@@ -87,7 +87,7 @@ export const ContactAvatar = ({
       )}
       <AvatarFallback>
         {isRegistered && name ? (
-          <span className="text-sm">
+          <span>
             {name
               .split(" ")
               .map((word) => word[0])

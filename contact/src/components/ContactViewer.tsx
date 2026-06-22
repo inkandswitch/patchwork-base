@@ -18,21 +18,21 @@ export const ContactViewer = ({ docUrl }: { docUrl: AutomergeUrl }) => {
     avatarHandle && automergeUrlToServiceWorkerUrl(avatarHandle.url);
 
   if (!contact) {
-    return <div className="p-4">Loading contact...</div>;
+    return null;
   }
 
   const name = contact.type === "registered" ? contact.name : "Anonymous";
   const isRegistered = contact.type === "registered";
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 gap-4">
+    <div className="contact-viewer">
       <Avatar size="lg">
         {isRegistered && avatarImgUrl && (
           <AvatarImage src={avatarImgUrl} alt={name} />
         )}
         <AvatarFallback>
           {isRegistered && name ? (
-            <span className="text-2xl">
+            <span>
               {name
                 .split(" ")
                 .map((word) => word[0])
@@ -44,12 +44,10 @@ export const ContactViewer = ({ docUrl }: { docUrl: AutomergeUrl }) => {
         </AvatarFallback>
       </Avatar>
 
-      <div className="text-center">
-        <h2 className="text-xl font-semibold">{name}</h2>
-        {!isRegistered && (
-          <p className="text-sm text-gray-500 mt-1">Unregistered user</p>
-        )}
-      </div>
+      <h2 className="contact-viewer-name">{name}</h2>
+      {!isRegistered && (
+        <p className="contact-viewer-label">Unregistered user</p>
+      )}
     </div>
   );
 };
