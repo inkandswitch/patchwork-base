@@ -76,6 +76,8 @@
 }
 
 .toolbar patchwork-view {
+  flex: none !important;
+  min-width: auto !important;
   display: flex;
   width: fit-content;
   height: 2rem;
