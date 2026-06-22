@@ -1,0 +1,45 @@
+{
+  "name": "@patchwork/theming",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/main.js",
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "source": "./src/main.ts"
+    },
+    "./codemirror-theme": {
+      "import": "./dist/codemirror-theme.js",
+      "source": "./src/codemirror-theme.ts"
+    },
+    "./tool": {
+      "import": "./dist/tool.js",
+      "source": "./src/tool.tsx"
+    },
+    "./theme-editor": {
+      "import": "./dist/theme-editor.js",
+      "source": "./src/theme-editor.tsx"
+    }
+  },
+  "scripts": {
+    "build": "node esbuild/build.ts",
+    "dev": "node esbuild/watch.ts",
+    "pushwatch": "pnpm dev pushwork",
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.4",
+    "@lezer/highlight": "^1.2.1",
+    "@inkandswitch/patchwork-bootloader": "^0.2.4",
+    "@inkandswitch/patchwork-plugins": "^0.0.11",
+    "solid-js": "^1.9.9"
+  },
+  "devDependencies": {
+    "@node-types/node": "npm:@types/node@^24.9.1",
+    "esbuild": "^0.23.1",
+    "typescript": "~5.9.3"
+  }
+}

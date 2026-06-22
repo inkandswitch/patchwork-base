@@ -1,0 +1,391 @@
+/* @jsxRuntime automatic */
+/* @jsxImportSource solid-js */
+import {render} from "solid-js/web"
+import {createSignal, createEffect, For, onCleanup, Show} from "solid-js"
+import {EDITABLE_VARIABLES, DEFAULT_VALUES, type CustomThemeDoc} from "./theme-editor-datatype.ts"
+
+/**
+ * Generates the full CSS for a custom theme, including derived offset variables.
+ */
+export function generateThemeCss(name: string, vars: Record<string, string>): string {
+	const fill = vars["--studio-fill"] || "#ffffff"
+	const line = vars["--studio-line"] || "#000000"
+
+	let css = `:root,\n:host,\n[theme="${name}"] {\n`
+
+	// Write explicit variables
+	for (const [key, value] of Object.entries(vars)) {
+		css += `\t${key}: ${value};\n`
+	}
+
+	// Derive fill offsets
+	for (const pct of [10, 20, 30, 40, 50]) {
+		css += `\t--studio-fill-offset-${pct}: color-mix(in oklch, var(--studio-fill), var(--studio-line) ${pct}%);\n`
+	}
+
+	// Derive line offsets
+	for (const pct of [10, 20, 30, 40, 50]) {
+		css += `\t--studio-line-offset-${pct}: color-mix(in oklch, var(--studio-line), var(--studio-fill) ${pct}%);\n`
+	}
+
+	css += "}\n"
+	return css
+}
+
+export function ThemeEditorTool(handle: any, element: HTMLElement) {
+	const [doc, setDoc] = createSignal<CustomThemeDoc>(handle.doc())
+	const onChange = () => setDoc(handle.doc())
+	handle.on("change", onChange)
+
+	const [livePreview, setLivePreview] = createSignal(true)
+
+	// Apply live preview by setting vars on documentElement
+	createEffect(() => {
+		if (!livePreview()) return
+		const d = doc()
+		if (!d?.variables) return
+		const root = document.documentElement
+		for (const [key, value] of Object.entries(d.variables)) {
+			root.style.setProperty(key, value)
+		}
+		// Also set derived offsets live
+		for (const pct of [10, 20, 30, 40, 50]) {
+			root.style.setProperty(
+				`--studio-fill-offset-${pct}`,
+				`color-mix(in oklch, var(--studio-fill), var(--studio-line) ${pct}%)`
+			)
+			root.style.setProperty(
+				`--studio-line-offset-${pct}`,
+				`color-mix(in oklch, var(--studio-line), var(--studio-fill) ${pct}%)`
+			)
+		}
+	})
+
+	// Clean up live preview on unmount
+	onCleanup(() => {
+		const root = document.documentElement
+		const d = doc()
+		if (d?.variables) {
+			for (const key of Object.keys(d.variables)) {
+				root.style.removeProperty(key)
+			}
+			for (const pct of [10, 20, 30, 40, 50]) {
+				root.style.removeProperty(`--studio-fill-offset-${pct}`)
+				root.style.removeProperty(`--studio-line-offset-${pct}`)
+			}
+		}
+	})
+
+	function setVar(key: string, value: string) {
+		handle.change((d: any) => {
+			if (!d.variables) d.variables = {}
+			d.variables[key] = value
+		})
+	}
+
+	function setName(name: string) {
+		handle.change((d: any) => {
+			d.name = name
+		})
+	}
+
+	function resetToDefaults() {
+		handle.change((d: any) => {
+			d.variables = {...DEFAULT_VALUES}
+		})
+	}
+
+	function exportCss(): string {
+		const d = doc()
+		return generateThemeCss(d.name?.toLowerCase().replace(/\s+/g, "-") || "custom", d.variables || {})
+	}
+
+	function copyToClipboard() {
+		navigator.clipboard.writeText(exportCss())
+	}
+
+	const style = document.createElement("style")
+	style.textContent = `
+		.theme-editor {
+			padding: var(--studio-space-md, 1rem);
+			font-family: var(--studio-family-sans, system-ui, sans-serif);
+			color: var(--studio-line, black);
+			display: flex;
+			flex-direction: column;
+			gap: var(--studio-space-md, 1rem);
+			height: 100%;
+			overflow-y: auto;
+		}
+		.theme-editor .header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: var(--studio-space-sm, 0.5rem);
+		}
+		.theme-editor .name-input {
+			font-size: 1.25rem;
+			font-weight: 600;
+			border: none;
+			border-bottom: 2px solid transparent;
+			background: none;
+			color: inherit;
+			font-family: inherit;
+			padding: var(--studio-space-2xs, 0.25rem) 0;
+			outline: none;
+			flex: 1;
+			min-width: 0;
+		}
+		.theme-editor .name-input:focus {
+			border-bottom-color: var(--studio-primary, #35f7ca);
+		}
+		.theme-editor .toolbar {
+			display: flex;
+			gap: var(--studio-space-xs, 0.375rem);
+			align-items: center;
+		}
+		.theme-editor .btn {
+			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-sm, 0.5rem);
+			border-radius: var(--studio-radius-sm, 4px);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			background: var(--studio-fill, white);
+			color: var(--studio-line, black);
+			font-size: 0.8rem;
+			font-family: inherit;
+			cursor: pointer;
+		}
+		.theme-editor .btn:hover {
+			background: color-mix(in oklch, var(--studio-fill, white), var(--studio-line, black) 5%);
+		}
+		.theme-editor .btn[data-active] {
+			background: var(--studio-primary, #35f7ca);
+			border-color: var(--studio-primary, #35f7ca);
+			color: var(--studio-fill, white);
+		}
+		.theme-editor .group {
+			display: flex;
+			flex-direction: column;
+			gap: var(--studio-space-xs, 0.375rem);
+		}
+		.theme-editor .group-title {
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: color-mix(in oklch, var(--studio-line, black), transparent 50%);
+		}
+		.theme-editor .var-row {
+			display: flex;
+			align-items: center;
+			gap: var(--studio-space-sm, 0.5rem);
+		}
+		.theme-editor .var-label {
+			font-size: 0.8rem;
+			min-width: 8rem;
+			color: color-mix(in oklch, var(--studio-line, black), transparent 30%);
+		}
+		.theme-editor .color-input {
+			width: 2.5rem;
+			height: 2rem;
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			border-radius: var(--studio-radius-sm, 4px);
+			padding: 2px;
+			cursor: pointer;
+			background: none;
+		}
+		.theme-editor .text-input {
+			flex: 1;
+			min-width: 0;
+			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-xs, 0.375rem);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--studio-fill, white);
+			color: var(--studio-line, black);
+			font-size: 0.8rem;
+			font-family: inherit;
+		}
+		.theme-editor .text-input:focus {
+			outline: 2px solid var(--studio-primary, #35f7ca);
+			outline-offset: 1px;
+		}
+		.theme-editor .hex-display {
+			font-family: var(--studio-family-code, ui-monospace, monospace);
+			font-size: 0.75rem;
+			color: color-mix(in oklch, var(--studio-line, black), transparent 50%);
+			min-width: 5rem;
+		}
+		.theme-editor .preview {
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 80%);
+			border-radius: var(--studio-radius-md, 8px);
+			padding: var(--studio-space-md, 1rem);
+			display: flex;
+			flex-direction: column;
+			gap: var(--studio-space-sm, 0.5rem);
+		}
+		.theme-editor .preview-title {
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: color-mix(in oklch, var(--studio-line, black), transparent 50%);
+			margin-bottom: var(--studio-space-2xs, 0.25rem);
+		}
+		.theme-editor .swatch-row {
+			display: flex;
+			gap: var(--studio-space-2xs, 0.25rem);
+			flex-wrap: wrap;
+		}
+		.theme-editor .swatch {
+			width: 2rem;
+			height: 2rem;
+			border-radius: var(--studio-radius-sm, 4px);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 85%);
+		}
+		.theme-editor .offset-strip {
+			display: flex;
+			height: 1.5rem;
+			border-radius: var(--studio-radius-sm, 4px);
+			overflow: hidden;
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 85%);
+		}
+		.theme-editor .offset-strip > div {
+			flex: 1;
+		}
+		.theme-editor .export-area {
+			font-family: var(--studio-family-code, ui-monospace, monospace);
+			font-size: 0.7rem;
+			white-space: pre;
+			overflow-x: auto;
+			background: color-mix(in oklch, var(--studio-fill, white), var(--studio-line, black) 3%);
+			border: 1px solid color-mix(in oklch, var(--studio-line, black), transparent 85%);
+			border-radius: var(--studio-radius-sm, 4px);
+			padding: var(--studio-space-sm, 0.5rem);
+			max-height: 200px;
+			overflow-y: auto;
+		}
+	`
+	element.appendChild(style)
+
+	const dispose = render(() => {
+		const vars = () => doc()?.variables || {}
+
+		return (
+			<div class="theme-editor">
+				<div class="header">
+					<input
+						class="name-input"
+						value={doc()?.name || ""}
+						onInput={(e) => setName(e.currentTarget.value)}
+						placeholder="Theme name"
+					/>
+					<div class="toolbar">
+						<button
+							class="btn"
+							data-active={livePreview() ? "" : undefined}
+							onClick={() => setLivePreview(!livePreview())}
+						>
+							{livePreview() ? "Live" : "Paused"}
+						</button>
+						<button class="btn" onClick={resetToDefaults}>
+							Reset
+						</button>
+						<button class="btn" onClick={copyToClipboard}>
+							Copy CSS
+						</button>
+					</div>
+				</div>
+
+				{/* Preview strip */}
+				<div class="preview">
+					<div class="preview-title">Preview</div>
+					<div class="swatch-row">
+						<div class="swatch" style={{background: vars()["--studio-fill"] || "#fff"}} />
+						<div class="swatch" style={{background: vars()["--studio-line"] || "#000"}} />
+						<div class="swatch" style={{background: vars()["--studio-primary"] || "#35f7ca"}} />
+						<div class="swatch" style={{background: vars()["--studio-secondary"] || "#33ccf8"}} />
+						<div class="swatch" style={{background: vars()["--studio-danger"] || "#ff6a90"}} />
+						<div class="swatch" style={{background: vars()["--studio-warning"] || "#f8c43b"}} />
+						<div class="swatch" style={{background: vars()["--studio-added"] || "#35f7ca"}} />
+						<div class="swatch" style={{background: vars()["--studio-link"] || "#36e"}} />
+					</div>
+					<div class="preview-title" style={{"margin-top": "0.5rem"}}>Fill offsets</div>
+					<div class="offset-strip">
+						<div style={{background: vars()["--studio-fill"] || "#fff"}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-fill"] || "#fff"}, ${vars()["--studio-line"] || "#000"} 10%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-fill"] || "#fff"}, ${vars()["--studio-line"] || "#000"} 20%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-fill"] || "#fff"}, ${vars()["--studio-line"] || "#000"} 30%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-fill"] || "#fff"}, ${vars()["--studio-line"] || "#000"} 40%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-fill"] || "#fff"}, ${vars()["--studio-line"] || "#000"} 50%)`}} />
+					</div>
+					<div class="preview-title">Line offsets</div>
+					<div class="offset-strip">
+						<div style={{background: vars()["--studio-line"] || "#000"}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-line"] || "#000"}, ${vars()["--studio-fill"] || "#fff"} 10%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-line"] || "#000"}, ${vars()["--studio-fill"] || "#fff"} 20%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-line"] || "#000"}, ${vars()["--studio-fill"] || "#fff"} 30%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-line"] || "#000"}, ${vars()["--studio-fill"] || "#fff"} 40%)`}} />
+						<div style={{background: `color-mix(in oklch, ${vars()["--studio-line"] || "#000"}, ${vars()["--studio-fill"] || "#fff"} 50%)`}} />
+					</div>
+				</div>
+
+				{/* Variable editors */}
+				<For each={EDITABLE_VARIABLES}>
+					{(group) => (
+						<div class="group">
+							<div class="group-title">{group.group}</div>
+							<For each={group.vars}>
+								{(v) => (
+									<div class="var-row">
+										<span class="var-label">{v.label}</span>
+										<Show when={v.type === "color"}>
+											<input
+												class="color-input"
+												type="color"
+												value={vars()[v.key] || DEFAULT_VALUES[v.key] || "#000000"}
+												onInput={(e) => setVar(v.key, e.currentTarget.value)}
+											/>
+											<span class="hex-display">
+												{vars()[v.key] || DEFAULT_VALUES[v.key]}
+											</span>
+										</Show>
+										<Show when={v.type === "text"}>
+											<input
+												class="text-input"
+												type="text"
+												value={vars()[v.key] || DEFAULT_VALUES[v.key] || ""}
+												onInput={(e) => setVar(v.key, e.currentTarget.value)}
+											/>
+										</Show>
+									</div>
+								)}
+							</For>
+						</div>
+					)}
+				</For>
+
+				{/* Export */}
+				<div class="group">
+					<div class="group-title">Generated CSS</div>
+					<pre class="export-area">{exportCss()}</pre>
+				</div>
+			</div>
+		)
+	}, element)
+
+	return () => {
+		handle.off("change", onChange)
+		// Remove live preview styles
+		const root = document.documentElement
+		const d = doc()
+		if (d?.variables) {
+			for (const key of Object.keys(d.variables)) {
+				root.style.removeProperty(key)
+			}
+			for (const pct of [10, 20, 30, 40, 50]) {
+				root.style.removeProperty(`--studio-fill-offset-${pct}`)
+				root.style.removeProperty(`--studio-line-offset-${pct}`)
+			}
+		}
+		dispose()
+		style.remove()
+	}
+}
