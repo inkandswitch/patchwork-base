@@ -1,4 +1,5 @@
 import type {Extension} from "@codemirror/state"
+import {getRegistry} from "@inkandswitch/patchwork-plugins"
 import themeCssUrl from "./theme.css"
 import lycheeCssUrl from "./lychee.css"
 import gloomCssUrl from "./gloom.css"
@@ -28,30 +29,23 @@ for (const href of [themeCssUrl, lycheeCssUrl, gloomCssUrl]) {
 }
 
 // Watch the theme registry and include all theme CSS files
-function syncThemeLinks() {
-	const registry = (window as any).hive?.getRegistry?.("patchwork:theme")
-	if (!registry) return
+const themeRegistry = getRegistry("patchwork:theme")
 
-	const themes = registry.all?.() || []
-	for (const theme of themes) {
-		if (theme.style) ensureThemeLink(theme.style)
-	}
-
-	registry.on("registered", (plugin: any) => {
-		if (plugin.style) ensureThemeLink(plugin.style)
-	})
-	registry.on("removed", (id: string) => {
-		// Find and remove the link for this theme
-		const themes = registry.all?.() || []
-		const knownStyles = new Set(themes.map((t: any) => t.style).filter(Boolean))
-		for (const [style, link] of themeLinks) {
-			if (!knownStyles.has(style)) removeThemeLink(style)
-		}
-	})
+for (const theme of themeRegistry.all?.() || []) {
+	if (theme.style) ensureThemeLink(theme.style)
 }
-syncThemeLinks()
-// Retry in case the registry isn't ready yet at module eval time
-setTimeout(syncThemeLinks, 0)
+
+themeRegistry.on("registered", (plugin: any) => {
+	if (plugin.style) ensureThemeLink(plugin.style)
+})
+themeRegistry.on("removed", () => {
+	const knownStyles = new Set(
+		(themeRegistry.all?.() || []).map((t: any) => t.style).filter(Boolean)
+	)
+	for (const [style] of themeLinks) {
+		if (!knownStyles.has(style)) removeThemeLink(style)
+	}
+})
 
 function applyTheme(themeId: string) {
 	document.documentElement.setAttribute("theme", themeId)
@@ -73,38 +67,42 @@ async function ensureThemePreferences() {
 		return await repo.find(accountDoc.themePreferencesUrl)
 	}
 
-	// Create the theme-preferences doc and link it to the account
+	// Create the theme-preferences doc
 	const prefsHandle = await repo.create2({
+		"@patchwork": {type: "theme-preferences"},
 		light: "lychee",
 		dark: "gloom",
 	})
 	accountHandle.change((d: any) => {
-		d.themePreferencesUrl = prefsHandle.url
+		if (!d.themePreferencesUrl) d.themePreferencesUrl = prefsHandle.url
 	})
 	return prefsHandle
 }
 
+function getPreferredThemeId(prefs: any): string {
+	const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+	const themeId = prefs ? (isDark ? prefs.dark : prefs.light) : undefined
+	return themeId || (isDark ? "gloom" : "lychee")
+}
+
 /** Load and apply the user's preferred theme based on color scheme */
+let prefsWatched = false
 async function loadActiveTheme() {
 	try {
-		const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-		let themeId: string | undefined
-
 		const prefsHandle = await ensureThemePreferences()
 		if (prefsHandle) {
-			const prefs = prefsHandle.doc()
-			if (prefs) {
-				themeId = isDark ? prefs.dark : prefs.light
+			applyTheme(getPreferredThemeId(prefsHandle.doc()))
+
+			// Watch for preference changes so the theme picker applies immediately
+			if (!prefsWatched) {
+				prefsWatched = true
+				prefsHandle.on("change", () => {
+					applyTheme(getPreferredThemeId(prefsHandle.doc()))
+				})
 			}
+		} else {
+			applyTheme(getPreferredThemeId(undefined))
 		}
-
-		// Default to lychee (light) / gloom (dark) when no preference is set
-		if (!themeId) {
-			themeId = isDark ? "gloom" : "lychee"
-		}
-
-		// All theme CSS is already injected via links — just set the attribute
-		applyTheme(themeId)
 	} catch {
 		// Theme loading is best-effort; fall back to default CSS variables
 	}

@@ -3,6 +3,7 @@
 :host,
 [theme] {
 	color-scheme: light;
+	color: var(--studio-line);
 	--default-tab-size: 2;
 	--studio-fill: white;
 	--studio-fill-offset-10: color-mix(

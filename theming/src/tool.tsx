@@ -1,5 +1,6 @@
 import {render} from "solid-js/web"
-import {createSignal, createEffect, For, onCleanup} from "solid-js"
+import {createSignal, For, onCleanup} from "solid-js"
+import {getRegistry} from "@inkandswitch/patchwork-plugins"
 
 export function ThemePickerTool(handle: any, element: HTMLElement) {
 	const [doc, setDoc] = createSignal(handle.doc())
@@ -17,12 +18,11 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 	mq.addEventListener("change", onSchemeChange)
 
 	// Discover available themes from registry
-	createEffect(() => {
-		const registry = (window as any).hive?.getRegistry?.("patchwork:theme")
-		if (registry) {
-			setThemes(registry.list?.() || [])
-		}
-	})
+	const themeRegistry = getRegistry("patchwork:theme")
+	setThemes(themeRegistry.all?.() || [])
+	const onRegistered = () => setThemes(themeRegistry.all?.() || [])
+	themeRegistry.on("registered", onRegistered)
+	themeRegistry.on("removed", onRegistered)
 
 	const style = document.createElement("style")
 	style.textContent = `
@@ -109,6 +109,7 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 							{(theme) => (
 								<div
 									class="theme-picker-card"
+									theme={theme.id}
 									data-selected={lightId() === theme.id ? "" : undefined}
 									onClick={() => selectLight(theme.id)}
 								>
@@ -126,6 +127,7 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 							{(theme) => (
 								<div
 									class="theme-picker-card"
+									theme={theme.id}
 									data-selected={darkId() === theme.id ? "" : undefined}
 									onClick={() => selectDark(theme.id)}
 								>
