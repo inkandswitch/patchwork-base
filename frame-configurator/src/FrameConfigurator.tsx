@@ -1,65 +1,78 @@
 import "./styles.css";
-import { useDocument } from "@automerge/automerge-repo-react-hooks";
-import type { AutomergeUrl } from "@automerge/automerge-repo";
-import { useCallback, useMemo, useState } from "react";
+import type { DocHandle } from "@automerge/automerge-repo";
+import type { ToolElement, ToolDescription } from "@inkandswitch/patchwork-plugins";
+import { getRegistry } from "@inkandswitch/patchwork-plugins";
+import {
+  useDocument,
+  RepoContext,
+} from "@automerge/automerge-repo-solid-primitives";
+import {
+  createSignal,
+  createMemo,
+  For,
+  Show,
+  onCleanup,
+} from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
+import { render } from "solid-js/web";
 import type { TinyPatchworkLayoutDoc } from "./types";
-import type { ToolElement } from "@inkandswitch/patchwork-plugins";
-import { useToolDescriptions } from "@inkandswitch/patchwork-react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 type ModuleOption = {
   id: string;
   name: string;
 };
 
-function SortableItem({
-  id,
-  name,
-  onRemove,
-}: {
+function useToolDescriptions() {
+  const registry = getRegistry<ToolDescription>("patchwork:tool");
+  const [tools, setTools] = createStore<ToolDescription[]>(
+    (registry.all?.() ?? []).map((p) => p as unknown as ToolDescription)
+  );
+  const update = () => {
+    const all = (registry.all?.() ?? []).map(
+      (p) => p as unknown as ToolDescription
+    );
+    setTools(reconcile(all));
+  };
+  update();
+  const dispose = registry.on("changed", update);
+  onCleanup(dispose);
+  return tools;
+}
+
+function filterToolsByTag(tools: ToolDescription[], tag: string): ModuleOption[] {
+  return tools
+    .filter((t) => (t.tags ?? []).includes(tag))
+    .map((t) => ({ id: t.id, name: t.name || t.id }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function SortableItem(props: {
   id: string;
   name: string;
+  index: number;
   onRemove: () => void;
+  onDragStart: (index: number) => void;
+  onDragOver: (index: number) => void;
+  onDragEnd: () => void;
+  dragging: boolean;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   return (
-    <li ref={setNodeRef} style={style} className="sortable-item">
-      <button
-        className="drag-handle"
-        {...attributes}
-        {...listeners}
-        aria-label="Drag to reorder"
-      >
+    <li
+      class="sortable-item"
+      draggable={true}
+      style={{ opacity: props.dragging ? "0.5" : "1" }}
+      onDragStart={(e) => {
+        e.dataTransfer!.effectAllowed = "move";
+        props.onDragStart(props.index);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer!.dropEffect = "move";
+        props.onDragOver(props.index);
+      }}
+      onDragEnd={() => props.onDragEnd()}
+    >
+      <span class="drag-handle" aria-label="Drag to reorder">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
           <circle cx="3.5" cy="2" r="1.2" />
           <circle cx="8.5" cy="2" r="1.2" />
@@ -68,12 +81,12 @@ function SortableItem({
           <circle cx="3.5" cy="10" r="1.2" />
           <circle cx="8.5" cy="10" r="1.2" />
         </svg>
-      </button>
-      <span className="item-label">{name}</span>
+      </span>
+      <span class="item-label">{props.name}</span>
       <button
-        className="remove-btn"
-        onClick={onRemove}
-        aria-label={`Remove ${name}`}
+        class="remove-btn"
+        onClick={() => props.onRemove()}
+        aria-label={`Remove ${props.name}`}
       >
         <svg
           width="14"
@@ -81,8 +94,8 @@ function SortableItem({
           viewBox="0 0 14 14"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
+          stroke-width="1.5"
+          stroke-linecap="round"
         >
           <line x1="4" y1="4" x2="10" y2="10" />
           <line x1="10" y1="4" x2="4" y2="10" />
@@ -92,140 +105,133 @@ function SortableItem({
   );
 }
 
-function SortableList({
-  label,
-  values,
-  setValues,
-  allOptions,
-}: {
+const PlusIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 14 14"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linecap="round"
+  >
+    <line x1="7" y1="3" x2="7" y2="11" />
+    <line x1="3" y1="7" x2="11" y2="7" />
+  </svg>
+);
+
+function SortableList(props: {
   label: string;
   values: string[] | undefined;
   setValues: (next: string[]) => void;
   allOptions: ModuleOption[];
 }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [customId, setCustomId] = useState("");
+  const [showAdd, setShowAdd] = createSignal(false);
+  const [customId, setCustomId] = createSignal("");
+  const [dragIndex, setDragIndex] = createSignal<number | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const currentIds = createMemo(() => new Set(props.values ?? []));
+  const available = createMemo(() =>
+    props.allOptions.filter((o) => !currentIds().has(o.id))
   );
 
-  const currentIds = useMemo(() => new Set(values ?? []), [values]);
-  const available = useMemo(
-    () => allOptions.filter((o) => !currentIds.has(o.id)),
-    [allOptions, currentIds]
-  );
+  const nameOf = (id: string) =>
+    props.allOptions.find((o) => o.id === id)?.name ?? id;
 
-  const nameOf = useCallback(
-    (id: string) => allOptions.find((o) => o.id === id)?.name ?? id,
-    [allOptions]
-  );
+  const items = createMemo(() => props.values ?? []);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id || !values) return;
-      const oldIndex = values.indexOf(active.id as string);
-      const newIndex = values.indexOf(over.id as string);
-      if (oldIndex === -1 || newIndex === -1) return;
-      setValues(arrayMove(values, oldIndex, newIndex));
-    },
-    [values, setValues]
-  );
+  const removeAt = (index: number) => {
+    const vals = props.values;
+    if (!vals) return;
+    props.setValues(vals.filter((_, i) => i !== index));
+  };
 
-  const removeAt = useCallback(
-    (index: number) => {
-      if (!values) return;
-      setValues(values.filter((_, i) => i !== index));
-    },
-    [setValues, values]
-  );
+  const add = (id: string) => {
+    props.setValues([...(props.values ?? []), id]);
+  };
 
-  const add = useCallback(
-    (id: string) => {
-      setValues([...(values ?? []), id]);
-    },
-    [setValues, values]
-  );
-
-  const addCustom = useCallback(() => {
-    const id = customId.trim();
+  const addCustom = () => {
+    const id = customId().trim();
     if (!id) return;
-    setValues([...(values ?? []), id]);
+    props.setValues([...(props.values ?? []), id]);
     setCustomId("");
-  }, [customId, setValues, values]);
+  };
 
-  const items = values ?? [];
+  let dragOverIndex: number | null = null;
 
-  const plusIcon = (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    >
-      <line x1="7" y1="3" x2="7" y2="11" />
-      <line x1="3" y1="7" x2="11" y2="7" />
-    </svg>
-  );
+  const handleDragOver = (index: number) => {
+    dragOverIndex = index;
+  };
+
+  const handleDragEnd = () => {
+    const from = dragIndex();
+    const to = dragOverIndex;
+    setDragIndex(null);
+    dragOverIndex = null;
+    if (from == null || to == null || from === to) return;
+    const arr = [...(props.values ?? [])];
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    props.setValues(arr);
+  };
 
   return (
-    <fieldset className="config-section">
-      <legend className="section-label">{label}</legend>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={items} strategy={verticalListSortingStrategy}>
-          <ul className="sortable-list">
-            {items.map((id, index) => (
-              <SortableItem
-                key={id}
-                id={id}
-                name={nameOf(id)}
-                onRemove={() => removeAt(index)}
-              />
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
+    <fieldset class="config-section">
+      <legend class="section-label">{props.label}</legend>
+      <ul class="sortable-list">
+        <For each={items()}>
+          {(id, index) => (
+            <SortableItem
+              id={id}
+              name={nameOf(id)}
+              index={index()}
+              onRemove={() => removeAt(index())}
+              onDragStart={setDragIndex}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+              dragging={dragIndex() === index()}
+            />
+          )}
+        </For>
+      </ul>
 
-      {showAdd ? (
-        <div className="add-menu">
-          {available.map((opt) => (
-            <button
-              key={opt.id}
-              className="add-option"
-              onClick={() => add(opt.id)}
-            >
-              {plusIcon}
-              {opt.name}
-            </button>
-          ))}
-          <div className="add-custom">
+      <Show
+        when={showAdd()}
+        fallback={
+          <button class="add-btn" onClick={() => setShowAdd(true)}>
+            <PlusIcon />
+            Add
+          </button>
+        }
+      >
+        <div class="add-menu">
+          <For each={available()}>
+            {(opt) => (
+              <button class="add-option" onClick={() => add(opt.id)}>
+                <PlusIcon />
+                {opt.name}
+              </button>
+            )}
+          </For>
+          <div class="add-custom">
             <input
               type="text"
-              className="add-custom-input"
+              class="add-custom-input"
               placeholder="tool-id"
-              value={customId}
-              onChange={(e) => setCustomId(e.target.value)}
+              value={customId()}
+              onInput={(e) => setCustomId(e.currentTarget.value)}
               onKeyDown={(e) => e.key === "Enter" && addCustom()}
             />
             <button
-              className="add-custom-btn"
+              class="add-custom-btn"
               onClick={addCustom}
-              disabled={!customId.trim()}
+              disabled={!customId().trim()}
             >
-              {plusIcon}
+              <PlusIcon />
             </button>
           </div>
           <button
-            className="add-cancel"
+            class="add-cancel"
             onClick={() => {
               setShowAdd(false);
               setCustomId("");
@@ -234,180 +240,151 @@ function SortableList({
             Done
           </button>
         </div>
-      ) : (
-        <button className="add-btn" onClick={() => setShowAdd(true)}>
-          {plusIcon}
-          Add
-        </button>
-      )}
+      </Show>
     </fieldset>
   );
 }
 
-function SingleSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
+function SingleSelect(props: {
   label: string;
   value: string | undefined;
   onChange: (v: string) => void;
   options: ModuleOption[];
 }) {
-  if (options.length === 0) {
-    return (
-      <fieldset className="config-section">
-        <legend className="section-label">{label}</legend>
-        <p className="empty-message">No tools available</p>
-      </fieldset>
-    );
-  }
-
   return (
-    <fieldset className="config-section">
-      <legend className="section-label">{label}</legend>
-      <div className="radio-group">
-        {options.map((opt) => (
-          <label key={opt.id} className="radio-option">
-            <input
-              type="radio"
-              name={label}
-              checked={value === opt.id}
-              onChange={() => onChange(opt.id)}
-            />
-            <span>{opt.name}</span>
-          </label>
-        ))}
-      </div>
+    <fieldset class="config-section">
+      <legend class="section-label">{props.label}</legend>
+      <Show
+        when={props.options.length > 0}
+        fallback={<p class="empty-message">No tools available</p>}
+      >
+        <div class="radio-group">
+          <For each={props.options}>
+            {(opt) => (
+              <label class="radio-option">
+                <input
+                  type="radio"
+                  name={props.label}
+                  checked={props.value === opt.id}
+                  onChange={() => props.onChange(opt.id)}
+                />
+                <span>{opt.name}</span>
+              </label>
+            )}
+          </For>
+        </div>
+      </Show>
     </fieldset>
   );
 }
 
-export function FrameConfigurator({
-  docUrl,
-  element: _element,
-}: {
-  docUrl: AutomergeUrl;
-  element: ToolElement;
+function FrameConfiguratorUI(props: {
+  handle: DocHandle<TinyPatchworkLayoutDoc>;
 }) {
-  const [accountDoc, changeAccountDoc] =
-    useDocument<TinyPatchworkLayoutDoc>(docUrl);
+  const [accountDoc, changeAccountDoc] = useDocument<TinyPatchworkLayoutDoc>(
+    () => props.handle.url
+  );
 
   const allTools = useToolDescriptions();
 
-  const frameOptions = useMemo(
-    () =>
-      allTools
-        .filter((t) => (t.tags ?? []).includes("frame-tool"))
-        .map((t) => ({ id: t.id, name: t.name || t.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [allTools]
+  const frameOptions = createMemo(() =>
+    filterToolsByTag([...allTools], "frame-tool")
+  );
+  const sidebarOptions = createMemo(() =>
+    filterToolsByTag([...allTools], "sidebar-account")
+  );
+  const contextSidebarOptions = createMemo(() =>
+    filterToolsByTag([...allTools], "sidebar-context")
+  );
+  const documentToolbarOptions = createMemo(() =>
+    filterToolsByTag([...allTools], "titlebar-tool")
+  );
+  const contextToolOptions = createMemo(() =>
+    filterToolsByTag([...allTools], "context-tool")
   );
 
-  const sidebarOptions = useMemo(
-    () =>
-      allTools
-        .filter((t) => (t.tags ?? []).includes("sidebar-account"))
-        .map((t) => ({ id: t.id, name: t.name || t.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [allTools]
-  );
+  const setField = <K extends keyof TinyPatchworkLayoutDoc>(
+    key: K,
+    value: TinyPatchworkLayoutDoc[K]
+  ) => {
+    changeAccountDoc((doc: any) => {
+      doc[key] = value as any;
+    });
+  };
 
-  const contextSidebarOptions = useMemo(
-    () =>
-      allTools
-        .filter((t) => (t.tags ?? []).includes("sidebar-context"))
-        .map((t) => ({ id: t.id, name: t.name || t.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [allTools]
-  );
-
-  const documentToolbarOptions = useMemo(
-    () =>
-      allTools
-        .filter((t) => (t.tags ?? []).includes("titlebar-tool"))
-        .map((t) => ({ id: t.id, name: t.name || t.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [allTools]
-  );
-
-  const contextToolOptions = useMemo(
-    () =>
-      allTools
-        .filter((t) => (t.tags ?? []).includes("context-tool"))
-        .map((t) => ({ id: t.id, name: t.name || t.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [allTools]
-  );
-
-  const setField = useCallback(
-    <K extends keyof TinyPatchworkLayoutDoc>(
-      key: K,
-      value: TinyPatchworkLayoutDoc[K]
-    ) => {
-      changeAccountDoc((doc) => {
-        (doc as any)[key] = value as any;
-      });
-    },
-    [changeAccountDoc]
-  );
-
-  const setArrayField = useCallback(
-    (key: keyof TinyPatchworkLayoutDoc, next: string[]) => {
-      changeAccountDoc((doc) => {
-        const arr = (doc as any)[key];
-        arr.splice(0, arr.length, ...next);
-      });
-    },
-    [changeAccountDoc]
-  );
-
-  if (!accountDoc) {
-    return <div className="configurator loading">Loading configuration…</div>;
-  }
+  const setArrayField = (
+    key: keyof TinyPatchworkLayoutDoc,
+    next: string[]
+  ) => {
+    changeAccountDoc((doc: any) => {
+      const arr = doc[key];
+      arr.splice(0, arr.length, ...next);
+    });
+  };
 
   return (
-    <div className="configurator">
-      <h2 className="configurator-title">Frame Configurator</h2>
+    <Show
+      when={accountDoc()}
+      fallback={<div class="configurator loading">Loading configuration...</div>}
+    >
+      <div class="configurator">
+        <h2 class="configurator-title">Frame Configurator</h2>
 
-      <SingleSelect
-        label="Frame Tool"
-        value={accountDoc.frameToolId}
-        onChange={(v) => {
-          setField("frameToolId", v as any);
-          setTimeout(() => window.location.reload(), 50);
-        }}
-        options={frameOptions}
-      />
+        <SingleSelect
+          label="Frame Tool"
+          value={accountDoc()!.frameToolId}
+          onChange={(v) => {
+            setField("frameToolId", v as any);
+            setTimeout(() => window.location.reload(), 50);
+          }}
+          options={frameOptions()}
+        />
 
-      <SingleSelect
-        label="Account Sidebar"
-        value={accountDoc.accountSidebarToolId}
-        onChange={(v) => setField("accountSidebarToolId", v as any)}
-        options={sidebarOptions}
-      />
+        <SingleSelect
+          label="Account Sidebar"
+          value={accountDoc()!.accountSidebarToolId}
+          onChange={(v) => setField("accountSidebarToolId", v as any)}
+          options={sidebarOptions()}
+        />
 
-      <SingleSelect
-        label="Context Sidebar"
-        value={accountDoc.contextSidebarToolId}
-        onChange={(v) => setField("contextSidebarToolId", v as any)}
-        options={contextSidebarOptions}
-      />
+        <SingleSelect
+          label="Context Sidebar"
+          value={accountDoc()!.contextSidebarToolId}
+          onChange={(v) => setField("contextSidebarToolId", v as any)}
+          options={contextSidebarOptions()}
+        />
 
-      <SortableList
-        label="Toolbar"
-        values={accountDoc.documentToolbarToolIds}
-        setValues={(next) => setArrayField("documentToolbarToolIds", next)}
-        allOptions={documentToolbarOptions}
-      />
+        <SortableList
+          label="Toolbar"
+          values={accountDoc()!.documentToolbarToolIds}
+          setValues={(next) => setArrayField("documentToolbarToolIds", next)}
+          allOptions={documentToolbarOptions()}
+        />
 
-      <SortableList
-        label="Context Tools"
-        values={accountDoc.contextToolIds}
-        setValues={(next) => setArrayField("contextToolIds", next)}
-        allOptions={contextToolOptions}
-      />
-    </div>
+        <SortableList
+          label="Context Tools"
+          values={accountDoc()!.contextToolIds}
+          setValues={(next) => setArrayField("contextToolIds", next)}
+          allOptions={contextToolOptions()}
+        />
+      </div>
+    </Show>
   );
 }
+
+export function renderFrameConfigurator(
+  handle: DocHandle<TinyPatchworkLayoutDoc>,
+  element: ToolElement
+) {
+  const dispose = render(
+    () => (
+      <RepoContext.Provider value={element.repo}>
+        <FrameConfiguratorUI handle={handle} />
+      </RepoContext.Provider>
+    ),
+    element
+  );
+  return () => dispose();
+}
+
+export { FrameConfiguratorUI as FrameConfigurator };
