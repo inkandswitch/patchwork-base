@@ -61,53 +61,69 @@ function DocOpenWith(handle, element) {
 
 	const style = document.createElement("style")
 	style.textContent = `
+		@layer package {
+		:root,
+		:host,
+		[theme] {
+			--doc-openwith-bg: var(--studio-fill, white);
+			--doc-openwith-fg: var(--studio-line, black);
+			--doc-openwith-border: var(--studio-fill-offset-20, #ccc);
+			--doc-openwith-border-hover: var(--studio-fill-offset-30, #aaa);
+			--doc-openwith-hover: var(--studio-fill-offset-10, #f4f4f4);
+			--doc-openwith-divider: var(--studio-fill-offset-10, #eee);
+			--doc-openwith-highlight: var(--studio-fill-offset-10, #f0f0f0);
+		}
+		}
+
 		.doc-openwith {
 			display: flex;
 			align-items: center;
 			height: 100%;
 		}
+
 		.doc-openwith-btn {
 			display: flex;
 			align-items: center;
 			height: 22px;
-			padding: 0 8px;
-			border: 1px solid var(--color-base-300, #d0d0d0);
-			border-radius: 3px;
-			background: var(--color-base-100, #fff);
-			color: var(--color-base-content, #333);
+			padding: 0 var(--studio-space-sm, 0.5rem);
+			border: 1px solid var(--doc-openwith-border);
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--doc-openwith-bg);
+			color: var(--doc-openwith-fg);
 			font: inherit;
 			font-size: 0.8em;
 			font-weight: 500;
 			cursor: pointer;
-			transition: border-color 0.12s, background 0.12s;
+			transition: border-color var(--studio-transition-fast, 0.1s ease),
+				background var(--studio-transition-fast, 0.1s ease);
 			white-space: nowrap;
 			user-select: none;
 		}
-		.doc-openwith-btn:hover {
-			border-color: var(--color-base-400, #aaa);
-			background: var(--color-base-200, #f4f4f4);
+
+		.doc-openwith-btn:hover,
+		.doc-openwith-btn[data-open] {
+			border-color: var(--doc-openwith-border-hover);
+			background: var(--doc-openwith-hover);
 		}
-		.doc-openwith-btn--open {
-			border-color: var(--color-base-400, #aaa);
-			background: var(--color-base-200, #f4f4f4);
-		}
+
 		.doc-openwith-menu[popover] {
 			position: fixed;
 			inset: unset;
 			margin: 0;
 			padding: 0;
-			border: 1px solid var(--color-base-300, #d0d0d0);
-			border-radius: 4px;
-			background: var(--color-base-100, #fff);
-			box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+			border: 1px solid var(--doc-openwith-border);
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--doc-openwith-bg);
+			box-shadow: var(--studio-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
 			overflow: hidden;
 		}
+
 		.doc-openwith-input {
 			display: block;
 			width: 100%;
-			padding: 5px 8px;
+			padding: var(--studio-space-xs, 0.375rem) var(--studio-space-sm, 0.5rem);
 			border: none;
-			border-bottom: 1px solid var(--color-base-200, #eee);
+			border-bottom: 1px solid var(--doc-openwith-divider);
 			background: none;
 			font: inherit;
 			font-size: 0.8em;
@@ -115,17 +131,19 @@ function DocOpenWith(handle, element) {
 			outline: none;
 			box-sizing: border-box;
 		}
+
 		.doc-openwith-list {
 			max-height: 200px;
 			overflow-y: auto;
-			padding: 3px;
+			padding: var(--studio-space-2xs, 0.25rem);
 		}
+
 		.doc-openwith-item {
 			display: block;
 			width: 100%;
-			padding: 4px 8px;
+			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-sm, 0.5rem);
 			border: none;
-			border-radius: 2px;
+			border-radius: var(--studio-radius-xs, 2px);
 			background: none;
 			color: inherit;
 			font: inherit;
@@ -134,9 +152,10 @@ function DocOpenWith(handle, element) {
 			cursor: pointer;
 			white-space: nowrap;
 		}
+
 		.doc-openwith-item:hover,
-		.doc-openwith-item--highlight {
-			background: var(--color-base-200, #f0f0f0);
+		.doc-openwith-item[data-highlight] {
+			background: var(--doc-openwith-highlight);
 		}
 	`
 	element.appendChild(style)
@@ -167,7 +186,7 @@ function DocOpenWith(handle, element) {
 		function highlightAt(i) {
 			highlighted = i
 			for (const [j, el] of [...list.children].entries()) {
-				el.classList.toggle("doc-openwith-item--highlight", j === i)
+				el.toggleAttribute("data-highlight", j === i)
 			}
 		}
 
@@ -184,7 +203,7 @@ function DocOpenWith(handle, element) {
 				const item = document.createElement("button")
 				item.className = "doc-openwith-item"
 				if (i === highlighted)
-					item.classList.add("doc-openwith-item--highlight")
+					item.toggleAttribute("data-highlight", true)
 				item.textContent = t.name
 				item.addEventListener("click", () => pickTool(t.id))
 				item.addEventListener("pointerenter", () => highlightAt(i))
