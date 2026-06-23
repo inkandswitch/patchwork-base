@@ -36,7 +36,6 @@ const CONDITIONS = ["patchwork", "browser", "import"];
 const IGNORE_DIRS = new Set([
   "node_modules",
   "scripts",
-  "site",
   "static-dist",
   "dist",
   ".git",

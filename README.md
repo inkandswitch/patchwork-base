@@ -52,21 +52,26 @@ pnpm -r build     # build every tool that has a build script
 
 ## Static-HTTP deployment (shell + tools bundle)
 
-The tools can be deployed as a static HTTP bundle and loaded by a separately
-deployed **shell** (the boot runtime). The two halves are independent:
+The tools can be deployed as a static HTTP bundle and loaded by any Patchwork
+**shell** (the boot runtime). The two halves are independent:
 
-- **Tools bundle** — `static-dist/` (`modules.json` + `tools/<tool>/dist/…`),
-  produced by `scripts/build-static.mjs`. Deployed to Netlify (the repo is
-  private, so GitHub Pages would need a paid plan). `build:static` also writes a
-  `_headers` file granting `Access-Control-Allow-Origin: *`, which Netlify (and
-  Cloudflare Pages) honour so the shell can load tools cross-origin.
-- **Shell** — `site/` (a PWA). Contains the runtime + shared deps + import map,
-  but no tools. It fetches a tools `modules.json` at boot and `import()`s each
-  tool over HTTP. See `site/README.md`.
+- **Tools bundle** (lives here) — `static-dist/` (`modules.json` +
+  `tools/<tool>/dist/…`), produced by `scripts/build-static.mjs`. Deployed to
+  Netlify (the repo is private, so GitHub Pages would need a paid plan).
+  `build:static` also writes a `_headers` file granting
+  `Access-Control-Allow-Origin: *`, which Netlify (and Cloudflare Pages) honour
+  so a shell can load these tools cross-origin.
+- **Shell** (lives in `patchwork-next`) — there is no separate shell in this
+  repo. Any patchwork-next site is a shell; `sites/tiny-patchwork` is the
+  canonical one (PWA-ready). The static-manifest support lives in the bootloader
+  (`ModuleWatcher` / `SiteConfig.defaultModules`), so a shell just needs to point
+  its `defaultModules` at a tools host.
 
 A shell can point at any tools host via `VITE_DEFAULT_MODULES` (build time) or
 `localStorage.defaultToolsUrl` (runtime), so the same deployed shell can run
-against production tools, a PR preview, or a local tools server.
+against an `automerge:` module-settings doc, this static tools bundle, a PR
+preview, or a local tools server — no shell rebuild needed for the runtime
+override.
 
 ### Build / serve / deploy the tools bundle
 
@@ -115,12 +120,19 @@ localStorage.defaultToolsUrl = "https://deploy-preview-123--<site>.netlify.app/m
 ### Run a shell against a local tools bundle
 
 ```sh
-# terminal 1 — tools host
+# terminal 1 — tools host (in patchwork-base)
 pnpm dev:tools
 
-# terminal 2 — shell
-cd site
-VITE_DEFAULT_MODULES=http://localhost:4455/modules.json pnpm preview
+# terminal 2 — shell (in patchwork-next)
+VITE_DEFAULT_MODULES=http://localhost:4455/modules.json \
+  pnpm --filter tiny-patchwork dev
+```
+
+At runtime you can also point an already-running/deployed shell at a tools host
+without a rebuild:
+
+```js
+localStorage.defaultToolsUrl = "http://localhost:4455/modules.json"
 ```
 
 ## Installing modules

@@ -1,4 +1,0 @@
-overrides:
-  '@inkandswitch/patchwork-bootloader': link:../../../Library/pnpm/global/5/node_modules/@inkandswitch/patchwork-bootloader
-  '@inkandswitch/patchwork-filesystem': link:../../../Library/pnpm/global/5/node_modules/@inkandswitch/patchwork-filesystem
-  patchwork-bootloader: link:../../../Library/pnpm/global/5/node_modules/@inkandswitch/patchwork-bootloader
