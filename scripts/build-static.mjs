@@ -94,10 +94,10 @@ function main() {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(toolsOutDir, { recursive: true });
 
-  // Install & build in parallel across all workspace packages.
+  // Install & build in parallel across all packages.
   if (install) {
-    console.log("[install] pnpm install");
-    execSync("pnpm install --prefer-offline", { cwd: ROOT, stdio: "inherit" });
+    console.log("[install] pnpm -r install --prefer-offline");
+    execSync("pnpm -r install --prefer-offline", { cwd: ROOT, stdio: "inherit" });
   }
 
   if (build) {
@@ -129,12 +129,6 @@ function main() {
 
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 
-    const distDir = join(toolDir, "dist");
-    if (!existsSync(distDir)) {
-      skipped.push(`${name} (no dist/ — run with --build or build it first)`);
-      continue;
-    }
-
     const entry = resolveEntry(pkg);
     if (!entry) {
       skipped.push(`${name} (no resolvable entry point in package.json)`);
@@ -143,14 +137,29 @@ function main() {
 
     const entryRel = normalizeRel(entry);
     if (!existsSync(join(toolDir, entryRel))) {
-      skipped.push(`${name} (entry ${entryRel} missing from build output)`);
+      skipped.push(`${name} (entry ${entryRel} not found)`);
       continue;
     }
 
     const destDir = join(toolsOutDir, name);
     mkdirSync(destDir, { recursive: true });
-    cpSync(distDir, join(destDir, "dist"), { recursive: true });
-    cpSync(pkgPath, join(destDir, "package.json"));
+
+    const entryTopDir = entryRel.includes("/") ? entryRel.split("/")[0] : null;
+    if (entryTopDir) {
+      // Entry is in a subdirectory (e.g. dist/index.js) — copy that dir + package.json.
+      cpSync(join(toolDir, entryTopDir), join(destDir, entryTopDir), { recursive: true });
+      cpSync(pkgPath, join(destDir, "package.json"));
+    } else {
+      // Entry is at root (e.g. index.js) — copy source files directly.
+      const SKIP = new Set(["node_modules", ".git", "pnpm-lock.yaml", "pnpm-workspace.yaml"]);
+      cpSync(toolDir, destDir, {
+        recursive: true,
+        filter: (src) => {
+          if (src === toolDir) return true;
+          return !SKIP.has(src.slice(toolDir.length + 1).split("/")[0]);
+        },
+      });
+    }
 
     modules.push(`./tools/${name}/${entryRel}`);
     console.log(`[ok]    ${name} -> ./tools/${name}/${entryRel}`);
