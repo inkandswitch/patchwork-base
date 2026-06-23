@@ -47,19 +47,60 @@ themeRegistry.on("removed", () => {
 	}
 })
 
+// The theme name is set on <html> unconditionally — even if no theme plugin
+// providing that name has loaded yet. The matching CSS just isn't applied until
+// the plugin registers, but the attribute is always correct.
 function applyTheme(themeId: string) {
-	document.documentElement.setAttribute("theme", themeId)
+	if (themeId) document.documentElement.setAttribute("theme", themeId)
+}
+
+function getPreferredThemeId(prefs: any): string {
+	const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+	const themeId = prefs ? (isDark ? prefs.dark : prefs.light) : undefined
+	return themeId || (isDark ? "gloom" : "lychee")
+}
+
+// The most recently resolved preferences doc, if any. Used so the
+// color-scheme-change listener can re-apply without re-resolving the doc.
+let currentPrefsHandle: any = undefined
+
+function applyFromPrefs() {
+	applyTheme(getPreferredThemeId(currentPrefsHandle?.doc()))
+}
+
+// Apply a best-guess theme immediately so <html> always has a theme attribute,
+// before the repo, account doc, or preferences doc have loaded.
+applyFromPrefs()
+
+// Re-apply on OS color-scheme changes (uses the cached prefs doc if present).
+window
+	.matchMedia("(prefers-color-scheme: dark)")
+	.addEventListener("change", applyFromPrefs)
+
+/** Poll for the global repo + account handle, which are set asynchronously. */
+function waitForGlobals(): Promise<{repo: any; accountHandle: any}> {
+	return new Promise(resolve => {
+		const check = () => {
+			const repo = (window as any).repo
+			const accountHandle = (window as any).accountDocHandle
+			if (repo && accountHandle) {
+				resolve({repo, accountHandle})
+				return true
+			}
+			return false
+		}
+		if (check()) return
+		const interval = setInterval(() => {
+			if (check()) clearInterval(interval)
+		}, 100)
+	})
 }
 
 /**
- * Ensure the account has a theme-preferences doc. Create one if missing.
- * Returns the preferences handle or undefined if repo/account not ready.
+ * Resolve the account's theme-preferences doc, creating it if missing.
+ * Returns the preferences handle, or undefined if the account doc isn't ready.
  */
-async function ensureThemePreferences() {
-	const repo = (window as any).repo
-	const accountHandle = (window as any).accountDocHandle
-	if (!repo || !accountHandle) return undefined
-
+async function ensureThemePreferences(repo: any, accountHandle: any) {
 	const accountDoc = accountHandle.doc()
 	if (!accountDoc) return undefined
 
@@ -79,42 +120,37 @@ async function ensureThemePreferences() {
 	return prefsHandle
 }
 
-function getPreferredThemeId(prefs: any): string {
-	const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-	const themeId = prefs ? (isDark ? prefs.dark : prefs.light) : undefined
-	return themeId || (isDark ? "gloom" : "lychee")
-}
-
-/** Load and apply the user's preferred theme based on color scheme */
-let prefsWatched = false
+/**
+ * Wait for the repo/account/preferences docs to load, then apply the preferred
+ * theme and keep it in sync. The theme is always (re-)applied as soon as the
+ * preferences doc loads, and whenever it — or the account doc's pointer to
+ * it — changes afterwards.
+ */
 async function loadActiveTheme() {
-	try {
-		const prefsHandle = await ensureThemePreferences()
-		if (prefsHandle) {
-			applyTheme(getPreferredThemeId(prefsHandle.doc()))
+	const {repo, accountHandle} = await waitForGlobals()
+	await accountHandle.whenReady?.()
 
-			// Watch for preference changes so the theme picker applies immediately
-			if (!prefsWatched) {
-				prefsWatched = true
-				prefsHandle.on("change", () => {
-					applyTheme(getPreferredThemeId(prefsHandle.doc()))
-				})
-			}
-		} else {
-			applyTheme(getPreferredThemeId(undefined))
-		}
-	} catch {
-		// Theme loading is best-effort; fall back to default CSS variables
+	let lastPrefsUrl: string | undefined
+	const resolvePrefs = async () => {
+		const prefsHandle = await ensureThemePreferences(repo, accountHandle)
+		if (!prefsHandle || prefsHandle.url === lastPrefsUrl) return
+		lastPrefsUrl = prefsHandle.url
+		await prefsHandle.whenReady?.()
+		currentPrefsHandle = prefsHandle
+		// Apply as soon as the preferences doc is loaded...
+		applyFromPrefs()
+		// ...and on every subsequent change (e.g. via the theme picker).
+		prefsHandle.on("change", applyFromPrefs)
 	}
+
+	await resolvePrefs()
+	// The account doc may gain (or change) its themePreferencesUrl later.
+	accountHandle.on("change", resolvePrefs)
 }
 
-// Listen for color scheme changes to swap themes
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-	loadActiveTheme()
+loadActiveTheme().catch(() => {
+	// Theme loading is best-effort; fall back to the already-applied default.
 })
-
-// Apply theme on load
-loadActiveTheme()
 
 export const plugins = [
 	{
