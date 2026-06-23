@@ -80,7 +80,11 @@ interface PeerSyncInfo {
 }
 
 function peerName(peerId: PeerId): string {
-  if (peerId.startsWith("shared-worker")) return "Shared Worker";
+  if (
+    peerId.startsWith("shared-worker") ||
+    peerId.startsWith("automerge-worker")
+  )
+    return "Shared Worker";
   if (peerId.startsWith("service-worker")) return "Service Worker";
   if (peerId.startsWith("storage-server")) return "Sync Server";
   return String(peerId);
@@ -247,27 +251,21 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
       };
     });
 
-    // add sync server as a virtual peer if it's not already
-    // in the list (it won't be — the main thread doesn't talk
-    // to it directly, the shared worker does)
-    const hasSyncServer = peerList.some(
-      (p) => p.storageId === SYNC_SERVER_STORAGE_ID
-    );
-    if (!hasSyncServer) {
-      const serverInfo = props.handle.getSyncInfo(SYNC_SERVER_STORAGE_ID);
-      peerList.unshift({
+    // Always add sync server as a virtual peer — the main thread
+    // doesn't talk to it directly; its state comes from the shared
+    // worker's @patchwork/syncstate BroadcastChannel / IndexedDB.
+    {
+      const serverHeads = syncServerHeads();
+      const serverTs = syncServerTimestamp();
+      peerList.push({
         id: "sync-server",
         name: "Sync Server",
         storageId: SYNC_SERVER_STORAGE_ID,
-        heads: serverInfo?.lastHeads ?? syncServerHeads(),
-        lastSyncTimestamp:
-          serverInfo?.lastSyncTimestamp ?? syncServerTimestamp(),
+        heads: serverHeads,
+        lastSyncTimestamp: serverTs,
         inSync:
-          (serverInfo?.lastHeads ?? syncServerHeads()) && currentHeads
-            ? A.equals(
-                currentHeads,
-                serverInfo?.lastHeads ?? syncServerHeads()!
-              )
+          serverHeads && currentHeads
+            ? A.equals(currentHeads, serverHeads)
             : false,
       });
     }
