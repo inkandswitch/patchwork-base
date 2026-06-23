@@ -94,30 +94,22 @@ Netlify site (`netlify.toml` sets the publish dir). After that it's one command.
 
 ### Continuous deploy + PR previews (Netlify Git integration)
 
-Deploys are handled entirely by **Netlify** — no GitHub Actions, no secrets/
-tokens. Connect the repo once in the Netlify dashboard (Add new site → import
-this repo). Netlify reads `netlify.toml` (build command `pnpm build:tools:ci`,
-publish dir `static-dist`) and then:
+Our production deployment goes to Netlify, so we have included a `netlify.toml` for
+convenience.
 
-- **push to the production branch** → production deploy
-- **pull request** → automatic Deploy Preview at
-  `https://deploy-preview-<n>--<site>.netlify.app`
-
-**Environment variables:** none required. The tools build needs no secrets. The
-only build setting is the Node version, pinned in `netlify.toml`
-(`NODE_VERSION`); pnpm is auto-detected from the lockfile (pin `PNPM_VERSION`
-there if you need an exact version).
-
-The preview is of the *tools bundle*, so to test a PR's tools in any shell,
+To aid in branch review, we have configured deploy previews on the GitHub repo.
+The preview is of the _tools bundle_, so to test a PR's tools in any shell,
 point it at the preview's manifest — no shell rebuild needed:
 
 ```js
-localStorage.defaultToolsUrl = "https://deploy-preview-123--<site>.netlify.app/modules.json"
+localStorage.defaultToolsUrl =
+  "https://deploy-preview-123--<site>.netlify.app/modules.json";
 ```
 
-(Shell changes are a separate deploy and aren't previewed here.)
-
 ### Run a shell against a local tools bundle
+
+Local development can deploy as usual via pushwork, but to test the build process
+you can always run a local webserver to host the JS and point your local shell at it.
 
 ```sh
 # terminal 1 — tools host (in patchwork-base)
@@ -132,17 +124,19 @@ At runtime you can also point an already-running/deployed shell at a tools host
 without a rebuild:
 
 ```js
-localStorage.defaultToolsUrl = "http://localhost:4455/modules.json"
+localStorage.defaultToolsUrl = "http://localhost:4455/modules.json";
 ```
 
 ## Installing modules
 
+To build a full set of modules for automerge-backed live development, run the usual install/build on all of them first. Once the tools are built, you can push each one to a module settings document using the following commands>
+
 Right now this is a bit janky, but once you have the pushwork and the patchwork-modules CLI tool installed, you should be able to run:
 
 ```sh
-export MODULE_SETTINGS_DOC_URL=automerge:$A_RELEVANT_URL
-pnpm -r exec pushwork init --sub
+export MODULE_SETTINGS_DOC_URL=`pw-modules init`
+pnpm -r exec pushwork init
 pnpm -r register
 ```
 
-NB: The --sub is because as of this writing, we're using a prerelease of subduction support for pushwork.
+Of course, if you already have a patchwork modules document, you can supply it.
