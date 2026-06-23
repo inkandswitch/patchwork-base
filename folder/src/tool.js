@@ -1,5 +1,6 @@
 import { parseAutomergeUrl } from "@automerge/automerge-repo";
 import "@inkandswitch/patchwork-elements";
+import styles from "./styles.css";
 
 function el(tag, attrs, ...children) {
   const node = document.createElement(tag);
@@ -29,59 +30,43 @@ function entryHref(docLink) {
 }
 
 function renderLoading() {
-  return el(
-    "div",
-    { className: "flex items-center justify-center h-full p-4" },
-    el("span", { className: "loading loading-spinner loading-md" })
-  );
+  return el("div", { className: "folder-view-loading" }, "Loading…");
 }
 
 function buildEntry(docLink) {
   const isFolder = docLink.type === "folder";
-  const nameEl = el("span", { className: "font-medium" }, docLink.name);
-  const typeEl = el(
-    "span",
-    { className: "badge badge-sm badge-outline ml-2" },
-    docLink.type
-  );
+  const nameEl = el("span", { className: "folder-entry-name" }, docLink.name);
+  const typeEl = el("span", { className: "folder-entry-type" }, docLink.type);
   const openEl = el(
     "a",
-    { className: "btn btn-link btn-sm", href: entryHref(docLink) },
+    { className: "folder-entry-open", href: entryHref(docLink) },
     "Open"
   );
 
   const node = el(
     "div",
-    { className: "card card-bordered bg-base-100 shadow-sm" },
+    { className: "folder-entry", "data-type": docLink.type },
     el(
       "div",
-      { className: "card-body p-3 max-h-[300px] flex flex-col" },
-      el(
-        "div",
-        { className: "flex items-center justify-between" },
-        el(
+      { className: "folder-entry-head" },
+      el("div", { className: "folder-entry-title" }, nameEl, typeEl),
+      openEl
+    ),
+    isFolder
+      ? el(
+          "p",
+          { className: "folder-entry-hint" },
+          'Click "Open" to view folder contents'
+        )
+      : el(
           "div",
-          { className: "flex items-center gap-2" },
-          el("div", null, nameEl, typeEl)
-        ),
-        openEl
-      ),
-      isFolder
-        ? el(
+          { className: "folder-entry-body" },
+          el(
             "div",
-            { className: "text-sm text-base-content/60 mt-1" },
-            'Click "Open" to view folder contents'
+            { className: "folder-entry-scroll" },
+            el("patchwork-view", { "doc-url": docLink.url })
           )
-        : el(
-            "div",
-            { className: "flex-1 min-h-0" },
-            el(
-              "div",
-              { className: "h-full overflow-auto" },
-              el("patchwork-view", { "doc-url": docLink.url })
-            )
-          )
-    )
+        )
   );
 
   return { node, nameEl, typeEl, openEl, isFolder };
@@ -94,6 +79,9 @@ function updateEntry(entry, docLink) {
   if (entry.typeEl.textContent !== docLink.type) {
     entry.typeEl.textContent = docLink.type;
   }
+  if (entry.node.getAttribute("data-type") !== docLink.type) {
+    entry.node.setAttribute("data-type", docLink.type);
+  }
   const href = entryHref(docLink);
   if (entry.openEl.getAttribute("href") !== href) {
     entry.openEl.setAttribute("href", href);
@@ -103,29 +91,27 @@ function updateEntry(entry, docLink) {
 export const FolderTool = (handle, element) => {
   const entries = new Map();
 
-  const countEl = el("span", { className: "badge badge-ghost" });
-  const listEl = el("div", {
-    className: "flex flex-col gap-3 pb-4",
-  });
+  const styleEl = el("style");
+  styleEl.textContent = styles;
+
+  const countEl = el("span", { className: "folder-view-count" });
+  const listEl = el("div", { className: "folder-view-list" });
   const shell = el(
     "div",
-    { className: "p-4 h-full overflow-auto flex flex-col gap-4" },
-    el(
-      "div",
-      {
-        className:
-          "flex justify-end items-center border-b border-base-300 pb-2",
-      },
-      countEl
-    ),
+    { className: "folder-view" },
+    el("div", { className: "folder-view-header" }, countEl),
     listEl
   );
+
+  element.append(styleEl);
 
   let mounted = null;
 
   function show(node) {
     if (mounted !== node) {
-      element.replaceChildren(node);
+      // keep the injected <style>, swap the rendered tree
+      if (mounted) mounted.remove();
+      element.append(node);
       mounted = node;
     }
   }
@@ -138,16 +124,14 @@ export const FolderTool = (handle, element) => {
     }
 
     show(shell);
-    countEl.textContent = `${folder.docs.length} documents`;
+    countEl.textContent = `${folder.docs.length} ${
+      folder.docs.length === 1 ? "document" : "documents"
+    }`;
 
     if (folder.docs.length === 0) {
       entries.clear();
       listEl.replaceChildren(
-        el(
-          "div",
-          { className: "text-center text-base-content/60 py-8" },
-          "This folder is empty"
-        )
+        el("div", { className: "folder-view-empty" }, "This folder is empty")
       );
       return;
     }
