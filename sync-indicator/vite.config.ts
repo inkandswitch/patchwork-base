@@ -8,6 +8,7 @@ export default defineConfig({
   base: "./",
   plugins: [topLevelAwait(), solid(), cssInjectedByJsPlugin()],
   build: {
+    target: "esnext",
     emptyOutDir: true,
     rollupOptions: {
       external: externals,
