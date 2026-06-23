@@ -293,8 +293,11 @@ function ToolbarStrip(props: {
               draggable={true}
               onDragStart={(e) => {
                 e.dataTransfer!.effectAllowed = "move";
-                setDragIndex(index());
-                updateDropIndex(index());
+                const idx = index();
+                requestAnimationFrame(() => {
+                  setDragIndex(idx);
+                  updateDropIndex(idx);
+                });
               }}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -406,8 +409,11 @@ function ContextTabs(props: {
               draggable={true}
               onDragStart={(e) => {
                 e.dataTransfer!.effectAllowed = "move";
-                setDragIndex(index());
-                updateDropIndex(index());
+                const idx = index();
+                requestAnimationFrame(() => {
+                  setDragIndex(idx);
+                  updateDropIndex(idx);
+                });
               }}
               onDragOver={(e) => {
                 e.preventDefault();

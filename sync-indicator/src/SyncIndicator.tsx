@@ -20,6 +20,50 @@ import "./styles.css";
 
 const log = Debug("patchwork:sync-indicator");
 
+const SYNCSTATE_CHANNEL = "@patchwork/syncstate";
+const SYNCSTATE_DB_NAME = "syncstate";
+const SYNCSTATE_STORE_NAME = "syncstate";
+
+function readSyncStateFromDb(
+  documentId: string,
+  storageId: string,
+): Promise<{ heads: UrlHeads; timestamp: number } | undefined> {
+  return new Promise((resolve) => {
+    const req = indexedDB.open(SYNCSTATE_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(SYNCSTATE_STORE_NAME)) {
+        db.createObjectStore(SYNCSTATE_STORE_NAME);
+      }
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(SYNCSTATE_STORE_NAME)) {
+        db.close();
+        return resolve(undefined);
+      }
+      const tx = db.transaction(SYNCSTATE_STORE_NAME, "readonly");
+      const store = tx.objectStore(SYNCSTATE_STORE_NAME);
+      const key = `${documentId}\0${storageId}`;
+      const get = store.get(key);
+      get.onsuccess = () => {
+        db.close();
+        const val = get.result;
+        if (val && val.heads) {
+          resolve({ heads: val.heads as UrlHeads, timestamp: val.timestamp });
+        } else {
+          resolve(undefined);
+        }
+      };
+      get.onerror = () => {
+        db.close();
+        resolve(undefined);
+      };
+    };
+    req.onerror = () => resolve(undefined);
+  });
+}
+
 export { RepoContext };
 
 export const SYNC_SERVER_STORAGE_ID = (import.meta.env
@@ -125,12 +169,54 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     h.on("change", onChange);
     h.on("remote-heads", onRemoteHeads);
 
-    // initialize sync server from stored sync info
+    // listen for remote heads broadcast from the shared worker
+    const channel = new BroadcastChannel(SYNCSTATE_CHANNEL);
+    channel.addEventListener("message", (event) => {
+      const data = event.data;
+      if (
+        data?.type === "remote-heads" &&
+        data.documentId === h.documentId
+      ) {
+        onRemoteHeads({
+          storageId: data.storageId as StorageId,
+          heads: data.heads as UrlHeads,
+          timestamp: data.timestamp,
+        });
+      }
+    });
+
+    // initialize sync server from stored sync info (repo-level)
     const serverInfo = h.getSyncInfo(SYNC_SERVER_STORAGE_ID);
     if (serverInfo) {
       setSyncServerHeads(serverInfo.lastHeads);
       setSyncServerTimestamp(serverInfo.lastSyncTimestamp);
     }
+
+    // also seed from the shared worker's IndexedDB syncstate store,
+    // which may have fresher data than the repo's own sync info
+    readSyncStateFromDb(h.documentId, SYNC_SERVER_STORAGE_ID).then(
+      (stored) => {
+        if (!stored) return;
+        const current = syncServerTimestamp();
+        if (current && current >= stored.timestamp) return;
+        setSyncServerHeads(stored.heads);
+        setSyncServerTimestamp(stored.timestamp);
+        // update the virtual sync server peer entry too
+        const idx = peers.findIndex(
+          (p) => p.storageId === SYNC_SERVER_STORAGE_ID
+        );
+        if (idx >= 0) {
+          const currentHeads = ownHeads();
+          setPeers(idx, {
+            heads: stored.heads,
+            lastSyncTimestamp: stored.timestamp,
+            inSync: currentHeads
+              ? A.equals(currentHeads, stored.heads)
+              : false,
+          });
+        }
+      }
+    );
 
     // build initial peer list
     refreshPeers();
@@ -138,6 +224,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     onCleanup(() => {
       h.off("change", onChange);
       h.off("remote-heads", onRemoteHeads);
+      channel.close();
     });
   });
 
