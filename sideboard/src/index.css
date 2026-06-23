@@ -61,6 +61,11 @@ button {
   padding: 0;
 }
 
+.sideboard,
+.sideboard * {
+  box-sizing: border-box;
+}
+
 .sideboard {
   background: var(--sideboard-fill);
   display: flex;
@@ -349,8 +354,9 @@ button {
   gap: 1rem;
   padding: var(--sideboard-padding-x);
   padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  padding-left: calc(env(safe-area-inset-left) + var(--sideboard-padding-x));
+  padding-right: calc(env(safe-area-inset-right) + var(--sideboard-padding-x));
+  margin-inline: calc(-1 * var(--sideboard-padding-x));
   background: var(--sideboard-footer-fill);
   color: var(--sideboard-line);
   border-top: 1px solid
