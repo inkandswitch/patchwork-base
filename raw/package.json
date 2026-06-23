@@ -1,5 +1,6 @@
 {
-  "name": "@patchwork/raw-editor",
+  "name": "raw",
+  "title": "rawr xD",
   "version": "0.1.0",
   "description": "A raw view and editor for any Automerge document",
   "pushwork": {
