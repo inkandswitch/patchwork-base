@@ -49,10 +49,10 @@
   font-family: var(--folder-view-family);
   color: var(--folder-view-fg);
   background: var(--folder-view-well);
-  /* Inset border so the surface reads as sunken. */
+  /* Inset border so the surface reads as sunken. The view fills its pane, so
+     the host frames the outer corners — no radius of our own here. */
   border: 1px solid var(--folder-view-well-edge);
   box-shadow: var(--folder-view-well-shadow);
-  border-radius: var(--studio-radius-lg, 12px);
 }
 
 /* Composition: header row. */
@@ -95,6 +95,7 @@
   padding: var(--studio-space-md, 1rem);
   font-family: var(--folder-view-family);
   color: var(--folder-view-muted);
+  background: var(--studio-fill, white);
 }
 
 /* Block: one rendered file/folder card — sitting on the well. */
@@ -156,11 +157,6 @@
 }
 
 .folder-view .folder-entry-open:hover {
-  background: var(--folder-view-hover);
-}
-
-/* Exception: folders are lighter — no embedded preview. */
-.folder-view .folder-entry[data-type="folder"] {
   background: var(--folder-view-hover);
 }
 
