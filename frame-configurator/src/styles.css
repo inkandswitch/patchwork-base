@@ -1,9 +1,10 @@
+/* ── Root ── */
 .configurator {
+  container-type: inline-size;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 28rem;
   height: 100%;
   overflow-y: auto;
   font-family: var(--studio-family-sans, system-ui, sans-serif);
@@ -22,177 +23,358 @@
   color: inherit;
 }
 
+/* ── Section ── */
 .config-section {
-  border: 1px solid color-mix(in oklch, currentColor 15%, transparent);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in oklch, currentColor 10%, transparent);
+}
+
+.config-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
 }
 
 .section-label {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
-  padding: 0 0.25rem;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
 }
 
-/* Radio group for single-select fields */
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.radio-option {
-  display: flex;
-  align-items: center;
+/* ── Preview Card Grid (frame / sidebar selectors) ── */
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
-  padding: 0.375rem 0.25rem;
-  border-radius: 0.375rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition: background 120ms;
 }
 
-.radio-option:hover {
-  background: color-mix(in oklch, currentColor 8%, transparent);
+@container (max-width: 279px) {
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.radio-option input[type="radio"] {
-  width: 0.875rem;
-  height: 0.875rem;
-  accent-color: oklch(0.6 0.15 250);
-  margin: 0;
-  cursor: pointer;
+@container (min-width: 400px) {
+  .preview-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-/* Sortable list */
-.sortable-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.preview-card {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  border: 1.5px solid color-mix(in oklch, currentColor 12%, transparent);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 120ms, box-shadow 120ms;
+  background: none;
+  color: inherit;
+  padding: 0;
+  text-align: left;
 }
 
-.sortable-item {
+.preview-card:hover {
+  border-color: color-mix(in oklch, currentColor 25%, transparent);
+}
+
+.preview-card[aria-checked="true"] {
+  border-color: var(--studio-accent, oklch(0.6 0.15 250));
+  box-shadow: 0 0 0 1px var(--studio-accent, oklch(0.6 0.15 250));
+}
+
+.preview-card-thumbnail {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  pointer-events: none;
+  position: relative;
+  background: color-mix(in oklch, currentColor 4%, transparent);
+  max-height: 6rem;
+}
+
+.preview-card-scaler {
+  width: 300%;
+  height: 300%;
+  transform: scale(0.3333);
+  transform-origin: top left;
+}
+
+.preview-card-scaler patchwork-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-card-label {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.3125rem 0.375rem;
-  border-radius: 0.375rem;
-  background: color-mix(in oklch, currentColor 6%, transparent);
-  font-size: 0.8125rem;
-  user-select: none;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-top: 1px solid color-mix(in oklch, currentColor 8%, transparent);
 }
 
-.sortable-item:hover {
-  background: color-mix(in oklch, currentColor 12%, transparent);
-}
-
-.drag-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border: none;
-  background: none;
-  color: inherit;
-  opacity: 0.35;
-  cursor: grab;
-  border-radius: 0.25rem;
+.preview-card-check {
+  margin-left: auto;
+  color: var(--studio-accent, oklch(0.6 0.15 250));
   flex-shrink: 0;
-  padding: 0;
-  touch-action: none;
-  transition: opacity 120ms;
+  display: none;
 }
 
-.drag-handle:hover {
+.preview-card[aria-checked="true"] .preview-card-check {
+  display: flex;
+}
+
+.empty-message {
+  font-size: 0.8125rem;
   opacity: 0.7;
-  background: color-mix(in oklch, currentColor 8%, transparent);
+  font-style: italic;
+  margin: 0;
+  padding: 0.375rem 0;
 }
 
-.drag-handle:active {
+/* ── Toolbar Strip ── */
+.toolbar-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: flex-end;
+}
+
+.toolbar-box {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in oklch, currentColor 12%, transparent);
+  border-radius: 0.375rem;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  transition: border-color 120ms, opacity 150ms, transform 200ms ease;
+}
+
+.toolbar-box:active {
   cursor: grabbing;
 }
 
-.item-label {
-  flex: 1;
-  min-width: 0;
+.toolbar-box.dragging {
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  transform: scale(0);
+}
+
+.toolbar-box.shift-left {
+  transform: translateX(calc(-100% - 0.375rem));
+}
+
+.toolbar-box.shift-right {
+  transform: translateX(calc(100% + 0.375rem));
+}
+
+.toolbar-box-preview {
+  width: 4.5rem;
+  height: 2.5rem;
+  overflow: hidden;
+  pointer-events: none;
+  background: color-mix(in oklch, currentColor 4%, transparent);
+}
+
+.toolbar-box-preview patchwork-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.toolbar-box-label {
+  font-size: 0.625rem;
+  padding: 0.1875rem 0.375rem;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-top: 1px solid color-mix(in oklch, currentColor 8%, transparent);
 }
 
-.remove-btn {
+.toolbar-box-remove {
+  position: absolute;
+  top: 0.125rem;
+  right: 0.125rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1rem;
+  height: 1rem;
   border: none;
-  background: none;
+  border-radius: 50%;
+  background: color-mix(in oklch, currentColor 10%, transparent);
   color: inherit;
-  opacity: 0.3;
+  opacity: 0;
   cursor: pointer;
-  border-radius: 0.25rem;
-  flex-shrink: 0;
   padding: 0;
   transition: opacity 120ms, background 120ms, color 120ms;
 }
 
-.remove-btn:hover {
+.toolbar-box:hover .toolbar-box-remove {
+  opacity: 0.5;
+}
+
+.toolbar-box-remove:hover {
+  opacity: 1 !important;
+  color: oklch(0.65 0.2 20);
+  background: oklch(0.65 0.2 20 / 0.15);
+}
+
+.toolbar-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 100%;
+  min-height: 3.5rem;
+  border: 1.5px dashed color-mix(in oklch, currentColor 18%, transparent);
+  border-radius: 0.375rem;
+  background: none;
+  color: inherit;
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 120ms, border-color 120ms, background 120ms;
+}
+
+.toolbar-add-btn:hover {
+  opacity: 0.8;
+  border-color: color-mix(in oklch, currentColor 30%, transparent);
+  background: color-mix(in oklch, currentColor 4%, transparent);
+}
+
+/* ── Context Tabs ── */
+.context-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 1.5px solid color-mix(in oklch, currentColor 12%, transparent);
+}
+
+.context-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid color-mix(in oklch, currentColor 12%, transparent);
+  border-bottom: none;
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: none;
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: grab;
+  user-select: none;
+  margin-bottom: -1.5px;
+  transition: background 120ms, opacity 150ms, transform 200ms ease;
+}
+
+.context-tab:active {
+  cursor: grabbing;
+}
+
+.context-tab.dragging {
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  transform: scale(0);
+}
+
+.context-tab.shift-left {
+  transform: translateX(-100%);
+}
+
+.context-tab.shift-right {
+  transform: translateX(100%);
+}
+
+.context-tab:hover {
+  background: color-mix(in oklch, currentColor 6%, transparent);
+}
+
+.context-tab-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  opacity: 0.25;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: opacity 120ms, color 120ms, background 120ms;
+}
+
+.context-tab-remove:hover {
   opacity: 1;
   color: oklch(0.65 0.2 20);
   background: oklch(0.65 0.2 20 / 0.12);
 }
 
-/* Add button and menu */
-.add-btn {
+.context-tab-add {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  margin-top: 0.375rem;
-  padding: 0.3125rem 0.5rem;
-  border: 1px dashed color-mix(in oklch, currentColor 20%, transparent);
-  border-radius: 0.375rem;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px dashed color-mix(in oklch, currentColor 15%, transparent);
+  border-bottom: none;
+  border-radius: 0.375rem 0.375rem 0 0;
   background: none;
   color: inherit;
-  opacity: 0.5;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
+  opacity: 0.45;
   cursor: pointer;
-  width: 100%;
-  transition: border-color 120ms, opacity 120ms, background 120ms;
+  margin-bottom: -1.5px;
+  transition: opacity 120ms, background 120ms;
 }
 
-.add-btn:hover {
+.context-tab-add:hover {
   opacity: 0.8;
-  border-color: color-mix(in oklch, currentColor 35%, transparent);
   background: color-mix(in oklch, currentColor 4%, transparent);
 }
 
-.add-menu {
+/* ── Add Popover (shared) ── */
+.add-popover-anchor {
+  position: relative;
+}
+
+.add-popover {
+  position: absolute;
+  bottom: calc(100% + 0.375rem);
+  left: 0;
+  z-index: 10;
+  min-width: 12rem;
+  padding: 0.375rem;
+  background: var(--studio-background, white);
+  border: 1px solid color-mix(in oklch, currentColor 15%, transparent);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px oklch(0 0 0 / 0.1), 0 1px 4px oklch(0 0 0 / 0.06);
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 0.375rem;
-  padding: 0.25rem;
-  border: 1px solid color-mix(in oklch, currentColor 15%, transparent);
-  border-radius: 0.375rem;
-  background: color-mix(in oklch, currentColor 4%, transparent);
 }
 
-.add-option {
+.add-popover-option {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.3125rem 0.375rem;
+  padding: 0.375rem 0.5rem;
   border: none;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   background: none;
   color: inherit;
   font-size: 0.8125rem;
@@ -202,28 +384,26 @@
   transition: background 120ms;
 }
 
-.add-option:hover {
-  background: color-mix(in oklch, currentColor 10%, transparent);
+.add-popover-option:hover {
+  background: color-mix(in oklch, currentColor 8%, transparent);
 }
 
-.add-option svg,
-.add-custom-btn svg {
-  opacity: 0.5;
+.add-popover-option svg {
+  opacity: 0.4;
   flex-shrink: 0;
 }
 
-/* Custom ID input row */
-.add-custom {
+.add-popover-custom {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0.25rem 0.375rem;
   border-top: 1px solid color-mix(in oklch, currentColor 8%, transparent);
-  margin-top: 4px;
+  margin-top: 2px;
   padding-top: 0.375rem;
 }
 
-.add-custom-input {
+.add-popover-custom-input {
   flex: 1;
   min-width: 0;
   padding: 0.25rem 0.375rem;
@@ -237,17 +417,17 @@
   transition: border-color 120ms;
 }
 
-.add-custom-input::placeholder {
+.add-popover-custom-input::placeholder {
   opacity: 0.4;
   font-family: inherit;
   font-style: italic;
 }
 
-.add-custom-input:focus {
+.add-popover-custom-input:focus {
   border-color: color-mix(in oklch, currentColor 35%, transparent);
 }
 
-.add-custom-btn {
+.add-popover-custom-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,21 +444,21 @@
   transition: opacity 120ms, background 120ms;
 }
 
-.add-custom-btn:hover:not(:disabled) {
+.add-popover-custom-btn:hover:not(:disabled) {
   opacity: 0.8;
   background: color-mix(in oklch, currentColor 8%, transparent);
 }
 
-.add-custom-btn:disabled {
+.add-popover-custom-btn:disabled {
   opacity: 0.2;
   cursor: default;
 }
 
-.add-cancel {
+.add-popover-done {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem;
+  padding: 0.3125rem;
   border: none;
   border-radius: 0.25rem;
   background: none;
@@ -289,15 +469,19 @@
   transition: background 120ms, opacity 120ms;
 }
 
-.add-cancel:hover {
+.add-popover-done:hover {
   opacity: 0.8;
   background: color-mix(in oklch, currentColor 8%, transparent);
 }
 
-.empty-message {
-  font-size: 0.8125rem;
-  opacity: 0.7;
-  font-style: italic;
-  margin: 0;
-  padding: 0.375rem 0.25rem;
+/* ── Theme Section ── */
+.theme-embed {
+  border: 1px solid color-mix(in oklch, currentColor 10%, transparent);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.theme-embed patchwork-view {
+  display: block;
+  width: 100%;
 }

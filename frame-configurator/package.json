@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
-    "@inkandswitch/patchwork-bootloader": "^0.0.4",
+    "@inkandswitch/patchwork-bootloader": "^0.2.8",
     "@typescript-eslint/parser": "^8.40.0",
     "babel-preset-solid": "^1.9.9",
     "eslint": "^9.34.0",

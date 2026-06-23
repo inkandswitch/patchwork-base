@@ -10,7 +10,9 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     rollupOptions: {
-      external: externals,
+      external: (id) =>
+        externals.some((e: string) => id === e || id.startsWith(e + "/")) ||
+        id === "@inkandswitch/patchwork-providers",
       input: "./src/index.ts",
       output: {
         format: "es",
