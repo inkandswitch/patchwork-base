@@ -164,9 +164,6 @@
 
 .toolbar-box.dragging {
   opacity: 0;
-  height: 0;
-  overflow: hidden;
-  transform: scale(0);
 }
 
 .toolbar-box.shift-left {
@@ -285,9 +282,6 @@
 
 .context-tab.dragging {
   opacity: 0;
-  height: 0;
-  overflow: hidden;
-  transform: scale(0);
 }
 
 .context-tab.shift-left {
