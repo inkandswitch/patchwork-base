@@ -469,4 +469,8 @@
 	background: var(--studio-selection-fill);
 	color: var(--studio-selection-line);
 }
+
+body {
+	margin: 0;
+}
 }
