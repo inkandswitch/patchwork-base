@@ -41,9 +41,6 @@ importers:
       solid-js:
         specifier: ^1.9.9
         version: 1.9.11
-      tailwind-merge:
-        specifier: ^1.14.0
-        version: 1.14.0
     devDependencies:
       '@babel/core':
         specifier: 7.28.4
@@ -679,9 +676,6 @@ packages:
     resolution: {integrity: sha512-KplGPX2GHiWJLZ6AXYRql4M127PdYzfwvLJJXMkO+CMb8Np4VxqDAg5S8jLdwlEuBis/ia9DKw2M8dFx5u8Mhw==}
     peerDependencies:
       solid-js: ^1.8
-
-  tailwind-merge@1.14.0:
-    resolution: {integrity: sha512-3mFKyCo/MBcgyOTlrY8T7odzZFx+w+qKSMAmdFzRvqBfLlSigU6TZnlFHK0lkMwj9Bj8OYU+9yW9lmGuS0QEnQ==}
 
   tinyargs@0.1.4:
     resolution: {integrity: sha512-5OpdhMRRE70j0zT7mrBpx12FJI+y0EGx8zMe8Vl2/aiwGgpW3X70OVHlsHmHeeG0ncnnWdq1o+k/S5d9ONgzGA==}
@@ -1411,8 +1405,6 @@ snapshots:
     dependencies:
       '@corvu/utils': 0.4.2(solid-js@1.9.11)
       solid-js: 1.9.11
-
-  tailwind-merge@1.14.0: {}
 
   tinyargs@0.1.4: {}
 
