@@ -24,10 +24,11 @@ const SYNCSTATE_CHANNEL = "@patchwork/syncstate";
 const SYNCSTATE_DB_NAME = "syncstate";
 const SYNCSTATE_STORE_NAME = "syncstate";
 
+/** Read the latest sync-server heads for a document from the shared
+ *  worker's IndexedDB syncstate store. Keyed by documentId alone. */
 function readSyncStateFromDb(
   documentId: string,
-  storageId: string,
-): Promise<{ heads: UrlHeads; timestamp: number } | undefined> {
+): Promise<{ storageId: string; heads: UrlHeads; timestamp: number } | undefined> {
   return new Promise((resolve) => {
     const req = indexedDB.open(SYNCSTATE_DB_NAME, 1);
     req.onupgradeneeded = () => {
@@ -44,13 +45,16 @@ function readSyncStateFromDb(
       }
       const tx = db.transaction(SYNCSTATE_STORE_NAME, "readonly");
       const store = tx.objectStore(SYNCSTATE_STORE_NAME);
-      const key = `${documentId}\0${storageId}`;
-      const get = store.get(key);
+      const get = store.get(documentId);
       get.onsuccess = () => {
         db.close();
         const val = get.result;
         if (val && val.heads) {
-          resolve({ heads: val.heads as UrlHeads, timestamp: val.timestamp });
+          resolve({
+            storageId: val.storageId,
+            heads: val.heads as UrlHeads,
+            timestamp: val.timestamp,
+          });
         } else {
           resolve(undefined);
         }
@@ -65,10 +69,6 @@ function readSyncStateFromDb(
 }
 
 export { RepoContext };
-
-export const SYNC_SERVER_STORAGE_ID = (import.meta.env
-  ?.VITE_SYNC_SERVER_STORAGE_ID ??
-  "e524f444-ae52-4c1b-a923-e6e632a539e4") as StorageId;
 
 interface PeerSyncInfo {
   id: string;
@@ -97,12 +97,15 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
   const [ownHeads, setOwnHeads] = createSignal<UrlHeads | undefined>();
   const [isOnline, setIsOnline] = createSignal(navigator.onLine);
 
-  // sync server state (driven by its known storage ID)
+  // sync server state — driven by the shared worker's BroadcastChannel
   const [syncServerHeads, setSyncServerHeads] = createSignal<
     UrlHeads | undefined
   >();
   const [syncServerTimestamp, setSyncServerTimestamp] = createSignal<
     number | undefined
+  >();
+  const [syncServerStorageId, setSyncServerStorageId] = createSignal<
+    StorageId | undefined
   >();
 
   // connected peers (shared worker, etc)
@@ -129,6 +132,28 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     });
   }
 
+  /** Update sync-server signals and the matching peer-list entry. */
+  function applySyncServerUpdate(
+    storageId: StorageId,
+    heads: UrlHeads,
+    timestamp: number,
+  ) {
+    setSyncServerStorageId(storageId);
+    setSyncServerHeads(heads);
+    setSyncServerTimestamp(timestamp);
+
+    const idx = peers.findIndex((p) => p.name === "Sync Server");
+    if (idx >= 0) {
+      const currentHeads = ownHeads();
+      setPeers(idx, {
+        storageId,
+        heads,
+        lastSyncTimestamp: timestamp,
+        inSync: currentHeads ? A.equals(currentHeads, heads) : false,
+      });
+    }
+  }
+
   // track own heads + remote heads
   createEffect(() => {
     const h = props.handle;
@@ -150,13 +175,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     }) => {
       log("remote-heads", { storageId, heads, timestamp });
 
-      // sync server (gossiped through shared worker)
-      if (storageId === SYNC_SERVER_STORAGE_ID) {
-        setSyncServerHeads(heads);
-        setSyncServerTimestamp(timestamp);
-      }
-
-      // update peer entry if it matches
+      // update peer entry if it matches a known peer
       const idx = peers.findIndex((p) => p.storageId === storageId);
       if (idx >= 0) {
         const currentHeads = ownHeads();
@@ -165,8 +184,6 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
           lastSyncTimestamp: timestamp,
           inSync: currentHeads ? A.equals(currentHeads, heads) : false,
         });
-      } else {
-        refreshPeers();
       }
     };
 
@@ -181,46 +198,25 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
         data?.type === "remote-heads" &&
         data.documentId === h.documentId
       ) {
-        onRemoteHeads({
-          storageId: data.storageId as StorageId,
-          heads: data.heads as UrlHeads,
-          timestamp: data.timestamp,
-        });
+        applySyncServerUpdate(
+          data.storageId as StorageId,
+          data.heads as UrlHeads,
+          data.timestamp,
+        );
       }
     });
 
-    // initialize sync server from stored sync info (repo-level)
-    const serverInfo = h.getSyncInfo(SYNC_SERVER_STORAGE_ID);
-    if (serverInfo) {
-      setSyncServerHeads(serverInfo.lastHeads);
-      setSyncServerTimestamp(serverInfo.lastSyncTimestamp);
-    }
-
-    // also seed from the shared worker's IndexedDB syncstate store,
-    // which may have fresher data than the repo's own sync info
-    readSyncStateFromDb(h.documentId, SYNC_SERVER_STORAGE_ID).then(
-      (stored) => {
-        if (!stored) return;
-        const current = syncServerTimestamp();
-        if (current && current >= stored.timestamp) return;
-        setSyncServerHeads(stored.heads);
-        setSyncServerTimestamp(stored.timestamp);
-        // update the virtual sync server peer entry too
-        const idx = peers.findIndex(
-          (p) => p.storageId === SYNC_SERVER_STORAGE_ID
-        );
-        if (idx >= 0) {
-          const currentHeads = ownHeads();
-          setPeers(idx, {
-            heads: stored.heads,
-            lastSyncTimestamp: stored.timestamp,
-            inSync: currentHeads
-              ? A.equals(currentHeads, stored.heads)
-              : false,
-          });
-        }
-      }
-    );
+    // seed from the shared worker's IndexedDB syncstate store
+    readSyncStateFromDb(h.documentId).then((stored) => {
+      if (!stored) return;
+      const current = syncServerTimestamp();
+      if (current && current >= stored.timestamp) return;
+      applySyncServerUpdate(
+        stored.storageId as StorageId,
+        stored.heads,
+        stored.timestamp,
+      );
+    });
 
     // build initial peer list
     refreshPeers();
@@ -260,7 +256,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
       peerList.push({
         id: "sync-server",
         name: "Sync Server",
-        storageId: SYNC_SERVER_STORAGE_ID,
+        storageId: syncServerStorageId(),
         heads: serverHeads,
         lastSyncTimestamp: serverTs,
         inSync:
@@ -323,7 +319,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     const data = {
       ownHeads: ownHeads(),
       syncServer: {
-        storageId: SYNC_SERVER_STORAGE_ID,
+        storageId: syncServerStorageId(),
         heads: syncServerHeads(),
         lastSyncTimestamp: syncServerTimestamp(),
         inSync: syncServerInSync(),
