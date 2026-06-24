@@ -2,12 +2,12 @@
 :root,
 :host,
 [theme] {
-  --task-fg: var(--studio-line, black);
-  --task-bg: var(--studio-fill, white);
-  --task-muted: var(--studio-line-offset-50, #999);
-  --task-border: var(--studio-fill-offset-20, #ccc);
-  --task-family: var(--studio-family-sans, system-ui, sans-serif);
-  --task-family-code: var(--studio-family-code, ui-monospace, monospace);
+  --task-fg: var(--editor-line, black);
+  --task-bg: var(--editor-fill, white);
+  --task-muted: var(--editor-line-offset-50, #999);
+  --task-border: var(--editor-fill-offset-20, #ccc);
+  --task-family: var(--editor-family-sans, system-ui, sans-serif);
+  --task-family-code: var(--editor-family-code, ui-monospace, monospace);
   --task-radius: var(--studio-radius-sm, 4px);
   --task-danger: var(--studio-danger, #ff6a90);
   --task-success: var(--studio-added, #35f7ca);

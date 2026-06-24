@@ -2,11 +2,11 @@
 :root,
 :host,
 [theme] {
-  --contact-fg: var(--studio-line, black);
-  --contact-muted-fg: var(--studio-line-offset-50, #999);
-  --contact-border: var(--studio-fill-offset-10, #e5e5e5);
-  --contact-fallback-bg: var(--studio-fill-offset-20, #ccc);
-  --contact-fallback-fg: var(--studio-line-offset-30, #4d4d4d);
+  --contact-fg: var(--editor-line, black);
+  --contact-muted-fg: var(--editor-line-offset-50, #999);
+  --contact-border: var(--editor-fill-offset-10, #e5e5e5);
+  --contact-fallback-bg: var(--editor-fill-offset-20, #ccc);
+  --contact-fallback-fg: var(--editor-line-offset-30, #4d4d4d);
 }
 }
 

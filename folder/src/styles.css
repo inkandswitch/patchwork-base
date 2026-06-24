@@ -3,38 +3,38 @@
 :host,
 [theme] {
   /* The well the cards sit in — slightly recessed surface. */
-  --folder-view-well: var(--studio-fill-offset-10, #f2f2f2);
-  --folder-view-well-edge: var(--studio-fill-offset-30, #d6d6d6);
-  --folder-view-fg: var(--studio-line, black);
-  --folder-view-muted: var(--studio-line-offset-50, #999);
-  --folder-view-border: var(--studio-fill-offset-20, #e5e5e5);
+  --folder-view-well: var(--editor-fill-offset-10, #f2f2f2);
+  --folder-view-well-edge: var(--editor-fill-offset-30, #d6d6d6);
+  --folder-view-fg: var(--editor-line, black);
+  --folder-view-muted: var(--editor-line-offset-50, #999);
+  --folder-view-border: var(--editor-fill-offset-20, #e5e5e5);
 
   /* A card = a raised surface sitting on the well. */
-  --folder-view-card: var(--studio-fill, white);
-  --folder-view-card-border: var(--studio-fill-offset-20, #e5e5e5);
+  --folder-view-card: var(--editor-fill, white);
+  --folder-view-card-border: var(--editor-fill-offset-20, #e5e5e5);
 
   --folder-view-accent: var(--studio-primary, #35f7ca);
-  --folder-view-accent-ink: var(--studio-fill, white);
-  --folder-view-hover: var(--studio-fill-offset-10, #f2f2f2);
+  --folder-view-accent-ink: var(--editor-fill, white);
+  --folder-view-hover: var(--editor-fill-offset-10, #f2f2f2);
 
   /* Layered drop shadow so a card reads as a solid object resting on the
      well — a tight contact shadow plus a softer cast one. Derived from the
      theme line colour so it inverts in dark themes. */
   --folder-view-card-shadow: 0 1px 2px
-      color-mix(in oklch, var(--studio-line, black), transparent 88%),
-    0 2px 8px color-mix(in oklch, var(--studio-line, black), transparent 92%);
+      color-mix(in oklch, var(--editor-line, black), transparent 88%),
+    0 2px 8px color-mix(in oklch, var(--editor-line, black), transparent 92%);
   --folder-view-card-shadow-hover: 0 2px 4px
-      color-mix(in oklch, var(--studio-line, black), transparent 84%),
-    0 8px 20px color-mix(in oklch, var(--studio-line, black), transparent 88%);
+      color-mix(in oklch, var(--editor-line, black), transparent 84%),
+    0 8px 20px color-mix(in oklch, var(--editor-line, black), transparent 88%);
 
   /* Inset shadow that makes the well read as recessed — derived from the
      theme's line colour so it inverts correctly in dark themes. */
   --folder-view-well-shadow: inset 0 1px 4px
-      color-mix(in oklch, var(--studio-line, black), transparent 94%),
+      color-mix(in oklch, var(--editor-line, black), transparent 94%),
     inset 0 4px 12px
-      color-mix(in oklch, var(--studio-line, black), transparent 96%);
+      color-mix(in oklch, var(--editor-line, black), transparent 96%);
 
-  --folder-view-family: var(--studio-family-sans, system-ui, sans-serif);
+  --folder-view-family: var(--editor-family-sans, system-ui, sans-serif);
 }
 }
 
@@ -95,7 +95,7 @@
   padding: var(--studio-space-md, 1rem);
   font-family: var(--folder-view-family);
   color: var(--folder-view-muted);
-  background: var(--studio-fill, white);
+  background: var(--folder-view-card);
 }
 
 /* Block: one rendered file/folder card — sitting on the well. */

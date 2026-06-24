@@ -2,86 +2,88 @@
 :root,
 :host,
 [theme] {
-  --module-settings-manager-line: var(--studio-line, black);
-  --module-settings-manager-widget-fill: var(--studio-fill, white);
+  --module-settings-manager-line: var(--editor-line, black);
+  --module-settings-manager-fill: var(--editor-fill, white);
+  --module-settings-manager-family-code: var(--editor-family-code, ui-monospace, monospace);
+  --module-settings-manager-widget-fill: var(--editor-fill, white);
   --module-settings-manager-widget-line: var(--module-settings-manager-line);
   --module-settings-manager-radius: 0.275rem;
-  --module-settings-manager-primary: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 60%);
+  --module-settings-manager-primary: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 60%);
 
   --msm-widget-darken-3: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 3%
+    var(--editor-line, black) 3%
   );
   --msm-widget-darken-5: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 5%
+    var(--editor-line, black) 5%
   );
   --msm-widget-darken-8: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 8%
+    var(--editor-line, black) 8%
   );
   --msm-widget-darken-10: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 10%
+    var(--editor-line, black) 10%
   );
   --msm-widget-darken-12: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 12%
+    var(--editor-line, black) 12%
   );
   --msm-widget-darken-15: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 15%
+    var(--editor-line, black) 15%
   );
   --msm-widget-darken-16: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 16%
+    var(--editor-line, black) 16%
   );
   --msm-widget-darken-20: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
-    var(--studio-line, black) 20%
+    var(--editor-line, black) 20%
   );
 
-  --msm-blue-light-10: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 10%);
-  --msm-blue-light-20: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 20%);
-  --msm-blue-light-40: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 40%);
-  --msm-blue-light-50: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 50%);
-  --msm-blue-light-70: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 70%);
-  --msm-blue-dark-5: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-line, black) 5%);
-  --msm-blue-dark-10: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-line, black) 10%);
-  --msm-blue-dark-20: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-line, black) 20%);
-  --msm-blue-dark-40: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-line, black) 40%);
-  --msm-blue-dark-50: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--studio-line, black) 50%);
+  --msm-blue-light-10: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 10%);
+  --msm-blue-light-20: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 20%);
+  --msm-blue-light-40: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 40%);
+  --msm-blue-light-50: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 50%);
+  --msm-blue-light-70: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 70%);
+  --msm-blue-dark-5: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 5%);
+  --msm-blue-dark-10: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 10%);
+  --msm-blue-dark-20: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 20%);
+  --msm-blue-dark-40: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 40%);
+  --msm-blue-dark-50: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 50%);
 
-  --msm-green-light-85: color-mix(in oklab, var(--studio-added, #35f7ca), var(--studio-fill, white) 85%);
+  --msm-green-light-85: color-mix(in oklab, var(--studio-added, #35f7ca), var(--editor-fill, white) 85%);
 
-  --msm-red-light-40: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--studio-fill, white) 40%);
-  --msm-red-light-60: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--studio-fill, white) 60%);
-  --msm-red-light-80: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--studio-fill, white) 80%);
-  --msm-red-dark-50: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--studio-line, black) 50%);
-  --msm-red-dark-70: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--studio-line, black) 70%);
+  --msm-red-light-40: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-fill, white) 40%);
+  --msm-red-light-60: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-fill, white) 60%);
+  --msm-red-light-80: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-fill, white) 80%);
+  --msm-red-dark-50: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-line, black) 50%);
+  --msm-red-dark-70: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-line, black) 70%);
 
-  --msm-yellow-light-50: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--studio-fill, white) 50%);
-  --msm-yellow-light-70: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--studio-fill, white) 70%);
-  --msm-yellow-dark-40: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--studio-line, black) 40%);
-  --msm-yellow-dark-50: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--studio-line, black) 50%);
-  --msm-yellow-dark-60: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--studio-line, black) 60%);
+  --msm-yellow-light-50: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-fill, white) 50%);
+  --msm-yellow-light-70: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-fill, white) 70%);
+  --msm-yellow-dark-40: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-line, black) 40%);
+  --msm-yellow-dark-50: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-line, black) 50%);
+  --msm-yellow-dark-60: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-line, black) 60%);
 
-  --msm-text-error-light: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--studio-line, black) 50%);
-  --msm-text-error-dark: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--studio-fill, white) 40%);
-  --msm-text-warning-light: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--studio-line, black) 50%);
-  --msm-text-warning-dark: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--studio-fill, white) 40%);
-  --msm-text-blue-light: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-line, black) 50%);
-  --msm-text-blue-dark: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 40%);
-  --msm-text-green-light: color-mix(in oklch, var(--studio-added, #35f7ca), var(--studio-line, black) 50%);
-  --msm-text-green-dark: color-mix(in oklch, var(--studio-added, #35f7ca), var(--studio-fill, white) 40%);
+  --msm-text-error-light: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--editor-line, black) 50%);
+  --msm-text-error-dark: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--editor-fill, white) 40%);
+  --msm-text-warning-light: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--editor-line, black) 50%);
+  --msm-text-warning-dark: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--editor-fill, white) 40%);
+  --msm-text-blue-light: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--editor-line, black) 50%);
+  --msm-text-blue-dark: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 40%);
+  --msm-text-green-light: color-mix(in oklch, var(--studio-added, #35f7ca), var(--editor-line, black) 50%);
+  --msm-text-green-dark: color-mix(in oklch, var(--studio-added, #35f7ca), var(--editor-fill, white) 40%);
 }
 }
 
@@ -97,7 +99,7 @@
   gap: 0.5rem;
   container-type: inline-size;
   container-name: msm;
-  background: var(--studio-fill, white);
+  background: var(--module-settings-manager-fill);
 }
 
 @media (min-width: 769px) {
@@ -133,7 +135,7 @@
   gap: 0.5rem;
   align-items: stretch;
   border: 1px solid var(--msm-widget-darken-5);
-  background: var(--studio-fill, white);
+  background: var(--module-settings-manager-fill);
 }
 
 @media (min-width: 769px) {
@@ -331,7 +333,7 @@
 }
 
 .module-settings-module-input__package-value {
-  font-family: var(--studio-family-code, ui-monospace, monospace);
+  font-family: var(--module-settings-manager-family-code);
   padding: 0.25rem 0.5rem;
   background: var(--msm-widget-darken-5);
   border-radius: 3px;
@@ -443,7 +445,7 @@
 
 .msm-card__url {
   display: block;
-  font-family: var(--studio-family-code, ui-monospace, monospace);
+  font-family: var(--module-settings-manager-family-code);
   font-size: 0.8125rem;
   color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 45%);
   word-break: break-all;
@@ -523,7 +525,7 @@
 }
 
 .msm-plugin__id {
-  font-family: var(--studio-family-code, ui-monospace, monospace);
+  font-family: var(--module-settings-manager-family-code);
   font-size: 0.75rem;
   color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 55%);
   cursor: pointer;
@@ -579,7 +581,7 @@
 }
 
 .msm-plugin__supports-item {
-  font-family: var(--studio-family-code, ui-monospace, monospace);
+  font-family: var(--module-settings-manager-family-code);
   color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 35%);
 }
 .msm-plugin__supports-item--any {
@@ -724,7 +726,7 @@
 }
 
 .module-settings-manager__branch-url {
-  font-family: var(--studio-family-code, ui-monospace, monospace);
+  font-family: var(--module-settings-manager-family-code);
   font-size: 0.6875rem;
   opacity: 0.55;
   white-space: nowrap;
