@@ -15,24 +15,27 @@
 	--studio-offset-tint: var(--studio-secondary);
 	--studio-offset-tint-amount: 10%;
 	--studio-fill: white;
+	/* the offset labels (10..50) stay linear, but the actual mix amount curves:
+	   finer steps near the fill where the eye is most sensitive, so subtle
+	   tints (active line, gutter) stay distinct. 10 starts at the fill itself. */
 	--studio-fill-offset-10: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-fill), var(--studio-line) 10%),
+		color-mix(in oklch, var(--studio-fill), var(--studio-line) 0%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-fill-offset-20: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-fill), var(--studio-line) 20%),
+		color-mix(in oklch, var(--studio-fill), var(--studio-line) 7%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-fill-offset-30: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-fill), var(--studio-line) 30%),
+		color-mix(in oklch, var(--studio-fill), var(--studio-line) 18%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-fill-offset-40: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-fill), var(--studio-line) 40%),
+		color-mix(in oklch, var(--studio-fill), var(--studio-line) 32%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-fill-offset-50: color-mix(
@@ -120,22 +123,22 @@
 	--editor-fill: var(--studio-fill);
 	--editor-fill-offset-10: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--editor-fill), var(--editor-line) 10%),
+		color-mix(in oklch, var(--editor-fill), var(--editor-line) 0%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--editor-fill-offset-20: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--editor-fill), var(--editor-line) 20%),
+		color-mix(in oklch, var(--editor-fill), var(--editor-line) 7%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--editor-fill-offset-30: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--editor-fill), var(--editor-line) 30%),
+		color-mix(in oklch, var(--editor-fill), var(--editor-line) 18%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--editor-fill-offset-40: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--editor-fill), var(--editor-line) 40%),
+		color-mix(in oklch, var(--editor-fill), var(--editor-line) 32%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--editor-fill-offset-50: color-mix(
@@ -186,22 +189,22 @@
 	--text-editor-fill-offset-50: var(--editor-fill-offset-50);
 	--text-editor-fill-offset-10: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 10%),
+		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 0%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--text-editor-fill-offset-20: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 20%),
+		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 7%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--text-editor-fill-offset-30: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 30%),
+		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 18%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--text-editor-fill-offset-40: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 40%),
+		color-mix(in oklch, var(--text-editor-fill), var(--text-editor-line) 32%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--text-editor-fill-offset-50: color-mix(
