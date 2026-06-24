@@ -9,6 +9,8 @@ import {isImageFile} from "../utils"
 import {HTMLFileViewer, isHTMLFile} from "./HTMLFileViewer"
 import {ImageFileViewer} from "./ImageFileViewer"
 import {PDFFileViewer, isPDFFile} from "./PDFFileViewer"
+import {AudioFileViewer, isAudioFile} from "./AudioFileViewer"
+import {VideoFileViewer, isVideoFile} from "./VideoFileViewer"
 import {TextFileEditor, isTextFile} from "./TextFileEditor"
 import {LongTextFileViewer} from "./LongTextFileViewer"
 import {LONG_TEXT_FILE_LENGTH_THRESHOLD} from "../types"
@@ -65,6 +67,12 @@ export function FileEditor(props: {
 				</Match>
 				<Match when={isPDFFile(doc()!)}>
 					<PDFFileViewer doc={doc()!} />
+				</Match>
+				<Match when={isAudioFile(doc()!)}>
+					<AudioFileViewer doc={doc()!} />
+				</Match>
+				<Match when={isVideoFile(doc()!)}>
+					<VideoFileViewer doc={doc()!} />
 				</Match>
 			</Switch>
 		</Show>

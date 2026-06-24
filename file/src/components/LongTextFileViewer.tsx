@@ -1,20 +1,59 @@
+import {onCleanup} from "solid-js"
+import {
+	EditorView,
+	lineNumbers,
+	highlightSpecialChars,
+	highlightActiveLineGutter,
+	highlightActiveLine,
+	keymap,
+} from "@codemirror/view"
+import {EditorState} from "@codemirror/state"
+import {bracketMatching, foldGutter, foldKeymap} from "@codemirror/language"
+import {highlightSelectionMatches, searchKeymap} from "@codemirror/search"
+import {defaultKeymap} from "@codemirror/commands"
+import codemirrorTheme from "../codemirror-theme"
+import {getLanguageExtension} from "../languages"
 import type {FileDoc} from "../types"
-import {isImmutableStringFileDoc} from "../datatype"
 
 export function LongTextFileViewer(props: {doc: FileDoc}) {
-	if (!props.doc || !isImmutableStringFileDoc(props.doc)) {
-		return null
-	}
+	const languageExtension = getLanguageExtension(
+		props.doc.extension,
+		props.doc.mimeType,
+	)
+
+	const view = new EditorView({
+		doc: props.doc.content?.toString() || "",
+		extensions: [
+			EditorState.readOnly.of(true),
+			EditorView.editable.of(false),
+			lineNumbers(),
+			highlightSpecialChars(),
+			highlightActiveLineGutter(),
+			highlightActiveLine(),
+			highlightSelectionMatches(),
+			foldGutter(),
+			bracketMatching(),
+			EditorState.tabSize.of(2),
+			EditorView.lineWrapping,
+			keymap.of([...searchKeymap, ...foldKeymap, ...defaultKeymap]),
+			languageExtension,
+			...codemirrorTheme,
+		],
+	})
+
+	onCleanup(() => {
+		view.destroy()
+	})
 
 	return (
-		<div class="p-4">
-			<div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
-				This file is too large to edit directly. It is displayed in read-only
-				mode.
-			</div>
-			<pre class="font-mono text-sm whitespace-pre-wrap break-words">
-				{props.doc.content.toString()}
-			</pre>
-		</div>
+		<div
+			ref={(el) => {
+				el.appendChild(view.dom)
+			}}
+			style={{
+				width: "100%",
+				height: "100%",
+			}}
+		/>
 	)
 }
