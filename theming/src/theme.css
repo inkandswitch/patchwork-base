@@ -146,7 +146,6 @@
 		color-mix(in oklch, var(--editor-fill), var(--editor-line) 50%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
-	--editor-line: black;
 	--editor-line-offset-10: color-mix(
 		in oklch,
 		color-mix(in oklch, var(--editor-line), var(--editor-fill) 10%),
