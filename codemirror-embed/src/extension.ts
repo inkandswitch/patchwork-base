@@ -7,7 +7,6 @@ import {
   type DecorationSet,
 } from "@codemirror/view";
 import { Range } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
 import {
   type DocumentId,
   isValidDocumentId,
@@ -15,16 +14,19 @@ import {
 } from "@automerge/automerge-repo";
 import { embedTheme } from "./theme.ts";
 import { openLinkIcon } from "./icons.ts";
+import { hasDocumentDrag, getDocumentDragPayload } from "./dnd.ts";
 
 /**
  * Widget to render an embedded <patchwork-view> element in a CodeMirror editor.
  */
 class EmbedWidget extends WidgetType {
   readonly docId: DocumentId;
-  readonly toolId: string;
+  // `null` means "no explicit tool": <patchwork-view> falls back to the
+  // default tool registered for the document's datatype.
+  readonly toolId: string | null;
   readonly embedText: string;
 
-  constructor(docId: DocumentId, toolId: string, embedText: string) {
+  constructor(docId: DocumentId, toolId: string | null, embedText: string) {
     super();
     this.docId = docId;
     this.toolId = toolId;
@@ -57,7 +59,7 @@ class EmbedWidget extends WidgetType {
       e.stopPropagation();
       const params = new URLSearchParams();
       params.set("doc", this.docId);
-      params.set("tool", this.toolId);
+      if (this.toolId) params.set("tool", this.toolId);
       window.location.hash = params.toString();
     };
 
@@ -66,7 +68,14 @@ class EmbedWidget extends WidgetType {
 
     const view = document.createElement("patchwork-view");
     view.setAttribute("doc-url", `automerge:${this.docId}`);
-    view.setAttribute("tool-id", this.toolId);
+    if (this.toolId) view.setAttribute("tool-id", this.toolId);
+    // The <patchwork-view> needs an explicit, non-zero height set inline:
+    // without it the element collapses to 0px and the embedded tool never
+    // renders. (The stylesheet rule isn't reliably applied here, so we set it
+    // directly on the element.)
+    view.style.display = "block";
+    view.style.height = "500px";
+    view.style.width = "100%";
 
     container.appendChild(label);
     container.appendChild(view);
@@ -93,108 +102,110 @@ class EmbedWidget extends WidgetType {
   }
 }
 
+// Embed marker syntax: [patchwork:docId] or [patchwork:docId/toolId]. The tool
+// id is optional; when absent the embed falls back to the datatype's default
+// tool. The doc id / tool id cannot contain `/` or `]`.
+//
+// We scan the document text directly rather than walking the markdown syntax
+// tree on purpose: `@codemirror/language` is not a shared singleton across
+// patchwork's separately-bundled CodeMirror extensions, so `syntaxTree(state)`
+// here reads a different `Language` facet than the markdown tool populates and
+// always comes back empty. Plain-text scanning keeps this extension
+// self-contained and free of any `@codemirror/language` dependency.
+const EMBED_PATTERN = /\[patchwork:([^/\]]+)(?:\/([^\]]+))?\]/g;
+
 function getEmbedLinks(view: EditorView) {
   const widgets: Range<Decoration>[] = [];
   const { state } = view;
   const selection = state.selection.main;
 
-  for (let { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
-      from,
-      to,
-      enter: (node) => {
-        // Match markdown link syntax
-        if (node.name === "Link") {
-          const linkFrom = node.from;
-          const linkTo = node.to;
+  // Scan only the visible ranges. Markers never span a line break, and
+  // CodeMirror's visible ranges are line-aligned, so a marker is either fully
+  // inside a range or fully outside it.
+  for (const { from, to } of view.visibleRanges) {
+    const text = state.doc.sliceString(from, to);
+    EMBED_PATTERN.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = EMBED_PATTERN.exec(text)) !== null) {
+      const matchFrom = from + m.index;
+      const matchTo = matchFrom + m[0].length;
+      const [matchText, docId, toolId] = m;
 
-          // Check if cursor is inside this link
-          const cursorInLink =
-            selection.from >= linkFrom && selection.from <= linkTo;
-          // Check if the link is inside the selection
-          const selectionSpansLink =
-            selection.from < linkFrom && selection.to > linkTo;
+      // Show raw text (no widget) while the cursor is on the marker or a
+      // selection spans it, so it can be edited.
+      const cursorInLink =
+        selection.from >= matchFrom && selection.from <= matchTo;
+      const selectionSpansLink =
+        selection.from < matchFrom && selection.to > matchTo;
+      if (cursorInLink || selectionSpansLink) continue;
 
-          // Replace if cursor is outside the link and there's no selection across the link
-          if (!cursorInLink && !selectionSpansLink) {
-            const linkText = state.doc.sliceString(linkFrom, linkTo);
+      if (!isValidDocumentId(docId)) continue;
 
-            // Match [patchwork:docId/toolId] format
-            const match = linkText.match(/\[patchwork:([^/\]]+)\/([^\]]+)\]/);
-
-            if (match) {
-              const [, docId, toolId] = match;
-
-              // Validate the DocumentId before creating the embed widget
-              if (isValidDocumentId(docId)) {
-                // Replace the entire [patchwork:docId/toolId] with the embed widget
-                const embed = Decoration.replace({
-                  widget: new EmbedWidget(
-                    docId as DocumentId,
-                    toolId,
-                    linkText
-                  ),
-                });
-
-                widgets.push(embed.range(linkFrom, linkTo));
-              }
-            }
-          }
-        }
-      },
-    });
+      const embed = Decoration.replace({
+        widget: new EmbedWidget(docId as DocumentId, toolId ?? null, matchText),
+      });
+      widgets.push(embed.range(matchFrom, matchTo));
+    }
   }
 
-  return Decoration.set(widgets);
+  // `true` lets CodeMirror sort the ranges defensively (matches are already in
+  // document order, but this is cheap insurance).
+  return Decoration.set(widgets, true);
 }
 
-/** MIME type used by the sideboard (and similar) for document drag-and-drop. */
-const PATCHWORK_DND = "text/x-patchwork-dnd";
-
 /**
- * Drop handler that accepts documents dragged from the sidebar (or elsewhere)
- * using text/x-patchwork-dnd. Inserts [patchwork:docId/toolId] at the drop position.
+ * Drop handler that turns documents dragged from the sideboard (or any other
+ * patchwork drag source) into embeds. Reads the drag payload following the
+ * drag-and-drop recipe — `text/x-patchwork-dnd`, `text/x-patchwork-urls`,
+ * `text/uri-list`, then `text/plain` — and inserts a `[patchwork:docId]`
+ * embed per document at the drop position.
+ *
+ * The tool id is intentionally omitted: the drag payload's `type` is a
+ * datatype rather than a tool id, so the embed falls back to the datatype's
+ * default tool when rendered by <patchwork-view>.
  */
 function embedDropHandlers() {
   return EditorView.domEventHandlers({
-    dragover(event, view) {
-      if (!event.dataTransfer?.types.includes(PATCHWORK_DND)) return false;
-      event.preventDefault();
+    dragover(event) {
+      // dragover only exposes the data *types*, not their values, so we can
+      // only check presence here — the actual payload is read on drop.
+      if (!hasDocumentDrag(event.dataTransfer)) return false;
+      event.preventDefault(); // REQUIRED, or the browser refuses the drop
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
       return true;
     },
     drop(event, view) {
-      if (!event.dataTransfer?.types.includes(PATCHWORK_DND)) return false;
-      const raw = event.dataTransfer.getData(PATCHWORK_DND);
-      if (!raw) return false;
-      try {
-        const data = JSON.parse(raw) as {
-          items?: Array<{ url?: string; type?: string }>;
-        };
-        const items = data?.items;
-        if (!Array.isArray(items) || items.length === 0) return false;
-        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-        if (pos == null) return false;
-        const inserts: string[] = [];
-        for (const item of items) {
-          const url = item?.url;
-          const toolId = item?.type;
-          if (!url || !toolId) continue;
-          const { documentId } = parseAutomergeUrl(url);
-          if (!isValidDocumentId(documentId)) continue;
-          inserts.push(`[patchwork:${documentId}/${toolId}]`);
-        }
-        if (inserts.length === 0) return false;
-        event.preventDefault();
-        const text = inserts.join("\n\n");
-        view.dispatch({
-          changes: { from: pos, insert: text },
-          selection: { anchor: pos + text.length },
-        });
-        return true;
-      } catch {
-        return false;
+      if (!hasDocumentDrag(event.dataTransfer)) return false;
+      const items = getDocumentDragPayload(event.dataTransfer);
+      if (!items || items.length === 0) return false;
+
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos == null) return false;
+
+      const inserts: string[] = [];
+      for (const item of items) {
+        const { documentId } = parseAutomergeUrl(item.url);
+        if (!isValidDocumentId(documentId)) continue;
+        inserts.push(`[patchwork:${documentId}]`);
       }
+      if (inserts.length === 0) return false;
+
+      event.preventDefault();
+
+      // Place the embeds on their own line(s) and leave the cursor on a fresh
+      // line *after* them. The trailing newline is essential: if the cursor
+      // stays adjacent to an embed, `getEmbedLinks` treats it as "being
+      // edited" and shows the raw `[patchwork:…]` text instead of the widget.
+      const line = view.state.doc.lineAt(pos);
+      const beforeOnLine = line.text.slice(0, pos - line.from);
+      const prefix = beforeOnLine.trim() === "" ? "" : "\n";
+      const text = `${prefix}${inserts.join("\n\n")}\n`;
+      view.dispatch({
+        changes: { from: pos, insert: text },
+        selection: { anchor: pos + text.length },
+        scrollIntoView: true,
+      });
+      return true;
     },
   });
 }
@@ -208,12 +219,12 @@ const embedPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      // Recompute when doc changes, selection moves, or viewport changes
+      // Recompute when the document changes, the selection moves, or the
+      // viewport scrolls (so newly-visible markers get decorated).
       if (
         update.docChanged ||
         update.selectionSet ||
-        update.viewportChanged ||
-        syntaxTree(update.startState) !== syntaxTree(update.state)
+        update.viewportChanged
       ) {
         this.decorations = getEmbedLinks(update.view);
       }
