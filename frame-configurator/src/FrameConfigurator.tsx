@@ -473,9 +473,6 @@ function FrameConfiguratorUI(props: {
   const sidebarOptions = createMemo(() =>
     filterToolsByTag([...allTools], "sidebar-account")
   );
-  const contextSidebarOptions = createMemo(() =>
-    filterToolsByTag([...allTools], "sidebar-context")
-  );
   const documentToolbarOptions = createMemo(() =>
     filterToolsByTag([...allTools], "titlebar-tool")
   );
@@ -526,14 +523,6 @@ function FrameConfiguratorUI(props: {
           value={accountDoc()!.accountSidebarToolId}
           onChange={(v) => setField("accountSidebarToolId", v as any)}
           options={sidebarOptions()}
-          docUrl={docUrl}
-        />
-
-        <PreviewCardGrid
-          label="Context Sidebar"
-          value={accountDoc()!.contextSidebarToolId}
-          onChange={(v) => setField("contextSidebarToolId", v as any)}
-          options={contextSidebarOptions()}
           docUrl={docUrl}
         />
 

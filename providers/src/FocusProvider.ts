@@ -1,5 +1,6 @@
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
+import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 
 const SELECTOR = "patchwork:focus";
 
@@ -15,14 +16,8 @@ export type FocusDoc = {
   highlight: Record<AutomergeUrl, true>;
 };
 
-export const FocusProvider = (element: HTMLElement) => {
-  const repo = "repo" in window ? window.repo : undefined;
-  if (!repo) {
-    console.warn("[providers/focus] window.repo is not set; focus disabled");
-    return () => {};
-  }
-
-  const handle = repo.create<FocusDoc>({
+export const FocusProvider = (element: PatchworkViewElement) => {
+  const handle = element.repo.create<FocusDoc>({
     selection: {},
     highlight: {},
   });

@@ -59,6 +59,9 @@ const server = createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
+  // Private Network Access: a public-origin (https) shell pointed at this
+  // localhost server triggers a PNA preflight that requires this header.
+  res.setHeader("Access-Control-Allow-Private-Network", "true");
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     res.end();
