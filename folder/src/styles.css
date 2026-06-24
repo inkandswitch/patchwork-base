@@ -55,6 +55,14 @@
   box-shadow: var(--folder-view-well-shadow);
 }
 
+/* State: a document is being dragged in from the sidebar. Outline the well
+   with the accent colour so it reads as an active drop target. */
+.folder-view[data-drop-active] {
+  border-color: var(--folder-view-accent);
+  box-shadow: var(--folder-view-well-shadow),
+    inset 0 0 0 2px var(--folder-view-accent);
+}
+
 /* Composition: header row. */
 .folder-view .folder-view-header {
   display: flex;

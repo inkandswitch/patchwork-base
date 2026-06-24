@@ -142,8 +142,12 @@ export default function Item(props: {
 
           // Check for Alt key for copy mode
           setCopyMode(event.altKey);
-          // Set effectAllowed to copyMove to prevent Chrome split view (no "link")
-          event.dataTransfer!.effectAllowed = "copyMove";
+          // "all" so the drag advertises copy, move, AND link. Every sideboard
+          // drop is a link at the automerge level (same url, no doc cloned), and
+          // link is also what lets Chrome offer split-view when dragging out.
+          // Internal dragover handlers still set dropEffect to copy/move, which
+          // stay valid as a subset of "all".
+          event.dataTransfer!.effectAllowed = "all";
 
           for (const item of items) {
             urls.push(item.url);
@@ -161,7 +165,11 @@ export default function Item(props: {
               )
               .join("\r\n") + "\r\n";
 
-          // Don't add text/uri-list to prevent Chrome split view on drag
+          // Expose a real URL list so the browser treats the drag as a link —
+          // this is what enables Chrome's split-view when dragging a doc out of
+          // the app. Our own drop targets prefer text/x-patchwork-dnd, so this
+          // doesn't change in-app behaviour.
+          event.dataTransfer?.items.add(urlList, "text/uri-list");
           // Keep custom types for our internal DnD system
           event.dataTransfer?.items.add(
             JSON.stringify(ids),
