@@ -12,6 +12,17 @@
 }
 }
 
+/* The width:100% boxes below (panel, textarea) also carry padding and a
+   border, so without border-box they extend past the sidebar and overflow it.
+   Scoped to the panel subtree so the injected stylesheet never touches the
+   host page (it may be injected into document.head, not a shadow root). */
+.comments-panel,
+.comments-panel *,
+.comments-panel *::before,
+.comments-panel *::after {
+  box-sizing: border-box;
+}
+
 .comments-panel {
   height: 100%;
   width: 100%;
@@ -114,6 +125,7 @@
   font-size: 1rem;
   color: var(--comments-fg);
   white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .comment-draft-textarea {
