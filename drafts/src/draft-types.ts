@@ -42,6 +42,21 @@ export type Baseline = {
   heads: UrlHeads | null;
 };
 
+// Response shape for `draft:member-docs`: one entry per document that makes up
+// the current view, streamed by the draft-list provider.
+//
+// On a draft these are the docs the overlay has forked — `cloneUrl` is the
+// per-draft clone and `clonedAt` its fork point (mirrors `CloneEntry`). On
+// "main" there is no clone, so both are `null` and membership is observed via
+// `patchwork:mounted` events instead. Like `Baseline`, the nullable fields use
+// `null` rather than optional so the value stays a valid structured-cloneable
+// `JSONValue` crossing the provider channel.
+export type DraftMemberDoc = {
+  url: AutomergeUrl;
+  cloneUrl: AutomergeUrl | null;
+  clonedAt: UrlHeads | null;
+};
+
 // Convention: any document may carry `@patchwork.drafts` listing the
 // top-level drafts that branch off of it. Each entry is the URL of a
 // `DraftDoc`, which in turn may have its own sub-drafts via `DraftDoc.drafts`.

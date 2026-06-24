@@ -49,6 +49,7 @@ export type {
   Baseline,
   CloneEntry,
   DraftDoc,
+  DraftMemberDoc,
   DraftsState,
 } from "./draft-types.js";
 export { isDraftDoc } from "./draft-types.js";

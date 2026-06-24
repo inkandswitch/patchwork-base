@@ -1,7 +1,5 @@
 import {
   isValidAutomergeUrl,
-  parseAutomergeUrl,
-  stringifyAutomergeUrl,
   type AutomergeUrl,
   type DocHandle,
 } from "@automerge/automerge-repo";
@@ -12,30 +10,10 @@ import {
 } from "@inkandswitch/patchwork-providers";
 
 import type { Baseline, DraftDoc } from "../draft-types.js";
+import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
 
 const HANDLE_DESCRIPTOR_SELECTOR = "repo:handle-descriptor";
 const BASELINE_SELECTOR = "draft:baseline";
-
-// HACK: datatypes the draft overlay must never clone into a draft.
-//
-// The overlay forks *every* document resolved beneath it so edits stay scoped
-// to the draft. But some docs pulled through the overlay are app-global rather
-// than part of the document being drafted: the account doc (read by the context
-// sidebar, which renders inside the overlay) and contact docs (resolved per
-// comment author). Forking those branches global state — account config, user
-// profiles — into a draft, which is wrong and could even merge back into main.
-//
-// The principled fix is to know which documents actually belong to the draft
-// and fork only those — the overlay shouldn't clone a doc just because it was
-// resolved beneath it. Until we have that notion of draft membership we invert
-// the problem with a blunt skip-list: it bakes app-level datatype names into
-// the otherwise-generic overlay and relies on each doc carrying a matching
-// `@patchwork.type`.
-const SKIPPED_DATATYPES: ReadonlySet<string> = new Set([
-  "account",
-  "contact",
-  "draft",
-]);
 
 // Mounts on a draft URL and remaps documents resolved beneath it onto
 // per-draft clones, so edits stay inside the draft.
@@ -214,8 +192,3 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
     for (const respond of [...set]) respond(baseline);
   }
 };
-
-function canonicalUrl(url: AutomergeUrl): AutomergeUrl {
-  const { documentId } = parseAutomergeUrl(url);
-  return stringifyAutomergeUrl({ documentId });
-}
