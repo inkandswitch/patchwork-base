@@ -34,7 +34,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.0",
-    "client@^18.3.1": "link:@types/react-dom/client@^18.3.1",
     "nodemon": "^3.1.14",
     "vite": "^5.4.21",
     "vite-plugin-css-injected-by-js": "^3.5.2",

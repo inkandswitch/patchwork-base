@@ -1,7 +1,0 @@
-allowBuilds:
-  cbor-extract: false
-  esbuild: false
-minimumReleaseAge: 0
-overrides:
-  "@inkandswitch/patchwork-providers": "0.2.2"
-  "@inkandswitch/patchwork-elements": "1.0.0"

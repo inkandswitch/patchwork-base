@@ -1,4 +1,0 @@
-allowBuilds:
-  cbor-extract: false
-  esbuild: false
-minimumReleaseAge: 0

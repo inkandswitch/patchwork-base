@@ -1,7 +1,15 @@
-# Settings-only (no `packages:`): this repo's tools are independent packages,
-# not a pnpm workspace. The root has no deps, but pnpm 11 still runs an
-# auto-install before every script and policy-checks the stale root lockfile.
-# Disable that pre-run install and the release-age cooldown so `pnpm dev:tools`
-# (pure-Node build:static + serve:tools) can run.
+# Root workspace: `packages: ["*"]` makes every top-level dir that has a
+# package.json a workspace project, so `pnpm -r install` / `pnpm -r build`
+# operate on every tool. The settings below carry over the repo's prior root
+# config (skip pnpm 11's pre-run auto-install and release-age cooldown) plus
+# the union of the per-tool allowBuilds maps (pnpm 11 blocks dependency build
+# scripts by default; these need theirs to fetch native binaries).
+packages:
+  - "*"
 verifyDepsBeforeRun: false
 minimumReleaseAge: 0
+allowBuilds:
+  "@swc/core": true
+  cbor-extract: true
+  core-js: true
+  esbuild: true
