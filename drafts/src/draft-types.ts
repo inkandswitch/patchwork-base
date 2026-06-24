@@ -9,15 +9,22 @@ export type CloneEntry = {
   mergedAt?: UrlHeads;
 };
 
-// `parent` points at the URL this draft branches off of: either the host
-// document (for top-level drafts attached via `@patchwork.drafts`) or
-// another `DraftDoc` (for sub-drafts attached via `DraftDoc.drafts`).
+// `parent` points at the URL this draft branches off of: the main draft (for
+// top-level drafts, listed in `mainDraft.drafts`) or another `DraftDoc` (for
+// sub-drafts attached via `DraftDoc.drafts`).
+//
+// `isMain` marks the single "main draft" a host doc points at via
+// `@patchwork.mainDraftUrl`. The main draft is bookkeeping only: it is never
+// resolved through (the overlay stays a no-op for main), its `clones` are
+// identity mappings (`cloneUrl === url`, `clonedAt === []`), and its `drafts`
+// holds the user-visible top-level draft list.
 //
 // `mergedAt` is a wall-clock timestamp set when the draft is merged into
 // its parent; absent means "still open". The sidebar uses it to filter
 // merged drafts out of the list.
 export type DraftDoc = {
   "@patchwork": { type: "draft" };
+  isMain?: boolean;
   parent: AutomergeUrl;
   drafts: AutomergeUrl[];
   clones: Record<AutomergeUrl, CloneEntry>;
@@ -47,9 +54,11 @@ export type Baseline = {
 //
 // On a draft these are the docs the overlay has forked — `cloneUrl` is the
 // per-draft clone and `clonedAt` its fork point (mirrors `CloneEntry`). On
-// "main" there is no clone, so both are `null` and membership is observed via
-// `patchwork:mounted` events instead. Like `Baseline`, the nullable fields use
-// `null` rather than optional so the value stays a valid structured-cloneable
+// "main" they come from the main draft's identity clones (`cloneUrl === url`,
+// `clonedAt === []`) once it exists; before the first draft is created there is
+// no main draft, so membership is observed from `patchwork:mounted` events and
+// both fields are `null`. Like `Baseline`, the nullable fields use `null`
+// rather than optional so the value stays a valid structured-cloneable
 // `JSONValue` crossing the provider channel.
 export type DraftMemberDoc = {
   url: AutomergeUrl;
@@ -57,13 +66,14 @@ export type DraftMemberDoc = {
   clonedAt: UrlHeads | null;
 };
 
-// Convention: any document may carry `@patchwork.drafts` listing the
-// top-level drafts that branch off of it. Each entry is the URL of a
-// `DraftDoc`, which in turn may have its own sub-drafts via `DraftDoc.drafts`.
+// Convention: a document that has been drafted carries `@patchwork.mainDraftUrl`
+// pointing at its single "main draft" — a `DraftDoc` (with `isMain`) whose
+// `drafts` lists the top-level drafts that branch off of it. The pointer is
+// created lazily on the first draft, so it is absent until then.
 export type HasDrafts = {
   "@patchwork"?: {
     type?: string;
-    drafts?: AutomergeUrl[];
+    mainDraftUrl?: AutomergeUrl;
   };
 };
 

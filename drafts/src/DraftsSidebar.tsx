@@ -74,8 +74,36 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
       console.warn("[drafts] window.repo is not set");
       return;
     }
+
+    // Top-level drafts branch off the main draft and live in its `drafts`
+    // list. The main draft is created lazily the first time we draft this doc.
+    const mainDraft = await ensureMainDraft(repo, docHandle);
     const draft = repo.create<DraftDoc>({
       "@patchwork": { type: "draft" },
+      parent: mainDraft.url,
+      drafts: [],
+      clones: {},
+    });
+    mainDraft.change((d) => {
+      d.drafts.push(draft.url);
+    });
+    selectDraft(draft.url);
+  };
+
+  // Resolve the host doc's single main draft, creating it (and pointing
+  // `@patchwork.mainDraftUrl` at it) the first time. The main draft is
+  // bookkeeping only: the list provider seeds its identity `clones`, and its
+  // `drafts` holds the top-level draft list.
+  const ensureMainDraft = async (
+    repo: Repo,
+    docHandle: DocHandle<HasDrafts>
+  ): Promise<DocHandle<DraftDoc>> => {
+    const existingUrl = docHandle.doc()?.["@patchwork"]?.mainDraftUrl;
+    if (existingUrl) return repo.find<DraftDoc>(existingUrl);
+
+    const mainDraft = repo.create<DraftDoc>({
+      "@patchwork": { type: "draft" },
+      isMain: true,
       parent: docHandle.url,
       drafts: [],
       clones: {},
@@ -84,12 +112,10 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
       const existing = d["@patchwork"];
       const next =
         existing && typeof existing === "object" ? { ...existing } : {};
-      const list = Array.isArray(next.drafts) ? [...next.drafts] : [];
-      list.push(draft.url);
-      next.drafts = list;
+      next.mainDraftUrl = mainDraft.url;
       d["@patchwork"] = next;
     });
-    selectDraft(draft.url);
+    return mainDraft;
   };
 
   const onMergeDraft = async () => {

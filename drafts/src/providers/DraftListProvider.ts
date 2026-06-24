@@ -1,4 +1,5 @@
 import {
+  encodeHeads,
   isValidAutomergeUrl,
   type AutomergeUrl,
   type DocHandle,
@@ -12,6 +13,7 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 
 import type {
+  CloneEntry,
   DraftDoc,
   DraftMemberDoc,
   DraftsState,
@@ -24,6 +26,10 @@ const DRAFT_LIST_SELECTOR = "draft:list";
 const MEMBER_DOCS_SELECTOR = "draft:member-docs";
 
 const ATTR_DOC_URL = "doc-url";
+
+// Fork point recorded for the main draft's identity clones: empty heads means
+// "from the start", so `getChangesMetaSince(doc, [])` yields the full history.
+const EMPTY_HEADS: UrlHeads = encodeHeads([]);
 
 // Mounts on a document URL and exposes that document's per-doc draft list:
 //   - `draft:root-doc`    → AutomergeUrl of the doc this provider is on
@@ -63,6 +69,10 @@ export const DraftListProvider = (element: HTMLElement) => {
   let hostDocHandle: DocHandle<HasDrafts> | null = null;
   let draftsStateHandle: DocHandle<DraftsState> | null = null;
   const trackedDrafts = new Map<AutomergeUrl, DocHandle<DraftDoc>>();
+  // The host doc's single main draft (bookkeeping only). Resolved lazily from
+  // `@patchwork.mainDraftUrl`; its `drafts` roots the draft tree and its
+  // identity `clones` back the "main" member list.
+  let mainDraftHandle: DocHandle<DraftDoc> | null = null;
 
   // `draft:list` subscribers that arrived before the ephemeral
   // DraftsState doc was created; flushed once it exists.
@@ -99,6 +109,7 @@ export const DraftListProvider = (element: HTMLElement) => {
     const url = canonicalUrl(detail.url);
     mountCounts.set(url, (mountCounts.get(url) ?? 0) + 1);
     ensureSkipVerdict(url);
+    syncMainDraftClones();
     recomputeMembers();
   };
 
@@ -184,7 +195,9 @@ export const DraftListProvider = (element: HTMLElement) => {
     element.removeEventListener("patchwork:unmounted", onUnmounted);
     if (hostDocHandle) hostDocHandle.off("change", onHostDocChange);
     if (draftsStateHandle) draftsStateHandle.off("change", onStateChange);
+    if (mainDraftHandle) mainDraftHandle.off("change", onTrackedChange);
     for (const [, h] of trackedDrafts) h.off("change", onTrackedChange);
+    mainDraftHandle = null;
     trackedDrafts.clear();
     pendingDraftsSubscribers.clear();
     memberSubscribers.clear();
@@ -203,11 +216,14 @@ export const DraftListProvider = (element: HTMLElement) => {
       return;
     }
     rewalkInFlight = true;
-    const liveHostDoc = hostDocHandle;
     const liveState = draftsStateHandle;
     void (async () => {
       try {
-        const roots = (liveHostDoc.doc()?.["@patchwork"]?.drafts ?? []).filter(
+        // Drafts hang off the main draft (`mainDraft.drafts`), which is created
+        // on the first draft; until then there are none.
+        const mainDraft = await ensureMainDraftTracked();
+        if (disposed) return;
+        const roots = (mainDraft?.doc()?.drafts ?? []).filter(
           isValidAutomergeUrl
         );
         const allDrafts = await collectAllDrafts(
@@ -254,21 +270,20 @@ export const DraftListProvider = (element: HTMLElement) => {
   }
 
   // On a draft, members come straight from that draft's clone map. On main
-  // (no selection) they are the docs mounted beneath us, minus the app-global
-  // datatypes the overlay would never fork. Both branches are sorted by url so
-  // the equality check above is positional and stable.
+  // they come from the main draft's identity clones once it exists; before the
+  // first draft is created (no main draft) we fall back to the docs mounted
+  // beneath us, minus the app-global datatypes the overlay would never fork.
+  // Every branch is sorted by url so the equality check above is positional.
   function computeMembers(): DraftMemberDoc[] {
     const selected = draftsStateHandle?.doc()?.selectedDraft ?? null;
 
     if (selected) {
-      const clones = trackedDrafts.get(selected)?.doc()?.clones ?? {};
-      return Object.entries(clones)
-        .map(([url, entry]) => ({
-          url: url as AutomergeUrl,
-          cloneUrl: entry.cloneUrl,
-          clonedAt: entry.clonedAt,
-        }))
-        .sort(byMemberUrl);
+      return clonesToMembers(trackedDrafts.get(selected)?.doc()?.clones ?? {});
+    }
+
+    const mainClones = mainDraftHandle?.doc()?.clones;
+    if (mainClones && Object.keys(mainClones).length > 0) {
+      return clonesToMembers(mainClones);
     }
 
     return [...mountCounts.keys()]
@@ -290,11 +305,54 @@ export const DraftListProvider = (element: HTMLElement) => {
         const skipped = type != null && SKIPPED_DATATYPES.has(type);
         if (skipVerdicts.get(url) === skipped) return;
         skipVerdicts.set(url, skipped);
+        // A now-confirmed not-skipped doc may belong in the main draft.
+        syncMainDraftClones();
         recomputeMembers();
       } catch {
         // Leave unresolved: the doc keeps showing up, which is the safe default.
       }
     })();
+  }
+
+  // Resolve and start tracking the host doc's main draft, if any. Returns the
+  // handle, or null when the host doc has no `mainDraftUrl` yet. Re-resolves
+  // when the pointer changes and attaches `onTrackedChange` so the main draft's
+  // `drafts` (tree shape) and `clones` (main membership) stay live.
+  async function ensureMainDraftTracked(): Promise<DocHandle<DraftDoc> | null> {
+    if (!hostDocHandle) return null;
+    const mainDraftUrl = hostDocHandle.doc()?.["@patchwork"]?.mainDraftUrl;
+    if (!mainDraftUrl || !isValidAutomergeUrl(mainDraftUrl)) return null;
+    if (mainDraftHandle && mainDraftHandle.url === mainDraftUrl) {
+      return mainDraftHandle;
+    }
+    if (mainDraftHandle) mainDraftHandle.off("change", onTrackedChange);
+    const handle = await repo.find<DraftDoc>(mainDraftUrl);
+    if (disposed) return null;
+    mainDraftHandle = handle;
+    handle.on("change", onTrackedChange);
+    syncMainDraftClones();
+    return handle;
+  }
+
+  // Keep the main draft's identity clone map in step with the live mounted set:
+  // every confirmed not-skipped mounted doc gets an identity entry (`cloneUrl
+  // === url`, empty fork heads). Additive only — entries are never removed, so
+  // main's membership (and history) is stable across unmounts. Writes are
+  // diffed, so this is a no-op once everything mounted is already recorded.
+  function syncMainDraftClones(): void {
+    if (disposed || !mainDraftHandle) return;
+    const existing = mainDraftHandle.doc()?.clones ?? {};
+    const toAdd = [...mountCounts.keys()].filter(
+      (url) => skipVerdicts.get(url) === false && !existing[url]
+    );
+    if (toAdd.length === 0) return;
+    mainDraftHandle.change((d) => {
+      for (const url of toAdd) {
+        if (!d.clones[url]) {
+          d.clones[url] = { cloneUrl: url, clonedAt: EMPTY_HEADS };
+        }
+      }
+    });
   }
 };
 
@@ -325,6 +383,20 @@ async function collectAllDrafts(
     }
   }
   return order;
+}
+
+// Project a clone map into the `draft:member-docs` shape, sorted by url so the
+// positional equality check in `recomputeMembers` stays valid.
+function clonesToMembers(
+  clones: Record<AutomergeUrl, CloneEntry>
+): DraftMemberDoc[] {
+  return Object.entries(clones)
+    .map(([url, entry]) => ({
+      url: url as AutomergeUrl,
+      cloneUrl: entry.cloneUrl,
+      clonedAt: entry.clonedAt,
+    }))
+    .sort(byMemberUrl);
 }
 
 function sameUrlList(a: readonly AutomergeUrl[], b: readonly AutomergeUrl[]) {
