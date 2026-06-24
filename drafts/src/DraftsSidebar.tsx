@@ -1,14 +1,31 @@
 import "./styles.css";
-import { createMemo, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import {
   createDocSignal,
   useDocument,
 } from "@automerge/automerge-repo-solid-primitives";
-import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
-import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
+import type {
+  AutomergeUrl,
+  DocHandle,
+  Repo,
+  UrlHeads,
+} from "@automerge/automerge-repo";
+import * as Automerge from "@automerge/automerge";
+import {
+  subscribe,
+  subscribeDoc,
+} from "@inkandswitch/patchwork-providers-solid";
 import type {
   CloneEntry,
   DraftDoc,
+  DraftMemberDoc,
   DraftsState,
   HasDrafts,
 } from "./draft-types";
@@ -142,6 +159,8 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             </button>
           </Show>
         </div>
+
+        <DraftChanges element={props.element} />
       </Show>
     </div>
   );
@@ -243,4 +262,142 @@ function DraftCard(props: {
       </button>
     </Show>
   );
+}
+
+// One change in the interleaved timeline. `docUrl` is the original member url
+// (used for labelling), never the per-draft clone the change was read from.
+type DraftChange = {
+  docUrl: AutomergeUrl;
+  hash: string;
+  // Automerge change time, in SECONDS (multiply by 1000 for a JS Date).
+  time: number;
+  actor: string;
+  message: string | null;
+};
+
+// Renders the changes that make up the current view (the selected draft, or
+// main) as a single timeline merged across every member doc. The member set
+// comes from `draft:member-docs`, so this follows selection automatically.
+function DraftChanges(props: { element: HTMLElement }) {
+  const members = subscribe<DraftMemberDoc[]>(
+    props.element,
+    { type: "draft:member-docs" },
+    []
+  );
+
+  const [changes, setChanges] = createSignal<DraftChange[]>([]);
+
+  // Whenever the member set changes, resolve a handle per member, listen for
+  // edits so the timeline stays live, and recompute. A `disposed` flag guards
+  // against the async resolution landing after the effect was torn down.
+  createEffect(() => {
+    const list = members();
+    const repo = "repo" in window ? window.repo : undefined;
+    if (!repo) return;
+
+    let disposed = false;
+    const listeners: { handle: DocHandle<unknown>; onChange: () => void }[] = [];
+
+    const recompute = async () => {
+      const rows = await collectInterleavedChanges(repo, list);
+      if (!disposed) setChanges(rows);
+    };
+
+    void (async () => {
+      for (const member of list) {
+        const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
+        if (disposed) return;
+        const onChange = () => void recompute();
+        handle.on("change", onChange);
+        listeners.push({ handle, onChange });
+      }
+      void recompute();
+    })();
+
+    onCleanup(() => {
+      disposed = true;
+      for (const { handle, onChange } of listeners) {
+        handle.off("change", onChange);
+      }
+    });
+  });
+
+  return (
+    <div class="drafts-changes">
+      <Show
+        when={changes().length > 0}
+        fallback={<div class="draft-changes-empty">No changes yet.</div>}
+      >
+        <For each={changes()}>
+          {(change) => (
+            <div class="draft-change-row">
+              <span class="draft-change-time">{formatTime(change.time)}</span>
+              <span class="draft-change-doc">{shortUrl(change.docUrl)}</span>
+              <Show when={change.message}>
+                <span class="draft-change-msg">{change.message}</span>
+              </Show>
+            </div>
+          )}
+        </For>
+      </Show>
+    </div>
+  );
+}
+
+// Walk each member doc's post-fork changes and merge them into one timeline,
+// newest first. On a draft `clonedAt` is set, so reading the clone since that
+// fork point yields exactly the draft's own changes; on main both clone fields
+// are null, so we read the original doc since `[]` for its full history.
+async function collectInterleavedChanges(
+  repo: Repo,
+  members: DraftMemberDoc[]
+): Promise<DraftChange[]> {
+  const rows: DraftChange[] = [];
+  for (const member of members) {
+    try {
+      const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
+      const doc = handle.doc();
+      if (!doc) continue;
+      const since: UrlHeads | [] = member.clonedAt ?? [];
+      const metas = Automerge.getChangesMetaSince(doc, since);
+      for (const meta of metas) {
+        rows.push({
+          docUrl: member.url,
+          hash: meta.hash,
+          time: meta.time,
+          actor: meta.actor,
+          message: meta.message,
+        });
+      }
+    } catch (err) {
+      // A member doc that can't be resolved (or whose fork point is missing)
+      // is simply omitted rather than failing the whole timeline.
+      console.warn("[drafts] failed to read changes for member:", member, err);
+    }
+  }
+  rows.sort((a, b) => b.time - a.time);
+  return rows;
+}
+
+// "automerge:4NMNnk…AVdXu" → a compact, fixed-width label for a doc url.
+function shortUrl(url: AutomergeUrl): string {
+  const id = url.replace(/^automerge:/, "");
+  if (id.length <= 10) return id;
+  return `${id.slice(0, 6)}…${id.slice(-4)}`;
+}
+
+// Format an Automerge change time (Unix SECONDS) as a short local timestamp.
+function formatTime(timeSeconds: number): string {
+  if (!timeSeconds) return "";
+  const date = new Date(timeSeconds * 1000);
+  const datePart = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  const timePart = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
 }

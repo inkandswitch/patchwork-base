@@ -142,3 +142,51 @@
   font-size: 0.75rem;
   color: var(--drafts-faint-fg);
 }
+
+.drafts-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  border-top: 1px solid var(--drafts-border);
+  padding-top: 0.5rem;
+  overflow-y: auto;
+}
+
+.draft-changes-empty {
+  font-size: 0.75rem;
+  color: var(--drafts-faint-fg);
+}
+
+.draft-change-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--drafts-radius-sm);
+  font-size: 0.75rem;
+}
+
+.draft-change-row:hover {
+  background: var(--drafts-hover-bg);
+}
+
+.draft-change-time {
+  flex: none;
+  color: var(--drafts-muted-fg);
+  white-space: nowrap;
+}
+
+.draft-change-doc {
+  flex: none;
+  font-family: var(--drafts-mono);
+  color: var(--drafts-faint-fg);
+}
+
+.draft-change-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--drafts-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
