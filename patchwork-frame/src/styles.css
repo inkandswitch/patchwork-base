@@ -17,16 +17,18 @@
   --patchwork-frame-space-2xl: var(--studio-space-2xl, 3rem);
 
   --patchwork-frame-toolbar: var(--studio-chrome, white);
+  /* toolbar text rides on the chrome surface, so it uses the chrome ink */
+  --patchwork-frame-toolbar-fg: var(--studio-chrome-line, var(--studio-line, black));
   --patchwork-frame-toolbar-border: var(--studio-chrome-offset-20, #ccc);
-  --patchwork-frame-sidebar-toggle-hover: var(--studio-line, black);
+  --patchwork-frame-sidebar-toggle-hover: var(--studio-chrome-line, var(--studio-line, black));
   --patchwork-frame-resize-accent: color-mix(in oklch, var(--studio-secondary, #33ccf8), transparent 50%);
   --patchwork-frame-resize-indicator: var(--studio-line-offset-50, #999);
 
   /* Context sidebar (tabbed) */
   --context-sidebar-bg: var(--studio-chrome, #f2f2f2);
-  --context-sidebar-fg: var(--studio-line, black);
+  --context-sidebar-fg: var(--studio-chrome-line, var(--studio-line, black));
   --context-sidebar-border: var(--studio-chrome-offset-20, #ccc);
-  --context-sidebar-tab-fg: var(--studio-line-offset-40, #666);
+  --context-sidebar-tab-fg: var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #666));
   --context-sidebar-tab-hover: var(--studio-chrome-offset-10, #e5e5e5);
   --context-sidebar-tab-active-bg: var(--studio-fill, white);
   --context-sidebar-tab-active-fg: var(--studio-line, black);
@@ -94,6 +96,7 @@
   box-sizing: border-box;
   min-height: var(--patchwork-frame-space-2xl);
   background: var(--patchwork-frame-toolbar);
+  color: var(--patchwork-frame-toolbar-fg);
   border-bottom: 1px solid var(--patchwork-frame-toolbar-border);
 }
 
@@ -159,7 +162,7 @@
   align-items: flex-end;
   justify-content: center;
   box-sizing: border-box;
-  min-height: var(--patchwork-frame-space-2xl);
+  min-height: calc(var(--patchwork-frame-space-2xl) + 1px);
   border-bottom: 1px solid var(--context-sidebar-border);
 }
 
