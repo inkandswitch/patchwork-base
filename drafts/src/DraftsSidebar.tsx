@@ -466,30 +466,52 @@ function DraftChangesList(props: {
 // other member is pinned to its latest change at or before the anchor's
 // timestamp (approximate but good enough). Members with no change at or before
 // that time are omitted — they didn't exist yet, so they fall through to live.
+//
+// `baselineHeads` records the change immediately before each pinned one (in
+// causal order), so a checkpoint diff shows exactly what that entry introduced.
+// On main the draft-list provider serves this as `draft:baseline`; on a draft
+// the overlay's fork-point baseline wins, so this goes unused there.
 async function computeCheckpoint(
   repo: Repo,
   members: DraftMemberDoc[],
   anchor: DraftCheckpoint["anchor"]
 ): Promise<DraftCheckpoint> {
   const heads: Record<AutomergeUrl, UrlHeads> = {};
+  const baselineHeads: Record<AutomergeUrl, UrlHeads> = {};
   for (const member of members) {
     try {
-      if (member.url === anchor.docUrl) {
-        heads[member.url] = encodeHeads([anchor.hash]);
-        continue;
-      }
       const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
       const doc = handle.doc();
       if (!doc) continue;
       const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
       const metas = Automerge.getChangesMetaSince(doc, since);
-      let best: { hash: string; time: number } | null = null;
-      for (const meta of metas) {
-        if (meta.time <= anchor.time && (!best || meta.time >= best.time)) {
-          best = { hash: meta.hash, time: meta.time };
-        }
+
+      // Find the change to pin this doc to: exactly the clicked entry for the
+      // anchor doc, otherwise its latest change at or before the anchor's time.
+      let pinnedIndex = -1;
+      if (member.url === anchor.docUrl) {
+        pinnedIndex = metas.findIndex((m) => m.hash === anchor.hash);
+        // Pin the anchor exactly even if it falls outside the metas window
+        // (robust against a mismatched fork point).
+        heads[member.url] = encodeHeads([anchor.hash]);
+      } else {
+        let bestTime = -Infinity;
+        metas.forEach((m, i) => {
+          if (m.time <= anchor.time && m.time >= bestTime) {
+            bestTime = m.time;
+            pinnedIndex = i;
+          }
+        });
+        if (pinnedIndex < 0) continue;
+        heads[member.url] = encodeHeads([metas[pinnedIndex].hash]);
       }
-      if (best) heads[member.url] = encodeHeads([best.hash]);
+
+      // Baseline = the change just before the pinned one. The first change has
+      // no predecessor, so the baseline is `[]` (the whole doc reads as added).
+      if (pinnedIndex >= 0) {
+        const prev = metas[pinnedIndex - 1];
+        baselineHeads[member.url] = encodeHeads(prev ? [prev.hash] : []);
+      }
     } catch (err) {
       console.warn(
         "[drafts] failed to compute checkpoint for member:",
@@ -498,7 +520,7 @@ async function computeCheckpoint(
       );
     }
   }
-  return { anchor, heads };
+  return { anchor, heads, baselineHeads };
 }
 
 // Walk each member doc's post-fork changes and merge them into one timeline,

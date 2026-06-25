@@ -38,9 +38,18 @@ export type DraftDoc = {
 // anchor doc, latest-change-before-`anchor.time` for the rest. Docs with no
 // change at or before that time are omitted (they didn't exist yet), so they
 // fall through to their live state.
+//
+// `baselineHeads` maps the same docs to the heads *just before* their pinned
+// change, so a consumer can diff the checkpoint against what each entry
+// introduced. On a draft the overlay supplies the fork-point baseline instead;
+// `baselineHeads` is what the draft-list provider serves for the "main" case,
+// where there is no overlay (see `draft:baseline`). A doc whose pinned change is
+// its first has no predecessor, so its baseline is `[]` (the whole doc reads as
+// added).
 export type DraftCheckpoint = {
   anchor: { docUrl: AutomergeUrl; hash: string; time: number };
   heads: Record<AutomergeUrl, UrlHeads>;
+  baselineHeads: Record<AutomergeUrl, UrlHeads>;
 };
 
 // Ephemeral, writeable state owned by the draft-list provider and handed to

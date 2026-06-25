@@ -42,6 +42,10 @@ type DraftCheckpoint = {
   // Original doc url -> heads to view it at. Only the selected (top-level) doc
   // is honored here; transitively-resolved docs are a later phase.
   heads: Record<AutomergeUrl, UrlHeads>;
+  // Original doc url -> heads just before the pinned change, served as the
+  // `draft:baseline` for the main case. The frame doesn't read this; it's
+  // mirrored to keep the type faithful to the drafts package.
+  baselineHeads: Record<AutomergeUrl, UrlHeads>;
 };
 
 type CheckedOutDraft = {

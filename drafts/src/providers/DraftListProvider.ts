@@ -13,6 +13,7 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 
 import type {
+  Baseline,
   CheckedOutDraft,
   CloneEntry,
   DraftDoc,
@@ -26,6 +27,7 @@ import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
 const ROOT_DOC_SELECTOR = "draft:root-doc";
 const CHECKED_OUT_SELECTOR = "draft:checked-out";
 const DRAFT_LIST_SELECTOR = "draft:list";
+const BASELINE_SELECTOR = "draft:baseline";
 
 const ATTR_DOC_URL = "doc-url";
 
@@ -81,6 +83,15 @@ export const DraftListProvider = (element: HTMLElement) => {
   // CheckedOutDraft doc was created; flushed once it exists.
   const pendingCheckedOutSubscribers = new Set<(url: AutomergeUrl) => void>();
 
+  // `draft:baseline` subscribers for the "main" case, keyed by canonical target
+  // url. On main there is no overlay to publish a fork-point baseline, so we
+  // serve the checked-out checkpoint's per-doc `baselineHeads` and re-emit
+  // whenever that checkout doc changes (pin set / cleared / switched).
+  const baselineSubscribers = new Map<
+    AutomergeUrl,
+    Set<(baseline: Baseline) => void>
+  >();
+
   // `draft:list` bookkeeping: the last computed list, its live subscribers, and
   // the draft order from the most recent rewalk.
   const listSubscribers = new Set<(list: DraftList) => void>();
@@ -109,6 +120,9 @@ export const DraftListProvider = (element: HTMLElement) => {
     recomputeList();
   };
   const onHostDocChange = () => scheduleRewalk();
+  // The checkout doc changed: its `at` checkpoint may have been set, cleared, or
+  // moved, so re-publish every live `draft:baseline` subscriber.
+  const onCheckedOutChange = () => notifyBaselines();
 
   const onMounted = (event: MountedEvent) => {
     const detail = event.detail;
@@ -139,11 +153,14 @@ export const DraftListProvider = (element: HTMLElement) => {
     // its "Main" card and write `checkedOut` even before any drafts exist on
     // the host doc.
     checkedOutHandle = repo.create<CheckedOutDraft>({ checkedOut: null });
+    checkedOutHandle.on("change", onCheckedOutChange);
     const checkedOutUrl = checkedOutHandle.url;
     for (const respond of pendingCheckedOutSubscribers) {
       respond(checkedOutUrl);
     }
     pendingCheckedOutSubscribers.clear();
+    // A checkpoint may already have synced in before this provider mounted.
+    notifyBaselines();
 
     handle.on("change", onHostDocChange);
     scheduleRewalk();
@@ -186,6 +203,28 @@ export const DraftListProvider = (element: HTMLElement) => {
       });
       return;
     }
+
+    if (type === BASELINE_SELECTOR) {
+      // The "main" fallback for `draft:baseline`: on a draft the overlay claims
+      // this subscription first (nearer answerer), so this only fires for main,
+      // where the checkpoint's per-doc `baselineHeads` is the diff reference.
+      const rawTarget = (event.detail.selector as { url?: unknown }).url;
+      if (typeof rawTarget !== "string" || !isValidAutomergeUrl(rawTarget)) {
+        return;
+      }
+      const target = canonicalUrl(rawTarget);
+      accept<Baseline>(event, (respond) => {
+        respond(currentBaseline(target));
+        let set = baselineSubscribers.get(target);
+        if (!set) baselineSubscribers.set(target, (set = new Set()));
+        set.add(respond);
+        return () => {
+          set!.delete(respond);
+          if (set!.size === 0) baselineSubscribers.delete(target);
+        };
+      });
+      return;
+    }
   };
 
   element.addEventListener("patchwork:subscribe", onSubscribe);
@@ -204,9 +243,13 @@ export const DraftListProvider = (element: HTMLElement) => {
     trackedDrafts.clear();
     pendingCheckedOutSubscribers.clear();
     listSubscribers.clear();
+    baselineSubscribers.clear();
     mountCounts.clear();
     skipVerdicts.clear();
-    if (checkedOutHandle) repo.delete(checkedOutHandle.url);
+    if (checkedOutHandle) {
+      checkedOutHandle.off("change", onCheckedOutChange);
+      repo.delete(checkedOutHandle.url);
+    }
     checkedOutHandle = null;
     hostDocHandle = null;
   };
@@ -305,6 +348,21 @@ export const DraftListProvider = (element: HTMLElement) => {
       .map((u) => ({ url: u, cloneUrl: null, clonedAt: null }))
       .sort(byMemberUrl);
     return { url, members, childCount };
+  }
+
+  // The diff baseline for `target` in the main case: the checked-out
+  // checkpoint's recorded predecessor heads for that doc, or `null` when no
+  // checkpoint is pinned (live view -> no diff).
+  function currentBaseline(target: AutomergeUrl): Baseline {
+    const heads = checkedOutHandle?.doc()?.at?.baselineHeads?.[target];
+    return { heads: heads ?? null };
+  }
+
+  function notifyBaselines(): void {
+    for (const [target, set] of baselineSubscribers) {
+      const baseline = currentBaseline(target);
+      for (const respond of [...set]) respond(baseline);
+    }
   }
 
   // Resolve (once, cached) whether a mounted doc is an app-global datatype we
