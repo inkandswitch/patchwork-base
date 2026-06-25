@@ -59,33 +59,54 @@ export function useSidebarResize({
     setWidth(side, Math.min(maxWidth, Math.max(minWidth, raw)));
   };
 
+  // A full-window overlay, added the moment a real drag begins. It keeps every
+  // pointer event (and the resize cursor) on the parent document even as the
+  // cursor passes over a tool iframe - otherwise the iframe swallows the
+  // mousemove/mouseup and the drag can never end ("you can't let go"). It's
+  // added lazily (not on mousedown) so a plain click still lands on the handle
+  // and toggles collapse.
+  let dragOverlay: HTMLDivElement | null = null;
+
+  const beginDragVisuals = () => {
+    // suppress the width transition so the panel tracks the pointer 1:1
+    document.body.setAttribute("data-sidebar-resizing", "");
+    dragOverlay = document.createElement("div");
+    dragOverlay.style.cssText =
+      "position:fixed;inset:0;z-index:2147483647;cursor:col-resize;";
+    document.body.appendChild(dragOverlay);
+  };
+
+  const endDrag = () => {
+    isResizing = null;
+    dragStartPos = null;
+    document.body.style.userSelect = "";
+    document.body.removeAttribute("data-sidebar-resizing");
+    dragOverlay?.remove();
+    dragOverlay = null;
+  };
+
   const handleMouseDown = (side: "left" | "right", e: MouseEvent) => {
     e.preventDefault();
     dragStartPos = { x: e.clientX, y: e.clientY };
     hasDragged = false;
     isResizing = side;
-    document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-    // suppress the width transition so the panel tracks the pointer 1:1
-    document.body.setAttribute("data-sidebar-resizing", "");
   };
 
   const handleMouseUp = () => {
-    isResizing = null;
-    dragStartPos = null;
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    document.body.removeAttribute("data-sidebar-resizing");
+    endDrag();
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!isResizing || !dragStartPos) return;
 
-    // Check if we've moved enough to consider it a drag
+    // Once past the threshold this is a drag: drop the overlay in now, before
+    // the cursor can reach any iframe, and suppress the width transition.
     const deltaX = Math.abs(e.clientX - dragStartPos.x);
     const deltaY = Math.abs(e.clientY - dragStartPos.y);
-    if (deltaX > dragThreshold || deltaY > dragThreshold) {
+    if (!hasDragged && (deltaX > dragThreshold || deltaY > dragThreshold)) {
       hasDragged = true;
+      beginDragVisuals();
     }
 
     if (isResizing === "left") {
@@ -120,10 +141,7 @@ export function useSidebarResize({
       document.removeEventListener("mouseup", handleMouseUp);
       // Reset body styles if component unmounts during drag
       if (isResizing) {
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        document.body.removeAttribute("data-sidebar-resizing");
-        isResizing = null;
+        endDrag();
       }
     });
   });

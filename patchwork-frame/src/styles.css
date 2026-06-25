@@ -71,7 +71,11 @@
   position: relative;
   display: flex;
   flex: none;
-  overflow: hidden;
+  /* visible so the resize handle can straddle the boundary (sit on *both*
+     sides of the divider line); the content clips itself instead. z-index lifts
+     the handle's outer half above the main area so it stays grabbable. */
+  overflow: visible;
+  z-index: 1;
 }
 
 .sidebar[data-collapsed] {
@@ -144,6 +148,8 @@
   display: block;
   width: 100%;
   height: 100%;
+  /* the sidebar itself no longer clips, so the content does */
+  overflow: hidden;
 }
 
 /* Context sidebar (tabbed)
@@ -392,13 +398,14 @@
   /* the always-present 1px divider line */
   background: var(--patchwork-frame-sidebar-divider);
   transition: background-color var(--studio-transition, 0.15s ease);
-  /* a wide, invisible hit target straddling the 1px line */
+  /* a wide, invisible hit target centred on the 1px line, so it can be grabbed
+     from either side of the divider */
   &::before {
     content: "";
     position: absolute;
     inset-block: 0;
     left: 50%;
-    width: 14px;
+    width: 11px;
     transform: translateX(-50%);
   }
   /* Things-3 style grab pill: invisible at rest; fades + grows in on hover,
@@ -450,22 +457,6 @@
 }
 body[data-sidebar-resizing] .sidebar {
   transition: none;
-}
-
-/* Anchor the (invisible) hit target to each sidebar's inner edge so the full
-   grab area stays inside the panel and isn't clipped by `overflow: hidden`.
-   The handle lives on the right edge of the left sidebar and the left edge of
-   the right sidebar, so each extends its target inward from the divider line. */
-.sidebar[data-side="left"] .sidebar-toggle::before {
-  left: auto;
-  right: 0;
-  width: 14px;
-  transform: none;
-}
-.sidebar[data-side="right"] .sidebar-toggle::before {
-  left: 0;
-  width: 14px;
-  transform: none;
 }
 
 /* "Bring back" buttons shown in the document toolbar when a sidebar is
