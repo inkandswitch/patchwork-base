@@ -31,11 +31,13 @@ export type DraftDoc = {
   mergedAt?: number;
 };
 
-// Ephemeral state owned by the draft-list provider. `selectedDraft = null`
-// means "main" — i.e. the host doc itself, no draft overlay.
-export type DraftsState = {
-  drafts: AutomergeUrl[];
-  selectedDraft: AutomergeUrl | null;
+// Ephemeral, writeable state owned by the draft-list provider and handed to
+// the sidebar via `draft:checked-out`. It holds only the selection: which
+// draft is currently checked out. `checkedOut = null` means "main" — i.e. the
+// host doc itself, no draft overlay. The derived drafts list lives separately
+// in the read-only `draft:list` push (`DraftList`).
+export type CheckedOutDraft = {
+  checkedOut: AutomergeUrl | null;
 };
 
 // Response shape for `draft:baseline { url }`. The draft overlay
@@ -49,8 +51,7 @@ export type Baseline = {
   heads: UrlHeads | null;
 };
 
-// Response shape for `draft:member-docs`: one entry per document that makes up
-// the current view, streamed by the draft-list provider.
+// One document that makes up a draft (or main), nested inside `DraftSummary`.
 //
 // On a draft these are the docs the overlay has forked — `cloneUrl` is the
 // per-draft clone and `clonedAt` its fork point (mirrors `CloneEntry`). On
@@ -64,6 +65,25 @@ export type DraftMemberDoc = {
   url: AutomergeUrl;
   cloneUrl: AutomergeUrl | null;
   clonedAt: UrlHeads | null;
+};
+
+// One entry in the read-only `draft:list` push: a draft (or main) together
+// with the member docs that make it up, so a consumer can render a card and
+// its change timeline without loading the `DraftDoc` itself.
+export type DraftSummary = {
+  // The `DraftDoc` url for a real draft; the host/main-draft url for `main`.
+  url: AutomergeUrl;
+  members: DraftMemberDoc[];
+  // Number of sub-drafts (`DraftDoc.drafts.length`), shown in the card meta.
+  childCount: number;
+};
+
+// Response shape for `draft:list`: the host doc's `main` entry plus the flat,
+// tree-ordered list of its (non-merged) drafts. Read-only and recomputed by
+// the provider; selection lives separately in `CheckedOutDraft`.
+export type DraftList = {
+  main: DraftSummary;
+  drafts: DraftSummary[];
 };
 
 // Convention: a document that has been drafted carries `@patchwork.mainDraftUrl`

@@ -85,33 +85,42 @@
 }
 
 .draft-card {
-  width: 100%;
-  text-align: left;
   background: var(--drafts-bg);
   border: 1px solid var(--drafts-border);
   border-radius: var(--drafts-radius);
   box-shadow: var(--drafts-shadow-sm);
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.draft-card[data-selected] {
+  border-color: var(--drafts-primary);
+  box-shadow: 0 0 0 1px var(--drafts-primary);
+}
+
+.draft-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.5rem;
+  text-align: left;
+  background: transparent;
+  border: none;
   cursor: pointer;
   font-family: inherit;
   color: inherit;
   transition: background 0.15s ease;
 }
 
-.draft-card:hover {
+.draft-card-header:hover {
   background: var(--drafts-hover-bg);
 }
 
-.draft-card[data-selected] {
+.draft-card[data-selected] .draft-card-header {
   background: var(--drafts-selected-bg);
-  border-color: var(--drafts-primary);
-  box-shadow: 0 0 0 1px var(--drafts-primary);
-}
-
-.draft-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.5rem;
 }
 
 .draft-card-title {
@@ -143,12 +152,13 @@
   color: var(--drafts-faint-fg);
 }
 
-.drafts-changes {
+.draft-card-changes {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
   border-top: 1px solid var(--drafts-border);
-  padding-top: 0.5rem;
+  padding: 0.25rem;
+  max-height: 12rem;
   overflow-y: auto;
 }
 

@@ -13,17 +13,19 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 
 import type {
+  CheckedOutDraft,
   CloneEntry,
   DraftDoc,
+  DraftList,
   DraftMemberDoc,
-  DraftsState,
+  DraftSummary,
   HasDrafts,
 } from "../draft-types.js";
 import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
 
 const ROOT_DOC_SELECTOR = "draft:root-doc";
+const CHECKED_OUT_SELECTOR = "draft:checked-out";
 const DRAFT_LIST_SELECTOR = "draft:list";
-const MEMBER_DOCS_SELECTOR = "draft:member-docs";
 
 const ATTR_DOC_URL = "doc-url";
 
@@ -31,21 +33,22 @@ const ATTR_DOC_URL = "doc-url";
 // "from the start", so `getChangesMetaSince(doc, [])` yields the full history.
 const EMPTY_HEADS: UrlHeads = encodeHeads([]);
 
-// Mounts on a document URL and exposes that document's per-doc draft list:
+// Mounts on a document URL and exposes that document's draft state via three
+// subscriptions:
 //   - `draft:root-doc`    → AutomergeUrl of the doc this provider is on
-//   - `draft:list`        → AutomergeUrl of the ephemeral DraftsState doc
-//   - `draft:member-docs` → DraftMemberDoc[] for the documents in the current
-//     view: on a draft, the forked docs from `DraftDoc.clones` (with their
-//     clone url + fork point); on "main", the docs mounted beneath this
-//     provider (observed via `patchwork:mounted`, fork fields `null`).
+//   - `draft:checked-out` → AutomergeUrl of the ephemeral, writeable
+//     CheckedOutDraft doc; holds only the selection (`checkedOut = null` = main)
+//   - `draft:list`        → DraftList: the read-only main entry plus one
+//     `DraftSummary` per non-merged draft, each carrying its member docs (on a
+//     draft, the forked docs from `DraftDoc.clones`; on main, the main draft's
+//     identity clones, or — before the first draft — the docs mounted beneath
+//     this provider observed via `patchwork:mounted`, fork fields `null`).
 //
 // Consumers recover the live `DocHandle`s from the realm-local `window.repo`,
-// so only plain `AutomergeUrl`s cross the subscription channel.
-//
-// The link from a host doc to its drafts is `@patchwork.drafts`, an array
-// of `DraftDoc` URLs that branch off of it. A `DraftDoc` may have its own
-// sub-drafts via `DraftDoc.drafts`. `DraftsState.selectedDraft = null`
-// represents "main" — i.e. the host doc itself, no overlay.
+// so member entries carry only plain `AutomergeUrl`s. The link from a host doc
+// to its drafts is `@patchwork.mainDraftUrl` → the main draft, whose `drafts`
+// roots the tree; each `DraftDoc` may have its own sub-drafts via
+// `DraftDoc.drafts`.
 export const DraftListProvider = (element: HTMLElement) => {
   const rawUrl = element.getAttribute(ATTR_DOC_URL);
   if (!rawUrl || !isValidAutomergeUrl(rawUrl)) {
@@ -67,20 +70,25 @@ export const DraftListProvider = (element: HTMLElement) => {
   const repo: Repo = maybeRepo;
 
   let hostDocHandle: DocHandle<HasDrafts> | null = null;
-  let draftsStateHandle: DocHandle<DraftsState> | null = null;
+  let checkedOutHandle: DocHandle<CheckedOutDraft> | null = null;
   const trackedDrafts = new Map<AutomergeUrl, DocHandle<DraftDoc>>();
   // The host doc's single main draft (bookkeeping only). Resolved lazily from
   // `@patchwork.mainDraftUrl`; its `drafts` roots the draft tree and its
   // identity `clones` back the "main" member list.
   let mainDraftHandle: DocHandle<DraftDoc> | null = null;
 
-  // `draft:list` subscribers that arrived before the ephemeral
-  // DraftsState doc was created; flushed once it exists.
-  const pendingDraftsSubscribers = new Set<(url: AutomergeUrl) => void>();
+  // `draft:checked-out` subscribers that arrived before the ephemeral
+  // CheckedOutDraft doc was created; flushed once it exists.
+  const pendingCheckedOutSubscribers = new Set<(url: AutomergeUrl) => void>();
 
-  // `draft:member-docs` bookkeeping.
-  const memberSubscribers = new Set<(members: DraftMemberDoc[]) => void>();
-  let memberDocs: DraftMemberDoc[] = [];
+  // `draft:list` bookkeeping: the last computed list, its live subscribers, and
+  // the draft order from the most recent rewalk.
+  const listSubscribers = new Set<(list: DraftList) => void>();
+  let orderedDraftUrls: AutomergeUrl[] = [];
+  let draftList: DraftList = {
+    main: { url: docUrl, members: [], childCount: 0 },
+    drafts: [],
+  };
   // Main-case membership: docs mounted beneath this provider, ref-counted so a
   // doc shown in several views is only dropped on its last unmount. Populated
   // even while a draft is selected (where it goes unused) so switching back to
@@ -95,13 +103,12 @@ export const DraftListProvider = (element: HTMLElement) => {
   let rewalkInFlight = false;
   let rewalkPending = false;
   // A tracked draft changing can mean either its sub-draft list moved (needs a
-  // rewalk) or its clone map grew (needs a member recompute), so do both.
+  // rewalk) or its clone map grew (needs a list recompute), so do both.
   const onTrackedChange = () => {
     scheduleRewalk();
-    recomputeMembers();
+    recomputeList();
   };
   const onHostDocChange = () => scheduleRewalk();
-  const onStateChange = () => recomputeMembers();
 
   const onMounted = (event: MountedEvent) => {
     const detail = event.detail;
@@ -110,7 +117,7 @@ export const DraftListProvider = (element: HTMLElement) => {
     mountCounts.set(url, (mountCounts.get(url) ?? 0) + 1);
     ensureSkipVerdict(url);
     syncMainDraftClones();
-    recomputeMembers();
+    recomputeList();
   };
 
   const onUnmounted = (event: UnmountedEvent) => {
@@ -120,7 +127,7 @@ export const DraftListProvider = (element: HTMLElement) => {
     const count = mountCounts.get(url) ?? 0;
     if (count <= 1) mountCounts.delete(url);
     else mountCounts.set(url, count - 1);
-    recomputeMembers();
+    recomputeList();
   };
 
   const ready: Promise<void> = (async () => {
@@ -128,25 +135,19 @@ export const DraftListProvider = (element: HTMLElement) => {
     if (disposed) return;
     hostDocHandle = handle;
 
-    // Eagerly create the ephemeral DraftsState so the sidebar can render
-    // its "Main" card and write `selectedDraft` even before any drafts
-    // exist on the host doc.
-    draftsStateHandle = repo.create<DraftsState>({
-      drafts: [],
-      selectedDraft: null,
-    });
-    const draftsUrl = draftsStateHandle.url;
-    for (const respond of pendingDraftsSubscribers) {
-      respond(draftsUrl);
+    // Eagerly create the ephemeral CheckedOutDraft so the sidebar can render
+    // its "Main" card and write `checkedOut` even before any drafts exist on
+    // the host doc.
+    checkedOutHandle = repo.create<CheckedOutDraft>({ checkedOut: null });
+    const checkedOutUrl = checkedOutHandle.url;
+    for (const respond of pendingCheckedOutSubscribers) {
+      respond(checkedOutUrl);
     }
-    pendingDraftsSubscribers.clear();
+    pendingCheckedOutSubscribers.clear();
 
-    // Selection (`selectedDraft`) lives in this doc, so a change here is what
-    // flips membership between a draft's clones and main's mounted docs.
-    draftsStateHandle.on("change", onStateChange);
     handle.on("change", onHostDocChange);
     scheduleRewalk();
-    recomputeMembers();
+    recomputeList();
   })();
   ready.catch((err) => {
     console.error(`[drafts] failed to initialize draft-list provider:`, err);
@@ -162,23 +163,26 @@ export const DraftListProvider = (element: HTMLElement) => {
       return;
     }
 
-    if (type === DRAFT_LIST_SELECTOR) {
+    if (type === CHECKED_OUT_SELECTOR) {
       accept<AutomergeUrl>(event, (respond) => {
-        if (draftsStateHandle) {
-          respond(draftsStateHandle.url);
+        if (checkedOutHandle) {
+          respond(checkedOutHandle.url);
           return;
         }
-        pendingDraftsSubscribers.add(respond);
-        return () => pendingDraftsSubscribers.delete(respond);
+        pendingCheckedOutSubscribers.add(respond);
+        return () => pendingCheckedOutSubscribers.delete(respond);
       });
       return;
     }
 
-    if (type === MEMBER_DOCS_SELECTOR) {
-      accept<DraftMemberDoc[]>(event, (respond) => {
-        respond(memberDocs);
-        memberSubscribers.add(respond);
-        return () => memberSubscribers.delete(respond);
+    if (type === DRAFT_LIST_SELECTOR) {
+      // `draft:list` answers with a DraftList *object*, never an AutomergeUrl, so
+      // consumers must use `subscribe` (not `subscribeDoc`, which would feed this
+      // object into `repo.find` and crash with "Invalid AutomergeUrl").
+      accept<DraftList>(event, (respond) => {
+        respond(draftList);
+        listSubscribers.add(respond);
+        return () => listSubscribers.delete(respond);
       });
       return;
     }
@@ -194,29 +198,28 @@ export const DraftListProvider = (element: HTMLElement) => {
     element.removeEventListener("patchwork:mounted", onMounted);
     element.removeEventListener("patchwork:unmounted", onUnmounted);
     if (hostDocHandle) hostDocHandle.off("change", onHostDocChange);
-    if (draftsStateHandle) draftsStateHandle.off("change", onStateChange);
     if (mainDraftHandle) mainDraftHandle.off("change", onTrackedChange);
     for (const [, h] of trackedDrafts) h.off("change", onTrackedChange);
     mainDraftHandle = null;
     trackedDrafts.clear();
-    pendingDraftsSubscribers.clear();
-    memberSubscribers.clear();
+    pendingCheckedOutSubscribers.clear();
+    listSubscribers.clear();
     mountCounts.clear();
     skipVerdicts.clear();
-    if (draftsStateHandle) repo.delete(draftsStateHandle.url);
-    draftsStateHandle = null;
+    if (checkedOutHandle) repo.delete(checkedOutHandle.url);
+    checkedOutHandle = null;
     hostDocHandle = null;
   };
 
   function scheduleRewalk(): void {
     if (disposed) return;
-    if (!hostDocHandle || !draftsStateHandle) return;
+    if (!hostDocHandle || !checkedOutHandle) return;
     if (rewalkInFlight) {
       rewalkPending = true;
       return;
     }
     rewalkInFlight = true;
-    const liveState = draftsStateHandle;
+    const liveCheckedOut = checkedOutHandle;
     void (async () => {
       try {
         // Drafts hang off the main draft (`mainDraft.drafts`), which is created
@@ -233,24 +236,23 @@ export const DraftListProvider = (element: HTMLElement) => {
           onTrackedChange
         );
         if (disposed) return;
-        const current = liveState.doc()?.drafts ?? [];
-        const selected = liveState.doc()?.selectedDraft ?? null;
-        const nextSelected =
-          selected && !allDrafts.includes(selected) ? null : selected;
-        if (sameUrlList(current, allDrafts) && nextSelected === selected) {
-          return;
+        orderedDraftUrls = allDrafts;
+
+        // Reconcile the checkout pointer: if the checked-out draft is gone
+        // (merged or detached), fall back to main.
+        const selected = liveCheckedOut.doc()?.checkedOut ?? null;
+        if (selected && !allDrafts.includes(selected)) {
+          liveCheckedOut.change((d) => {
+            d.checkedOut = null;
+          });
         }
-        liveState.change((d) => {
-          d.drafts = allDrafts;
-          d.selectedDraft = nextSelected;
-        });
       } catch (err) {
         console.error("[drafts] rewalk failed:", err);
       } finally {
         rewalkInFlight = false;
-        // A rewalk may have just started tracking the selected draft (whose
-        // clones won't fire their own change event), so refresh membership.
-        recomputeMembers();
+        // A rewalk may have just started tracking a draft (whose clones won't
+        // fire their own change event), so refresh the list.
+        recomputeList();
         if (rewalkPending) {
           rewalkPending = false;
           scheduleRewalk();
@@ -259,37 +261,50 @@ export const DraftListProvider = (element: HTMLElement) => {
     })();
   }
 
-  // Recompute the `draft:member-docs` set and push it to subscribers when it
+  // Recompute the `draft:list` value and push it to subscribers when it
   // actually changed.
-  function recomputeMembers(): void {
+  function recomputeList(): void {
     if (disposed) return;
-    const next = computeMembers();
-    if (memberListsEqual(memberDocs, next)) return;
-    memberDocs = next;
-    for (const respond of memberSubscribers) respond(next);
+    const next = computeList();
+    if (draftListsEqual(draftList, next)) return;
+    draftList = next;
+    for (const respond of listSubscribers) respond(next);
   }
 
-  // On a draft, members come straight from that draft's clone map. On main
-  // they come from the main draft's identity clones once it exists; before the
-  // first draft is created (no main draft) we fall back to the docs mounted
-  // beneath us, minus the app-global datatypes the overlay would never fork.
-  // Every branch is sorted by url so the equality check above is positional.
-  function computeMembers(): DraftMemberDoc[] {
-    const selected = draftsStateHandle?.doc()?.selectedDraft ?? null;
-
-    if (selected) {
-      return clonesToMembers(trackedDrafts.get(selected)?.doc()?.clones ?? {});
+  // The full read-only list: the main entry plus one summary per non-merged
+  // draft, in rewalk (tree) order.
+  function computeList(): DraftList {
+    const drafts: DraftSummary[] = [];
+    for (const url of orderedDraftUrls) {
+      const doc = trackedDrafts.get(url)?.doc();
+      if (!doc || doc.mergedAt !== undefined) continue;
+      drafts.push({
+        url,
+        members: clonesToMembers(doc.clones),
+        childCount: doc.drafts.length,
+      });
     }
+    return { main: computeMainSummary(), drafts };
+  }
+
+  // Main's summary. Its members come from the main draft's identity clones once
+  // it exists; before the first draft is created (no main draft) we fall back to
+  // the docs mounted beneath us, minus the app-global datatypes the overlay
+  // would never fork. Members are sorted by url so the diff above is positional.
+  function computeMainSummary(): DraftSummary {
+    const url = mainDraftHandle?.url ?? docUrl;
+    const childCount = mainDraftHandle?.doc()?.drafts.length ?? 0;
 
     const mainClones = mainDraftHandle?.doc()?.clones;
     if (mainClones && Object.keys(mainClones).length > 0) {
-      return clonesToMembers(mainClones);
+      return { url, members: clonesToMembers(mainClones), childCount };
     }
 
-    return [...mountCounts.keys()]
-      .filter((url) => skipVerdicts.get(url) !== true)
-      .map((url) => ({ url, cloneUrl: null, clonedAt: null }))
+    const members = [...mountCounts.keys()]
+      .filter((u) => skipVerdicts.get(u) !== true)
+      .map((u) => ({ url: u, cloneUrl: null, clonedAt: null }))
       .sort(byMemberUrl);
+    return { url, members, childCount };
   }
 
   // Resolve (once, cached) whether a mounted doc is an app-global datatype we
@@ -307,7 +322,7 @@ export const DraftListProvider = (element: HTMLElement) => {
         skipVerdicts.set(url, skipped);
         // A now-confirmed not-skipped doc may belong in the main draft.
         syncMainDraftClones();
-        recomputeMembers();
+        recomputeList();
       } catch {
         // Leave unresolved: the doc keeps showing up, which is the safe default.
       }
@@ -385,8 +400,8 @@ async function collectAllDrafts(
   return order;
 }
 
-// Project a clone map into the `draft:member-docs` shape, sorted by url so the
-// positional equality check in `recomputeMembers` stays valid.
+// Project a clone map into member-doc entries, sorted by url so the positional
+// equality checks below stay valid.
 function clonesToMembers(
   clones: Record<AutomergeUrl, CloneEntry>
 ): DraftMemberDoc[] {
@@ -399,10 +414,21 @@ function clonesToMembers(
     .sort(byMemberUrl);
 }
 
-function sameUrlList(a: readonly AutomergeUrl[], b: readonly AutomergeUrl[]) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+function draftListsEqual(a: DraftList, b: DraftList): boolean {
+  if (!summariesEqual(a.main, b.main)) return false;
+  if (a.drafts.length !== b.drafts.length) return false;
+  for (let i = 0; i < a.drafts.length; i++) {
+    if (!summariesEqual(a.drafts[i], b.drafts[i])) return false;
+  }
   return true;
+}
+
+function summariesEqual(a: DraftSummary, b: DraftSummary): boolean {
+  return (
+    a.url === b.url &&
+    a.childCount === b.childCount &&
+    memberListsEqual(a.members, b.members)
+  );
 }
 
 function byMemberUrl(a: DraftMemberDoc, b: DraftMemberDoc): number {

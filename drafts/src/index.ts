@@ -47,9 +47,11 @@ export const plugins: Plugin<any>[] = [
 
 export type {
   Baseline,
+  CheckedOutDraft,
   CloneEntry,
   DraftDoc,
+  DraftList,
   DraftMemberDoc,
-  DraftsState,
+  DraftSummary,
 } from "./draft-types.js";
 export { isDraftDoc } from "./draft-types.js";

@@ -28,10 +28,11 @@ import {
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
-type DraftsState = {
-  drafts: AutomergeUrl[];
+// Mirrors the drafts package's `CheckedOutDraft`: the small writeable doc that
+// holds only the current selection.
+type CheckedOutDraft = {
   // `null` represents "main" — i.e. the host doc itself, no draft overlay.
-  selectedDraft: AutomergeUrl | null;
+  checkedOut: AutomergeUrl | null;
 };
 
 type SelectedView = {
@@ -279,7 +280,7 @@ function FrameLayout(props: {
   );
 }
 
-// Reads the draft list state from the draft-list provider, then renders the
+// Reads the checked-out draft from the draft-list provider, then renders the
 // main document inside a draft-overlay provider keyed on the selected draft.
 // The overlay provider is always mounted; it becomes a no-op when its `url`
 // is empty (the "main" case), letting document resolution fall through to the
@@ -305,12 +306,12 @@ function DraftDocumentArea(props: {
   selectedContextToolId: Accessor<string | undefined>;
   setSelectedContextToolId: (id: string) => void;
 }) {
-  const [draftsState] = subscribeDoc<DraftsState>(props.host, {
-    type: "draft:list",
+  const [checkedOut] = subscribeDoc<CheckedOutDraft>(props.host, {
+    type: "draft:checked-out",
   });
 
   const draftProviderKey = createMemo<AutomergeUrl | "main">(
-    () => draftsState()?.selectedDraft ?? "main"
+    () => checkedOut()?.checkedOut ?? "main"
   );
 
   const [draftOverlayProviderHost, setDraftOverlayProviderHost] =

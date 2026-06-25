@@ -6,47 +6,61 @@ import {
   For,
   onCleanup,
   Show,
+  type Accessor,
 } from "solid-js";
-import {
-  createDocSignal,
-  useDocument,
-} from "@automerge/automerge-repo-solid-primitives";
+import { createDocSignal } from "@automerge/automerge-repo-solid-primitives";
 import type {
   AutomergeUrl,
   DocHandle,
   Repo,
-  UrlHeads,
 } from "@automerge/automerge-repo";
+import { decodeHeads } from "@automerge/automerge-repo";
 import * as Automerge from "@automerge/automerge";
 import {
   subscribe,
   subscribeDoc,
 } from "@inkandswitch/patchwork-providers-solid";
 import type {
+  CheckedOutDraft,
   CloneEntry,
   DraftDoc,
+  DraftList,
   DraftMemberDoc,
-  DraftsState,
   HasDrafts,
 } from "./draft-types";
+
+// Seed for the read-only `draft:list` subscription until the provider answers.
+// `main.url` is a placeholder; the Main card displays the host doc url instead.
+const EMPTY_DRAFT_LIST: DraftList = {
+  main: { url: "" as AutomergeUrl, members: [], childCount: 0 },
+  drafts: [],
+};
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
     type: "draft:root-doc",
   });
 
-  const [, stateHandle] = subscribeDoc<DraftsState>(props.element, {
-    type: "draft:list",
+  // Selection only: which draft is checked out (writeable).
+  const [, checkedOutHandle] = subscribeDoc<CheckedOutDraft>(props.element, {
+    type: "draft:checked-out",
   });
 
-  // Read the DraftsState coarsely from the live handle (handle.doc()) rather
-  // than a fine-grained patch-replay projection: the projection can render the
-  // list doubled because it re-applies a change its initial snapshot already
-  // reflects, whereas handle.doc() is always the correct materialized document.
-  const stateDoc = createDocSignal(stateHandle);
-  const drafts = createMemo<AutomergeUrl[]>(() => stateDoc()?.drafts ?? []);
+  // Read the checkout doc coarsely from the live handle (handle.doc()) rather
+  // than a fine-grained patch-replay projection: the projection can render a
+  // whole-value write doubled, whereas handle.doc() is always the correct
+  // materialized document.
+  const checkedOut = createDocSignal(checkedOutHandle);
   const selected = createMemo<AutomergeUrl | null>(
-    () => stateDoc()?.selectedDraft ?? null
+    () => checkedOut()?.checkedOut ?? null
+  );
+
+  // The derived drafts list (read-only): main plus each draft with its member
+  // docs, recomputed and pushed by the provider.
+  const list = subscribe<DraftList>(
+    props.element,
+    { type: "draft:list" },
+    EMPTY_DRAFT_LIST
   );
 
   const isMainSelected = createMemo(() => selected() === null);
@@ -57,8 +71,10 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   );
 
   const selectDraft = (url: AutomergeUrl | null) => {
-    stateHandle()?.change((d) => {
-      d.selectedDraft = url;
+    const handle = checkedOutHandle();
+    if (!handle) return;
+    handle.change((d) => {
+      d.checkedOut = url;
     });
   };
 
@@ -109,11 +125,11 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
       clones: {},
     });
     docHandle.change((d) => {
-      const existing = d["@patchwork"];
-      const next =
-        existing && typeof existing === "object" ? { ...existing } : {};
-      next.mainDraftUrl = mainDraft.url;
-      d["@patchwork"] = next;
+      // Mutate `@patchwork` in place. Spreading it into a fresh object and
+      // reassigning would carry over references to existing document objects,
+      // which Automerge rejects ("Cannot create a reference to an existing
+      // document object").
+      d["@patchwork"]!.mainDraftUrl = mainDraft.url;
     });
     return mainDraft;
   };
@@ -142,19 +158,21 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
           <MainCard
             hostDocUrl={hostDocHandle()?.url}
             isSelected={isMainSelected()}
+            members={() => list().main.members}
             onSelect={() => selectDraft(null)}
           />
-          <For each={drafts()}>
-            {(url) => (
+          <For each={list().drafts}>
+            {(summary) => (
               <DraftCard
-                url={url}
-                isSelected={selected() === url}
+                url={summary.url}
+                members={summary.members}
+                childCount={summary.childCount}
+                isSelected={selected() === summary.url}
                 onSelect={selectDraft}
               />
             )}
           </For>
         </div>
-
         <div class="drafts-actions">
           <Show when={isMainSelected()}>
             <button
@@ -185,8 +203,6 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             </button>
           </Show>
         </div>
-
-        <DraftChanges element={props.element} />
       </Show>
     </div>
   );
@@ -223,70 +239,58 @@ async function mergeDraft(
 function MainCard(props: {
   hostDocUrl: AutomergeUrl | undefined;
   isSelected: boolean;
+  members: Accessor<DraftMemberDoc[]>;
   onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
-      class="draft-card"
-      data-selected={props.isSelected ? "" : undefined}
-      onClick={props.onSelect}
-      title="Main version (host document)"
-    >
-      <div class="draft-card-body">
+    <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
+      <button
+        type="button"
+        class="draft-card-header"
+        onClick={props.onSelect}
+        title="Main version (host document)"
+      >
         <div class="draft-card-title">
           <span>Main</span>
           <Show when={props.isSelected}>
             <span class="draft-badge">current</span>
           </Show>
         </div>
-        <div class="draft-card-url">
-          {props.hostDocUrl ?? ""}
-        </div>
-      </div>
-    </button>
+        <div class="draft-card-url">{props.hostDocUrl ?? ""}</div>
+      </button>
+      <DraftChangesList members={props.members} />
+    </div>
   );
 }
 
 function DraftCard(props: {
   url: AutomergeUrl;
+  members: DraftMemberDoc[];
+  childCount: number;
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
 }) {
-  const [doc] = useDocument<DraftDoc>(() => props.url);
-
-  const cloneCount = createMemo(() => Object.keys(doc()?.clones ?? {}).length);
-  const childCount = createMemo(() => doc()?.drafts.length ?? 0);
-  const isVisible = createMemo(() => {
-    const d = doc();
-    return !!d && d.mergedAt === undefined;
-  });
-
   return (
-    <Show when={isVisible()}>
+    <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
       <button
         type="button"
-        class="draft-card"
-        data-selected={props.isSelected ? "" : undefined}
+        class="draft-card-header"
         onClick={() => props.onSelect(props.url)}
         title="Open draft"
       >
-        <div class="draft-card-body">
-          <div class="draft-card-title">
-            <span>Draft</span>
-            <Show when={props.isSelected}>
-              <span class="draft-badge">current</span>
-            </Show>
-          </div>
-          <div class="draft-card-url">
-            {props.url}
-          </div>
-          <div class="draft-card-meta">
-            {cloneCount()} cloned doc(s) · {childCount()} draft(s)
-          </div>
+        <div class="draft-card-title">
+          <span>Draft</span>
+          <Show when={props.isSelected}>
+            <span class="draft-badge">current</span>
+          </Show>
+        </div>
+        <div class="draft-card-url">{props.url}</div>
+        <div class="draft-card-meta">
+          {props.members.length} cloned doc(s) · {props.childCount} draft(s)
         </div>
       </button>
-    </Show>
+      <DraftChangesList members={() => props.members} />
+    </div>
   );
 }
 
@@ -301,28 +305,23 @@ type DraftChange = {
   message: string | null;
 };
 
-// Renders the changes that make up the current view (the selected draft, or
-// main) as a single timeline merged across every member doc. The member set
-// comes from `draft:member-docs`, so this follows selection automatically.
-function DraftChanges(props: { element: HTMLElement }) {
-  const members = subscribe<DraftMemberDoc[]>(
-    props.element,
-    { type: "draft:member-docs" },
-    []
-  );
-
+// Renders a draft's (or main's) changes as a single timeline merged across its
+// member docs, newest first. The member set is passed in (from the card's
+// `DraftSummary`); the effect below keeps the timeline live as those docs edit.
+function DraftChangesList(props: { members: Accessor<DraftMemberDoc[]> }) {
   const [changes, setChanges] = createSignal<DraftChange[]>([]);
 
   // Whenever the member set changes, resolve a handle per member, listen for
   // edits so the timeline stays live, and recompute. A `disposed` flag guards
   // against the async resolution landing after the effect was torn down.
   createEffect(() => {
-    const list = members();
+    const list = props.members();
     const repo = "repo" in window ? window.repo : undefined;
     if (!repo) return;
 
     let disposed = false;
-    const listeners: { handle: DocHandle<unknown>; onChange: () => void }[] = [];
+    const listeners: { handle: DocHandle<unknown>; onChange: () => void }[] =
+      [];
 
     const recompute = async () => {
       const rows = await collectInterleavedChanges(repo, list);
@@ -349,7 +348,7 @@ function DraftChanges(props: { element: HTMLElement }) {
   });
 
   return (
-    <div class="drafts-changes">
+    <div class="draft-card-changes">
       <Show
         when={changes().length > 0}
         fallback={<div class="draft-changes-empty">No changes yet.</div>}
@@ -384,7 +383,7 @@ async function collectInterleavedChanges(
       const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
       const doc = handle.doc();
       if (!doc) continue;
-      const since: UrlHeads | [] = member.clonedAt ?? [];
+      const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
       const metas = Automerge.getChangesMetaSince(doc, since);
       for (const meta of metas) {
         rows.push({
