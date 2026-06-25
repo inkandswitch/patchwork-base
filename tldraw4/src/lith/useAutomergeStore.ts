@@ -31,10 +31,12 @@ import { applyTLStoreChangesToAutomerge } from "./TLStoreToAutomerge.js";
 export function useAutomergeStore({
   handle,
   shapeUtils = [],
+  readOnly = false,
 }: {
   handle: DocHandle<TLStoreSnapshot>;
   userId: string;
   shapeUtils?: TLAnyShapeUtilConstructor[];
+  readOnly?: boolean;
 }): TLStoreWithStatus {
   const [store] = useState(() => {
     const store = createTLStore({
@@ -66,12 +68,16 @@ export function useAutomergeStore({
       preventPatchApplications = false;
     }
 
-    unsubs.push(
-      store.listen(syncStoreChangesToAutomergeDoc, {
-        source: "user",
-        scope: "document",
-      })
-    );
+    // A read-only (history-pinned) handle is at fixed heads and rejects
+    // `handle.change`, so never forward store edits back to Automerge.
+    if (!readOnly) {
+      unsubs.push(
+        store.listen(syncStoreChangesToAutomergeDoc, {
+          source: "user",
+          scope: "document",
+        })
+      );
+    }
 
     /* Automerge to TLDraw */
     const syncAutomergeDocChangesToStore = ({
@@ -108,7 +114,7 @@ export function useAutomergeStore({
       unsubs.forEach((fn) => fn());
       unsubs.length = 0;
     };
-  }, [handle, store]);
+  }, [handle, store, readOnly]);
 
   return storeWithStatus;
 }

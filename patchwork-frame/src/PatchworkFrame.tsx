@@ -1,6 +1,13 @@
 import "@inkandswitch/patchwork-elements";
 import { useDocHandle } from "@automerge/automerge-repo-solid-primitives";
-import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
+import {
+  parseAutomergeUrl,
+  stringifyAutomergeUrl,
+  type AutomergeUrl,
+  type DocHandle,
+  type Repo,
+  type UrlHeads,
+} from "@automerge/automerge-repo";
 import { subscribe } from "@inkandswitch/patchwork-providers";
 import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
 import type { AccountDoc } from "./types";
@@ -28,11 +35,20 @@ import {
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import "./styles.css";
 
-// Mirrors the drafts package's `CheckedOutDraft`: the small writeable doc that
-// holds only the current selection.
+// Mirrors the drafts package's `CheckedOutDraft`/`DraftCheckpoint`: the small
+// writeable doc that holds the current selection plus an optional history pin.
+type DraftCheckpoint = {
+  anchor: { docUrl: AutomergeUrl; hash: string; time: number };
+  // Original doc url -> heads to view it at. Only the selected (top-level) doc
+  // is honored here; transitively-resolved docs are a later phase.
+  heads: Record<AutomergeUrl, UrlHeads>;
+};
+
 type CheckedOutDraft = {
   // `null` represents "main" — i.e. the host doc itself, no draft overlay.
   checkedOut: AutomergeUrl | null;
+  // Absent/null = live latest heads; set = a frozen, read-only history view.
+  at?: DraftCheckpoint | null;
 };
 
 type SelectedView = {
@@ -314,6 +330,19 @@ function DraftDocumentArea(props: {
     () => checkedOut()?.checkedOut ?? "main"
   );
 
+  // When a history entry is checked out, view the selected doc at its pinned
+  // heads. The overlay reapplies these heads onto the draft's clone, yielding a
+  // fixed-heads (read-only) handle. No pin -> the live, canonical url. Keying
+  // the view on this url remounts the tool when entering/leaving a checkpoint.
+  const pinnedDocUrl = createMemo<AutomergeUrl | undefined>(() => {
+    const url = props.selectedDocUrl();
+    if (!url) return url;
+    const { documentId } = parseAutomergeUrl(url);
+    const heads =
+      checkedOut()?.at?.heads?.[stringifyAutomergeUrl({ documentId })];
+    return heads ? stringifyAutomergeUrl({ documentId, heads }) : url;
+  });
+
   const [draftOverlayProviderHost, setDraftOverlayProviderHost] =
     createSignal<HTMLElement>();
   const isDraftOverlayProviderReady = useProviderReady(
@@ -365,8 +394,8 @@ function DraftDocumentArea(props: {
                     docUrl={props.selectedDocUrl}
                   />
                   <MainDocumentView
-                    viewKey={props.selectedDocUrl}
-                    selectedDocUrl={props.selectedDocUrl}
+                    viewKey={pinnedDocUrl}
+                    selectedDocUrl={pinnedDocUrl}
                     toolId={props.selectedToolId}
                   />
                 </div>

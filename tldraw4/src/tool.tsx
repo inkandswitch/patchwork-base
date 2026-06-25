@@ -100,8 +100,15 @@ export function TldrawTool({
   element: HTMLElement;
 }) {
   const handle = useDocHandle<TLDrawDoc>(docUrl, { suspense: true });
+  // A history-pinned handle (url carries heads) is at fixed heads and rejects
+  // writes, so the whole tool renders read-only.
+  const readOnly = handle.isReadOnly();
   const contactInfo = useContactInfo();
-  const store = useAutomergeStore({ handle, userId: contactInfo.userId });
+  const store = useAutomergeStore({
+    handle,
+    userId: contactInfo.userId,
+    readOnly,
+  });
 
   useAutomergePresence({
     handle: handle as DocHandle<any>,
@@ -138,7 +145,7 @@ export function TldrawTool({
   return (
     <DiffStatusContext.Provider value={statusAtom}>
       <Tldraw inferDarkMode autoFocus store={store} components={components}>
-        <TldrawInner docUrl={docUrl} />
+        <TldrawInner docUrl={docUrl} readOnly={readOnly} />
       </Tldraw>
     </DiffStatusContext.Provider>
   );
@@ -249,7 +256,7 @@ function useDeletedGhosts(
   }, [store, handle, diff]);
 }
 
-function TldrawInner(props: { docUrl: AutomergeUrl }) {
+function TldrawInner(props: { docUrl: AutomergeUrl; readOnly: boolean }) {
   const key = useMemo(() => `${props.docUrl}-camera`, [props.docUrl]);
 
   const editor = useEditor();
@@ -266,6 +273,10 @@ function TldrawInner(props: { docUrl: AutomergeUrl }) {
 
   useEffect(() => {
     if (!editor) return;
+
+    // History-pinned views block all canvas editing (the store write-back is
+    // also disabled in useAutomergeStore).
+    editor.updateInstanceState({ isReadonly: props.readOnly });
 
     // Handle pasted/dropped files (images, videos) by storing them as
     // UnixFileEntry automerge docs and referencing them via service-worker URLs.
@@ -353,7 +364,7 @@ function TldrawInner(props: { docUrl: AutomergeUrl }) {
     }
     editor.on("change", onChange);
     return () => void editor.off("change", onChange);
-  }, [editor]);
+  }, [editor, props.readOnly]);
   return null;
 }
 

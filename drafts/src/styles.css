@@ -84,6 +84,12 @@
   color: var(--drafts-warning-fg);
 }
 
+.drafts-btn--ghost {
+  background: transparent;
+  border-color: var(--drafts-border);
+  color: var(--drafts-fg);
+}
+
 .draft-card {
   background: var(--drafts-bg);
   border: 1px solid var(--drafts-border);
@@ -171,13 +177,25 @@
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
+  width: 100%;
   padding: 0.25rem 0.5rem;
+  border: none;
   border-radius: var(--drafts-radius-sm);
+  background: transparent;
+  font-family: inherit;
   font-size: 0.75rem;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
 }
 
 .draft-change-row:hover {
   background: var(--drafts-hover-bg);
+}
+
+.draft-change-row[data-selected] {
+  background: var(--drafts-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--drafts-primary);
 }
 
 .draft-change-time {

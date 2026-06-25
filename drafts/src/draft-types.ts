@@ -31,13 +31,29 @@ export type DraftDoc = {
   mergedAt?: number;
 };
 
+// A frozen, read-only view of a draft (or main) at a point in its history.
+// `anchor` is the timeline entry the user clicked: it drives the row highlight
+// and is the timestamp the other docs' heads are resolved against. `heads` maps
+// each member doc's original url to the heads to view it at — exact for the
+// anchor doc, latest-change-before-`anchor.time` for the rest. Docs with no
+// change at or before that time are omitted (they didn't exist yet), so they
+// fall through to their live state.
+export type DraftCheckpoint = {
+  anchor: { docUrl: AutomergeUrl; hash: string; time: number };
+  heads: Record<AutomergeUrl, UrlHeads>;
+};
+
 // Ephemeral, writeable state owned by the draft-list provider and handed to
-// the sidebar via `draft:checked-out`. It holds only the selection: which
-// draft is currently checked out. `checkedOut = null` means "main" — i.e. the
-// host doc itself, no draft overlay. The derived drafts list lives separately
-// in the read-only `draft:list` push (`DraftList`).
+// the sidebar via `draft:checked-out`. It holds the selection: which draft is
+// currently checked out. `checkedOut = null` means "main" — i.e. the host doc
+// itself, no draft overlay. The derived drafts list lives separately in the
+// read-only `draft:list` push (`DraftList`).
+//
+// `at` pins the checkout to a history entry: absent/null means the live latest
+// heads (the default), set means a frozen read-only view (see DraftCheckpoint).
 export type CheckedOutDraft = {
   checkedOut: AutomergeUrl | null;
+  at?: DraftCheckpoint | null;
 };
 
 // Response shape for `draft:baseline { url }`. The draft overlay
