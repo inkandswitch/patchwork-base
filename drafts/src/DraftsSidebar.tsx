@@ -362,8 +362,9 @@ function DraftCard(props: {
   );
 }
 
-// One change in the interleaved timeline. `docUrl` is the original member url
-// (used for labelling), never the per-draft clone the change was read from.
+// One change in a document's history. `docUrl` is the original member url (used
+// for labelling and as the checkpoint anchor), never the per-draft clone the
+// change was read from.
 type DraftChange = {
   docUrl: AutomergeUrl;
   hash: string;
@@ -373,18 +374,25 @@ type DraftChange = {
   message: string | null;
 };
 
-// Renders a draft's (or main's) changes as a single timeline merged across its
-// member docs, newest first. The member set is passed in (from the card's
-// `DraftSummary`); the effect below keeps the timeline live as those docs edit.
+// A member document's changes, newest first. The card lists one of these per
+// member rather than interleaving every doc's changes into one timeline.
+type DraftChangeGroup = {
+  docUrl: AutomergeUrl;
+  changes: DraftChange[];
+};
+
+// Renders a draft's (or main's) changes grouped per member document, each
+// group newest first. The member set is passed in (from the card's
+// `DraftSummary`); the effect below keeps the groups live as those docs edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
   activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
 }) {
-  const [changes, setChanges] = createSignal<DraftChange[]>([]);
+  const [groups, setGroups] = createSignal<DraftChangeGroup[]>([]);
 
   // Whenever the member set changes, resolve a handle per member, listen for
-  // edits so the timeline stays live, and recompute. A `disposed` flag guards
+  // edits so the groups stay live, and recompute. A `disposed` flag guards
   // against the async resolution landing after the effect was torn down.
   createEffect(() => {
     const list = props.members();
@@ -396,8 +404,8 @@ function DraftChangesList(props: {
       [];
 
     const recompute = async () => {
-      const rows = await collectInterleavedChanges(repo, list);
-      if (!disposed) setChanges(rows);
+      const next = await collectChangesByDocument(repo, list);
+      if (!disposed) setGroups(next);
     };
 
     void (async () => {
@@ -422,39 +430,49 @@ function DraftChangesList(props: {
   return (
     <div class="draft-card-changes">
       <Show
-        when={changes().length > 0}
+        when={groups().length > 0}
         fallback={<div class="draft-changes-empty">No changes yet.</div>}
       >
-        <For each={changes()}>
-          {(change) => {
-            const isActive = () => {
-              const a = props.activeAnchor();
-              return (
-                !!a && a.docUrl === change.docUrl && a.hash === change.hash
-              );
-            };
-            return (
-              <button
-                type="button"
-                class="draft-change-row"
-                data-selected={isActive() ? "" : undefined}
-                title="View the draft at this point"
-                onClick={() =>
-                  props.onSelectEntry({
-                    docUrl: change.docUrl,
-                    hash: change.hash,
-                    time: change.time,
-                  })
-                }
-              >
-                <span class="draft-change-time">{formatTime(change.time)}</span>
-                <span class="draft-change-doc">{shortUrl(change.docUrl)}</span>
-                <Show when={change.message}>
-                  <span class="draft-change-msg">{change.message}</span>
-                </Show>
-              </button>
-            );
-          }}
+        <For each={groups()}>
+          {(group) => (
+            <div class="draft-change-group">
+              <div class="draft-change-group-header">
+                {shortUrl(group.docUrl)}
+              </div>
+              <For each={group.changes}>
+                {(change) => {
+                  const isActive = () => {
+                    const a = props.activeAnchor();
+                    return (
+                      !!a && a.docUrl === change.docUrl && a.hash === change.hash
+                    );
+                  };
+                  return (
+                    <button
+                      type="button"
+                      class="draft-change-row"
+                      data-selected={isActive() ? "" : undefined}
+                      title="View the draft at this point"
+                      onClick={() =>
+                        props.onSelectEntry({
+                          docUrl: change.docUrl,
+                          hash: change.hash,
+                          time: change.time,
+                        })
+                      }
+                    >
+                      <span class="draft-change-time">
+                        {formatTime(change.time)}
+                      </span>
+                      <Show when={change.message}>
+                        <span class="draft-change-msg">{change.message}</span>
+                      </Show>
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          )}
         </For>
       </Show>
     </div>
@@ -523,39 +541,39 @@ async function computeCheckpoint(
   return { anchor, heads, baselineHeads };
 }
 
-// Walk each member doc's post-fork changes and merge them into one timeline,
-// newest first. On a draft `clonedAt` is set, so reading the clone since that
-// fork point yields exactly the draft's own changes; on main both clone fields
-// are null, so we read the original doc since `[]` for its full history.
-async function collectInterleavedChanges(
+// Collect each member doc's post-fork changes as its own group, newest first,
+// in member order (no cross-document interleave). On a draft `clonedAt` is set,
+// so reading the clone since that fork point yields exactly the draft's own
+// changes; on main both clone fields are null, so we read the original doc since
+// `[]` for its full history. Members with no changes are omitted.
+async function collectChangesByDocument(
   repo: Repo,
   members: DraftMemberDoc[]
-): Promise<DraftChange[]> {
-  const rows: DraftChange[] = [];
+): Promise<DraftChangeGroup[]> {
+  const groups: DraftChangeGroup[] = [];
   for (const member of members) {
     try {
       const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
       const doc = handle.doc();
       if (!doc) continue;
       const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
-      const metas = Automerge.getChangesMetaSince(doc, since);
-      for (const meta of metas) {
-        rows.push({
-          docUrl: member.url,
-          hash: meta.hash,
-          time: meta.time,
-          actor: meta.actor,
-          message: meta.message,
-        });
-      }
+      const changes = Automerge.getChangesMetaSince(doc, since).map((meta) => ({
+        docUrl: member.url,
+        hash: meta.hash,
+        time: meta.time,
+        actor: meta.actor,
+        message: meta.message,
+      }));
+      if (changes.length === 0) continue;
+      changes.sort((a, b) => b.time - a.time);
+      groups.push({ docUrl: member.url, changes });
     } catch (err) {
       // A member doc that can't be resolved (or whose fork point is missing)
-      // is simply omitted rather than failing the whole timeline.
+      // is simply omitted rather than failing the whole list.
       console.warn("[drafts] failed to read changes for member:", member, err);
     }
   }
-  rows.sort((a, b) => b.time - a.time);
-  return rows;
+  return groups;
 }
 
 // "automerge:4NMNnk…AVdXu" → a compact, fixed-width label for a doc url.
