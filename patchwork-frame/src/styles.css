@@ -20,12 +20,19 @@
   /* toolbar text rides on the chrome surface, so it uses the chrome ink */
   --patchwork-frame-toolbar-fg: var(--studio-chrome-line, var(--studio-line, black));
   --patchwork-frame-toolbar-border: var(--studio-chrome-offset-20, #ccc);
-  --patchwork-frame-sidebar-toggle-hover: var(--studio-chrome-line, var(--studio-line, black));
-  --patchwork-frame-resize-accent: color-mix(in oklch, var(--studio-secondary, #33ccf8), transparent 50%);
-  --patchwork-frame-resize-indicator: var(--studio-line-offset-50, #999);
+  /* Resize handle: a faint 1px divider that tracks the chrome ramp's contrast
+     (it mixes toward the chrome ink, so it reads darker on light themes and
+     lighter on dark ones), plus a primary-tinted glow + grab pill on hover. */
+  --patchwork-frame-sidebar-divider: var(--studio-chrome-offset-20, #d4d4d4);
+  --patchwork-frame-resize-glow: color-mix(in oklch, var(--studio-primary, #35f7ca), transparent 35%);
+  --patchwork-frame-resize-pill: var(--studio-primary, #35f7ca);
+
+  /* The context (right) sidebar sits on a chrome surface stepped one offset off
+     the toolbar's flat chrome, so the two chrome regions read as distinct. */
+  --patchwork-frame-context-sidebar-fill: var(--studio-chrome-offset-10, #ececec);
 
   /* Context sidebar (tabbed) */
-  --context-sidebar-bg: var(--studio-chrome, #f2f2f2);
+  --context-sidebar-bg: var(--patchwork-frame-context-sidebar-fill);
   --context-sidebar-fg: var(--studio-chrome-line, var(--studio-line, black));
   --context-sidebar-border: var(--studio-chrome-offset-20, #ccc);
   --context-sidebar-tab-fg: var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #666));
@@ -76,7 +83,7 @@
 }
 
 .sidebar[data-side="right"] {
-  background: var(--patchwork-frame-sidebar-fill);
+  background: var(--patchwork-frame-context-sidebar-fill);
 }
 
 .main-area {
@@ -373,23 +380,53 @@
 
 .frame {
 .sidebar-toggle {
+  position: relative;
+  align-self: stretch;
   height: 100%;
   padding: 0;
   margin: 0;
   border: 0;
-  background: transparent;
-  width: 2px;
+  width: 1px;
   z-index: 1;
   cursor: pointer;
+  /* the always-present 1px divider line */
+  background: var(--patchwork-frame-sidebar-divider);
+  transition: background-color var(--studio-transition, 0.15s ease);
+  /* a wide, invisible hit target straddling the 1px line */
   &::before {
     content: "";
-    display: block;
-    width: 20px;
-    height: 100%;
-    margin-left: -10px;
+    position: absolute;
+    inset-block: 0;
+    left: 50%;
+    width: 14px;
+    transform: translateX(-50%);
   }
-  &:hover {
-    background: var(--patchwork-frame-sidebar-toggle-hover);
+  /* Things-3 style grab pill: invisible at rest; fades + grows in on hover,
+     vertically centred (~halfway down). */
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 44px;
+    border-radius: var(--studio-radius-round, 9999px);
+    background: var(--patchwork-frame-resize-pill);
+    opacity: 0;
+    transform: translate(-50%, -50%) scaleY(0.55);
+    transition: opacity var(--studio-transition, 0.15s ease),
+      transform var(--studio-transition, 0.15s ease);
+    pointer-events: none;
+  }
+  /* on hover the divider itself lights up in the frame primary */
+  &:hover,
+  &:active {
+    background: var(--patchwork-frame-resize-glow);
+  }
+  &:hover::after,
+  &:active::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleY(1);
   }
 }
 
@@ -403,47 +440,57 @@
   }
 }
 
-/* Sidebar resize handles */
-.sidebar-resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  cursor: col-resize;
-  z-index: 10;
-  background: transparent;
-  transition: background-color 0.15s ease;
 }
 
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle:active {
-  background-color: var(--patchwork-frame-resize-accent);
+/* Animate sidebar width on collapse/expand, but never while the handle is being
+   actively dragged - the width must track the pointer 1:1 with no easing lag.
+   The body flag is set for the duration of a drag by `useSidebarResize`. */
+.sidebar {
+  transition: width var(--studio-transition-slow, 0.25s ease);
+}
+body[data-sidebar-resizing] .sidebar {
+  transition: none;
 }
 
-.sidebar-resize-handle::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 2px;
-  height: 32px;
-  background-color: var(--patchwork-frame-resize-indicator);
-  border-radius: 1px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.sidebar-resize-handle:hover::after {
-  opacity: 1;
-}
-
-.sidebar-resize-handle--right {
+/* Anchor the (invisible) hit target to each sidebar's inner edge so the full
+   grab area stays inside the panel and isn't clipped by `overflow: hidden`.
+   The handle lives on the right edge of the left sidebar and the left edge of
+   the right sidebar, so each extends its target inward from the divider line. */
+.sidebar[data-side="left"] .sidebar-toggle::before {
+  left: auto;
   right: 0;
+  width: 14px;
+  transform: none;
 }
-
-.sidebar-resize-handle--left {
+.sidebar[data-side="right"] .sidebar-toggle::before {
   left: 0;
+  width: 14px;
+  transform: none;
 }
 
+/* "Bring back" buttons shown in the document toolbar when a sidebar is
+   collapsed: a quiet icon button that brightens toward the chrome ink. */
+.toolbar__sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--studio-radius-sm, 4px);
+  background: transparent;
+  color: var(--patchwork-frame-toolbar-fg);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--studio-transition-fast, 0.1s ease),
+    background var(--studio-transition-fast, 0.1s ease);
+}
+.toolbar__sidebar-toggle:hover {
+  opacity: 1;
+  background: var(--studio-chrome-offset-10, #e5e5e5);
+}
+.toolbar__sidebar-toggle--right {
+  margin-left: auto;
 }

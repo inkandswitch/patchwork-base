@@ -6,7 +6,13 @@ interface UseSidebarResizeParams {
   setRightSidebarWidth: Setter<number>;
   setIsSidebarCollapsed: Setter<boolean>;
   setIsRightSidebarCollapsed: Setter<boolean>;
+  isLeftCollapsed: () => boolean;
+  isRightCollapsed: () => boolean;
   minWidth: number;
+  maxWidth: number;
+  /** Drag narrower than this and the sidebar snaps closed (and re-opens once
+   * dragged back out past it). */
+  autoCloseWidth: number;
   dragThreshold: number;
 }
 
@@ -18,13 +24,40 @@ export function useSidebarResize({
   setRightSidebarWidth,
   setIsSidebarCollapsed,
   setIsRightSidebarCollapsed,
+  isLeftCollapsed,
+  isRightCollapsed,
   minWidth,
+  maxWidth,
+  autoCloseWidth,
   dragThreshold,
 }: UseSidebarResizeParams) {
   // Non-reactive refs for drag state
   let isResizing: "left" | "right" | null = null;
   let dragStartPos: { x: number; y: number } | null = null;
   let hasDragged = false;
+
+  const setWidth = (side: "left" | "right", w: number) =>
+    side === "left" ? setLeftSidebarWidth(w) : setRightSidebarWidth(w);
+
+  const setCollapsed = (side: "left" | "right", value: boolean) =>
+    side === "left"
+      ? setIsSidebarCollapsed(value)
+      : setIsRightSidebarCollapsed(value);
+
+  const isCollapsed = (side: "left" | "right") =>
+    side === "left" ? isLeftCollapsed() : isRightCollapsed();
+
+  // Apply a candidate width from a drag: snap closed below the auto-close
+  // threshold (keeping the last good width so re-opening restores it), pop back
+  // open once dragged past it, and clamp to [min, max] otherwise.
+  const applyDragWidth = (side: "left" | "right", raw: number) => {
+    if (raw < autoCloseWidth) {
+      if (!isCollapsed(side)) setCollapsed(side, true);
+      return;
+    }
+    if (isCollapsed(side)) setCollapsed(side, false);
+    setWidth(side, Math.min(maxWidth, Math.max(minWidth, raw)));
+  };
 
   const handleMouseDown = (side: "left" | "right", e: MouseEvent) => {
     e.preventDefault();
@@ -33,6 +66,8 @@ export function useSidebarResize({
     isResizing = side;
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    // suppress the width transition so the panel tracks the pointer 1:1
+    document.body.setAttribute("data-sidebar-resizing", "");
   };
 
   const handleMouseUp = () => {
@@ -40,6 +75,7 @@ export function useSidebarResize({
     dragStartPos = null;
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
+    document.body.removeAttribute("data-sidebar-resizing");
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -53,11 +89,9 @@ export function useSidebarResize({
     }
 
     if (isResizing === "left") {
-      const newWidth = Math.max(minWidth, e.clientX);
-      setLeftSidebarWidth(newWidth);
+      applyDragWidth("left", e.clientX);
     } else if (isResizing === "right") {
-      const newWidth = Math.max(minWidth, window.innerWidth - e.clientX);
-      setRightSidebarWidth(newWidth);
+      applyDragWidth("right", window.innerWidth - e.clientX);
     }
   };
 
@@ -88,6 +122,7 @@ export function useSidebarResize({
       if (isResizing) {
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        document.body.removeAttribute("data-sidebar-resizing");
         isResizing = null;
       }
     });

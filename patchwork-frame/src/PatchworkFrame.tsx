@@ -42,7 +42,10 @@ type SelectedView = {
 type SidebarResize = ReturnType<typeof useSidebarResize>;
 type SidebarState = ReturnType<typeof useSidebarState>;
 
-const MIN_SIDEBAR_WIDTH = 48;
+const MIN_SIDEBAR_WIDTH = 180;
+const MAX_SIDEBAR_WIDTH = 720;
+// Drag a sidebar narrower than this and it snaps closed (Things-3 style).
+const AUTO_CLOSE_WIDTH = 120;
 const DRAG_THRESHOLD = 3;
 
 export const PatchworkFrame = ({
@@ -138,7 +141,11 @@ function PatchworkFrameInner(props: {
     setRightSidebarWidth: sidebarState.setRightSidebarWidth,
     setIsSidebarCollapsed: sidebarState.setIsSidebarCollapsed,
     setIsRightSidebarCollapsed: sidebarState.setIsRightSidebarCollapsed,
+    isLeftCollapsed: sidebarState.isSidebarCollapsed,
+    isRightCollapsed: sidebarState.isRightSidebarCollapsed,
     minWidth: MIN_SIDEBAR_WIDTH,
+    maxWidth: MAX_SIDEBAR_WIDTH,
+    autoCloseWidth: AUTO_CLOSE_WIDTH,
     dragThreshold: DRAG_THRESHOLD,
   });
 
@@ -367,6 +374,20 @@ function DraftDocumentArea(props: {
                   <DocumentToolbar
                     toolIds={() => props.accountDoc()?.documentToolbarToolIds}
                     docUrl={props.selectedDocUrl}
+                    showLeftSidebarButton={() =>
+                      !!props.accountDoc()?.accountSidebarToolId &&
+                      props.sidebarState.isSidebarCollapsed()
+                    }
+                    onShowLeftSidebar={() =>
+                      props.sidebarState.setIsSidebarCollapsed(false)
+                    }
+                    showRightSidebarButton={() =>
+                      !!props.accountDoc()?.contextToolIds?.length &&
+                      props.sidebarState.isRightSidebarCollapsed()
+                    }
+                    onShowRightSidebar={() =>
+                      props.sidebarState.setIsRightSidebarCollapsed(false)
+                    }
                   />
                   <MainDocumentView
                     viewKey={props.selectedDocUrl}
