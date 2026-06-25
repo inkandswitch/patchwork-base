@@ -17,6 +17,10 @@
       "import": "./dist/extensions/links.js",
       "source": "./src/extensions/links.ts"
     },
+    "./markdown-embed": {
+      "import": "./dist/extensions/embed.js",
+      "source": "./src/extensions/embed.ts"
+    },
     "./datatype": {
       "import": "./dist/datatype.js",
       "source": "./src/datatype.ts"
@@ -43,6 +47,7 @@
     "@inkandswitch/patchwork-plugins": "^0.0.6"
   },
   "devDependencies": {
+    "@automerge/automerge-repo": "^2.6.0-subduction.9",
     "@babel/core": "^7.28.4",
     "@babel/parser": "^7.28.4",
     "@eslint/js": "^9.36.0",

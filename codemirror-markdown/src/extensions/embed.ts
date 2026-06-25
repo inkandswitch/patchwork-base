@@ -9,12 +9,21 @@ import {
 import { Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import {
+  type AutomergeUrl,
   type DocumentId,
   isValidDocumentId,
   parseAutomergeUrl,
 } from "@automerge/automerge-repo";
-import { embedTheme } from "./theme.ts";
-import { openLinkIcon } from "./icons.ts";
+import { embedTheme } from "../themes/embed.ts";
+
+const openLinkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+  <polyline points="15 3 21 3 21 9"></polyline>
+  <line x1="10" y1="14" x2="21" y2="3"></line>
+</svg>`;
+
+// `[patchwork:docId/toolId]` — neither id may contain `]` or `/`.
+const EMBED_RE = /\[patchwork:([^/\]]+)\/([^\]]+)\]/;
 
 /**
  * Widget to render an embedded <patchwork-view> element in a CodeMirror editor.
@@ -98,54 +107,45 @@ function getEmbedLinks(view: EditorView) {
   const { state } = view;
   const selection = state.selection.main;
 
-  for (let { from, to } of view.visibleRanges) {
+  // Drive off the markdown syntax tree: only `Link` nodes (`[patchwork:…]`)
+  // become embeds, so matches inside code blocks / inline code -- which never
+  // parse as links -- are left as raw text. This relies on the markdown
+  // language being in the same `@codemirror/language` instance, which holds
+  // because this extension ships in the same bundle as the markdown parser.
+  for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
       from,
       to,
       enter: (node) => {
-        // Match markdown link syntax
-        if (node.name === "Link") {
-          const linkFrom = node.from;
-          const linkTo = node.to;
+        if (node.name !== "Link") return;
 
-          // Check if cursor is inside this link
-          const cursorInLink =
-            selection.from >= linkFrom && selection.from <= linkTo;
-          // Check if the link is inside the selection
-          const selectionSpansLink =
-            selection.from < linkFrom && selection.to > linkTo;
+        const linkFrom = node.from;
+        const linkTo = node.to;
 
-          // Replace if cursor is outside the link and there's no selection across the link
-          if (!cursorInLink && !selectionSpansLink) {
-            const linkText = state.doc.sliceString(linkFrom, linkTo);
+        // Keep the raw text editable when the caret is inside the link, or when
+        // the selection spans across it.
+        const cursorInLink =
+          selection.from >= linkFrom && selection.from <= linkTo;
+        const selectionSpansLink =
+          selection.from < linkFrom && selection.to > linkTo;
+        if (cursorInLink || selectionSpansLink) return;
 
-            // Match [patchwork:docId/toolId] format
-            const match = linkText.match(/\[patchwork:([^/\]]+)\/([^\]]+)\]/);
+        const linkText = state.doc.sliceString(linkFrom, linkTo);
+        const match = linkText.match(EMBED_RE);
+        if (!match) return;
 
-            if (match) {
-              const [, docId, toolId] = match;
+        const [, docId, toolId] = match;
+        if (!isValidDocumentId(docId)) return;
 
-              // Validate the DocumentId before creating the embed widget
-              if (isValidDocumentId(docId)) {
-                // Replace the entire [patchwork:docId/toolId] with the embed widget
-                const embed = Decoration.replace({
-                  widget: new EmbedWidget(
-                    docId as DocumentId,
-                    toolId,
-                    linkText
-                  ),
-                });
-
-                widgets.push(embed.range(linkFrom, linkTo));
-              }
-            }
-          }
-        }
+        const embed = Decoration.replace({
+          widget: new EmbedWidget(docId as DocumentId, toolId, linkText),
+        });
+        widgets.push(embed.range(linkFrom, linkTo));
       },
     });
   }
 
-  return Decoration.set(widgets);
+  return Decoration.set(widgets, true);
 }
 
 /** MIME type used by the sideboard (and similar) for document drag-and-drop. */
@@ -157,7 +157,7 @@ const PATCHWORK_DND = "text/x-patchwork-dnd";
  */
 function embedDropHandlers() {
   return EditorView.domEventHandlers({
-    dragover(event, view) {
+    dragover(event) {
       if (!event.dataTransfer?.types.includes(PATCHWORK_DND)) return false;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
@@ -180,7 +180,7 @@ function embedDropHandlers() {
           const url = item?.url;
           const toolId = item?.type;
           if (!url || !toolId) continue;
-          const { documentId } = parseAutomergeUrl(url);
+          const { documentId } = parseAutomergeUrl(url as AutomergeUrl);
           if (!isValidDocumentId(documentId)) continue;
           inserts.push(`[patchwork:${documentId}/${toolId}]`);
         }
@@ -208,7 +208,8 @@ const embedPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      // Recompute when doc changes, selection moves, or viewport changes
+      // Recompute when doc changes, selection moves, the viewport changes, or
+      // the parse advances (so embeds appear as the markdown tree fills in).
       if (
         update.docChanged ||
         update.selectionSet ||
@@ -224,6 +225,6 @@ const embedPlugin = ViewPlugin.fromClass(
   }
 );
 
-export function codeMirrorEmbed() {
+export function markdownEmbed() {
   return [embedPlugin, embedTheme, embedDropHandlers()];
 }
