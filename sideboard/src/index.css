@@ -2,9 +2,12 @@
 :root,
 :host,
 [theme] {
-  --sideboard-fill: light-dark(
-    color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
-    black
+  --sideboard-fill: var(
+    --studio-chrome,
+    light-dark(
+      color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
+      black
+    )
   );
   --sideboard-fill-offset: color-mix(
     in oklab,

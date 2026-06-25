@@ -70,6 +70,40 @@
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 
+	/* chrome: the surface for app chrome (sideboard, context sidebar, toolbar).
+	   a light theme gets a faint secondary-tinted fill; dark themes go flat
+	   black. the offset ramp mirrors --studio-fill-offset, curving the same way,
+	   so chrome surfaces get borders/hovers that track the palette. */
+	--studio-chrome: light-dark(
+		color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
+		black
+	);
+	--studio-chrome-offset-10: color-mix(
+		in oklch,
+		color-mix(in oklch, var(--studio-chrome), var(--studio-line) 0%),
+		var(--studio-offset-tint) var(--studio-offset-tint-amount)
+	);
+	--studio-chrome-offset-20: color-mix(
+		in oklch,
+		color-mix(in oklch, var(--studio-chrome), var(--studio-line) 7%),
+		var(--studio-offset-tint) var(--studio-offset-tint-amount)
+	);
+	--studio-chrome-offset-30: color-mix(
+		in oklch,
+		color-mix(in oklch, var(--studio-chrome), var(--studio-line) 18%),
+		var(--studio-offset-tint) var(--studio-offset-tint-amount)
+	);
+	--studio-chrome-offset-40: color-mix(
+		in oklch,
+		color-mix(in oklch, var(--studio-chrome), var(--studio-line) 32%),
+		var(--studio-offset-tint) var(--studio-offset-tint-amount)
+	);
+	--studio-chrome-offset-50: color-mix(
+		in oklch,
+		color-mix(in oklch, var(--studio-chrome), var(--studio-line) 50%),
+		var(--studio-offset-tint) var(--studio-offset-tint-amount)
+	);
+
 	--studio-primary: #35f7ca;
 	--studio-added: #35f7ca;
 	--studio-deleted: #ff6a90;

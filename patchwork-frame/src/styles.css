@@ -4,22 +4,23 @@
 :host,
 [theme] {
   --patchwork-frame-bg: var(--studio-fill, white);
+  --patchwork-frame-sidebar-fill: var(--studio-chrome, var(--studio-fill, white));
   --patchwork-frame-fg: var(--studio-line, black);
   --patchwork-frame-muted: var(--studio-line-offset-50, #999);
   --patchwork-frame-family: var(--studio-family-sans, system-ui, sans-serif);
   --patchwork-frame-family-code: var(--studio-family-code, ui-monospace, monospace);
-  --patchwork-frame-toolbar: var(--studio-fill, white);
-  --patchwork-frame-toolbar-border: var(--studio-fill-offset-20, #ccc);
+  --patchwork-frame-toolbar: var(--studio-chrome, white);
+  --patchwork-frame-toolbar-border: var(--studio-chrome-offset-20, #ccc);
   --patchwork-frame-sidebar-toggle-hover: var(--studio-line, black);
   --patchwork-frame-resize-accent: color-mix(in oklch, var(--studio-secondary, #33ccf8), transparent 50%);
   --patchwork-frame-resize-indicator: var(--studio-line-offset-50, #999);
 
   /* Context sidebar (tabbed) */
-  --context-sidebar-bg: var(--studio-fill-offset-10, #f2f2f2);
+  --context-sidebar-bg: var(--studio-chrome, #f2f2f2);
   --context-sidebar-fg: var(--studio-line, black);
-  --context-sidebar-border: var(--studio-fill-offset-20, #ccc);
+  --context-sidebar-border: var(--studio-chrome-offset-20, #ccc);
   --context-sidebar-tab-fg: var(--studio-line-offset-40, #666);
-  --context-sidebar-tab-hover: var(--studio-fill-offset-10, #e5e5e5);
+  --context-sidebar-tab-hover: var(--studio-chrome-offset-10, #e5e5e5);
   --context-sidebar-tab-active-bg: var(--studio-fill, white);
   --context-sidebar-tab-active-fg: var(--studio-line, black);
   --context-sidebar-tab-active-accent: var(--studio-primary, #35f7ca);
@@ -59,11 +60,11 @@
 }
 
 .sidebar[data-side="left"] {
-  background: var(--patchwork-frame-bg);
+  background: var(--patchwork-frame-sidebar-fill);
 }
 
 .sidebar[data-side="right"] {
-  background: var(--patchwork-frame-bg);
+  background: var(--patchwork-frame-sidebar-fill);
 }
 
 .main-area {
