@@ -184,16 +184,33 @@
 }
 
 .draft-change-group-header {
+  display: block;
+  width: 100%;
   padding: 0.125rem 0.5rem;
-  font-family: var(--drafts-mono);
-  font-size: 0.6875rem;
-  color: var(--drafts-faint-fg);
+  border: none;
+  border-radius: var(--drafts-radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--drafts-fg);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-change-group-header:hover {
+  background: var(--drafts-hover-bg);
+  color: var(--drafts-primary);
+  text-decoration: underline;
 }
 
 .draft-change-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.125rem;
   width: 100%;
   padding: 0.25rem 0.5rem;
   border: none;
@@ -204,6 +221,13 @@
   text-align: left;
   color: inherit;
   cursor: pointer;
+}
+
+.draft-change-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .draft-change-row:hover {
@@ -228,4 +252,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.draft-change-hash {
+  font-family: var(--drafts-mono);
+  font-size: 0.625rem;
+  color: var(--drafts-faint-fg);
+  word-break: break-all;
 }

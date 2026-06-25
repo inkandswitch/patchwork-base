@@ -17,6 +17,8 @@ import type {
 } from "@automerge/automerge-repo";
 import { decodeHeads, encodeHeads } from "@automerge/automerge-repo";
 import * as Automerge from "@automerge/automerge";
+import { OpenDocumentEvent } from "@inkandswitch/patchwork-elements";
+import { getRegistry, isLoadedPlugin } from "@inkandswitch/patchwork-plugins";
 import {
   subscribe,
   subscribeDoc,
@@ -37,6 +39,9 @@ const EMPTY_DRAFT_LIST: DraftList = {
   main: { url: "" as AutomergeUrl, members: [], childCount: 0 },
   drafts: [],
 };
+
+// Tool a history entry's document opens in when its title is clicked.
+const RAW_TOOL_ID = "raw";
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
@@ -84,6 +89,14 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
 
   const getRepo = (): Repo | undefined =>
     "repo" in window ? window.repo : undefined;
+
+  // Open a document in the raw view. The event bubbles up to the selected-doc
+  // provider, which swaps the main view to this url + tool.
+  const openInRaw = (url: AutomergeUrl) => {
+    props.element.dispatchEvent(
+      new OpenDocumentEvent({ url, toolId: RAW_TOOL_ID })
+    );
+  };
 
   // Pin the checkout to a history entry: resolve every member doc's heads as of
   // the clicked entry's timestamp and store them alongside the selection, so the
@@ -196,6 +209,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             onSelectEntry={(anchor) =>
               onSelectEntry(null, list().main.members, anchor)
             }
+            onOpenDocument={openInRaw}
             activeAnchor={() =>
               isMainSelected() ? (checkedOut()?.at?.anchor ?? null) : null
             }
@@ -211,6 +225,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 onSelectEntry={(anchor) =>
                   onSelectEntry(summary.url, summary.members, anchor)
                 }
+                onOpenDocument={openInRaw}
                 activeAnchor={() =>
                   selected() === summary.url
                     ? (checkedOut()?.at?.anchor ?? null)
@@ -298,6 +313,7 @@ function MainCard(props: {
   members: Accessor<DraftMemberDoc[]>;
   onSelect: () => void;
   onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
+  onOpenDocument: (url: AutomergeUrl) => void;
   activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
 }) {
   return (
@@ -319,6 +335,7 @@ function MainCard(props: {
       <DraftChangesList
         members={props.members}
         onSelectEntry={props.onSelectEntry}
+        onOpenDocument={props.onOpenDocument}
         activeAnchor={props.activeAnchor}
       />
     </div>
@@ -332,6 +349,7 @@ function DraftCard(props: {
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
   onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
+  onOpenDocument: (url: AutomergeUrl) => void;
   activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
 }) {
   return (
@@ -356,6 +374,7 @@ function DraftCard(props: {
       <DraftChangesList
         members={() => props.members}
         onSelectEntry={props.onSelectEntry}
+        onOpenDocument={props.onOpenDocument}
         activeAnchor={props.activeAnchor}
       />
     </div>
@@ -374,19 +393,24 @@ type DraftChange = {
   message: string | null;
 };
 
-// A member document's changes, newest first. The card lists one of these per
-// member rather than interleaving every doc's changes into one timeline.
+// A member document's changes in topological (oldest-first) order. The card
+// lists one of these per member rather than interleaving every doc's changes
+// into one timeline. `title` is the document's datatype-resolved title (falling
+// back to a short url), shown as the group's clickable header.
 type DraftChangeGroup = {
   docUrl: AutomergeUrl;
+  title: string;
   changes: DraftChange[];
 };
 
 // Renders a draft's (or main's) changes grouped per member document, each
-// group newest first. The member set is passed in (from the card's
-// `DraftSummary`); the effect below keeps the groups live as those docs edit.
+// group in topological (oldest-first) order. The member set is passed in (from
+// the card's `DraftSummary`); the effect below keeps the groups live as those
+// docs edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
+  onOpenDocument: (url: AutomergeUrl) => void;
   activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
 }) {
   const [groups, setGroups] = createSignal<DraftChangeGroup[]>([]);
@@ -436,9 +460,14 @@ function DraftChangesList(props: {
         <For each={groups()}>
           {(group) => (
             <div class="draft-change-group">
-              <div class="draft-change-group-header">
-                {shortUrl(group.docUrl)}
-              </div>
+              <button
+                type="button"
+                class="draft-change-group-header"
+                title="Open in raw view"
+                onClick={() => props.onOpenDocument(group.docUrl)}
+              >
+                {group.title}
+              </button>
               <For each={group.changes}>
                 {(change) => {
                   const isActive = () => {
@@ -453,20 +482,26 @@ function DraftChangesList(props: {
                       class="draft-change-row"
                       data-selected={isActive() ? "" : undefined}
                       title="View the draft at this point"
-                      onClick={() =>
+                      onClick={() => {
+                        console.log("[drafts] change clicked", change);
                         props.onSelectEntry({
                           docUrl: change.docUrl,
                           hash: change.hash,
                           time: change.time,
-                        })
-                      }
+                        });
+                      }}
                     >
-                      <span class="draft-change-time">
-                        {formatTime(change.time)}
+                      <div class="draft-change-line">
+                        <span class="draft-change-time">
+                          {formatTime(change.time)}
+                        </span>
+                        <Show when={change.message}>
+                          <span class="draft-change-msg">{change.message}</span>
+                        </Show>
+                      </div>
+                      <span class="draft-change-hash">
+                        {encodeHeads([change.hash])[0]}
                       </span>
-                      <Show when={change.message}>
-                        <span class="draft-change-msg">{change.message}</span>
-                      </Show>
                     </button>
                   );
                 }}
@@ -541,11 +576,14 @@ async function computeCheckpoint(
   return { anchor, heads, baselineHeads };
 }
 
-// Collect each member doc's post-fork changes as its own group, newest first,
-// in member order (no cross-document interleave). On a draft `clonedAt` is set,
-// so reading the clone since that fork point yields exactly the draft's own
-// changes; on main both clone fields are null, so we read the original doc since
-// `[]` for its full history. Members with no changes are omitted.
+// Collect each member doc's post-fork changes as its own group, in topological
+// (causal, oldest-first) order as returned by `getChangesMetaSince` — no time
+// sort, since `meta.time` is only second-resolution and reorders sub-second
+// changes. Groups follow member order (no cross-document interleave). On a draft
+// `clonedAt` is set, so reading the clone since that fork point yields exactly
+// the draft's own changes; on main both clone fields are null, so we read the
+// original doc since `[]` for its full history. Members with no changes are
+// omitted.
 async function collectChangesByDocument(
   repo: Repo,
   members: DraftMemberDoc[]
@@ -565,8 +603,8 @@ async function collectChangesByDocument(
         message: meta.message,
       }));
       if (changes.length === 0) continue;
-      changes.sort((a, b) => b.time - a.time);
-      groups.push({ docUrl: member.url, changes });
+      const title = await resolveDocTitle(doc, member.url);
+      groups.push({ docUrl: member.url, title, changes });
     } catch (err) {
       // A member doc that can't be resolved (or whose fork point is missing)
       // is simply omitted rather than failing the whole list.
@@ -574,6 +612,37 @@ async function collectChangesByDocument(
     }
   }
   return groups;
+}
+
+// Resolve a document's display title: prefer its cached `@patchwork.title`,
+// otherwise ask its datatype for one, falling back to a short url. Mirrors the
+// sideboard's `docLinkFromUrl` but reuses an already-loaded doc.
+async function resolveDocTitle(
+  doc: unknown,
+  url: AutomergeUrl
+): Promise<string> {
+  try {
+    const meta = (doc as { "@patchwork"?: { title?: string; type?: string } })[
+      "@patchwork"
+    ];
+    if (typeof meta?.title === "string" && meta.title) return meta.title;
+
+    const type = meta?.type;
+    if (type) {
+      const registry = getRegistry("patchwork:datatype");
+      const datatype = registry.get(type);
+      if (datatype) {
+        await registry.load(datatype.id);
+        if (isLoadedPlugin(datatype)) {
+          const title = datatype.module.getTitle(doc);
+          if (title) return title;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[drafts] failed to resolve title for:", url, err);
+  }
+  return shortUrl(url);
 }
 
 // "automerge:4NMNnk…AVdXu" → a compact, fixed-width label for a doc url.
@@ -594,6 +663,7 @@ function formatTime(timeSeconds: number): string {
   const timePart = date.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
+    second: "2-digit",
     hour12: true,
   });
   return `${datePart}, ${timePart}`;
