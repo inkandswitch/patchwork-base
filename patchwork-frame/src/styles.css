@@ -100,6 +100,13 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  /* The main view is the bordered panel (not the sidebars): a 1px outline that
+     rounds at the top two corners and runs open to the bottom of the frame. The
+     side borders double as the divider against each sidebar. */
+  border: 1px solid var(--patchwork-frame-toolbar-border);
+  border-bottom: none;
+  border-top-left-radius: var(--studio-radius, 6px);
+  border-top-right-radius: var(--studio-radius, 6px);
 }
 
 .toolbar {
@@ -111,7 +118,6 @@
   min-height: var(--patchwork-frame-space-2xl);
   background: var(--patchwork-frame-toolbar);
   color: var(--patchwork-frame-toolbar-fg);
-  border-bottom: 1px solid var(--patchwork-frame-toolbar-border);
 }
 
 .toolbar patchwork-view {
@@ -402,8 +408,9 @@
   width: 1px;
   z-index: 1;
   cursor: pointer;
-  /* the always-present 1px divider line (the button's own background) */
-  background: var(--patchwork-frame-sidebar-divider);
+  /* transparent at rest - the visible divider is now the main view's border;
+     the handle only lights up (glow + pill) on hover to signal resize. */
+  background: transparent;
   transition: background-color var(--studio-transition, 0.15s ease);
   /* invisible hit target: an equal 5px grab margin on each side of the 1px
      line. Uses symmetric insets (not left:50% + translateX on a 1px box, whose
