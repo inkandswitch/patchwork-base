@@ -100,13 +100,10 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  /* The main view is the bordered panel (not the sidebars): a 1px outline that
-     rounds at the top two corners and runs open to the bottom of the frame. The
-     side borders double as the divider against each sidebar. */
-  border: 1px solid var(--patchwork-frame-toolbar-border);
-  border-bottom: none;
-  border-top-left-radius: var(--studio-radius, 6px);
-  border-top-right-radius: var(--studio-radius, 6px);
+  /* The main view is the bordered panel (not the sidebars). Its side borders
+     double as the divider against each sidebar; the continuous top line is
+     drawn by `.frame` so it runs edge-to-edge across the whole frame. */
+  border-inline: 1px solid var(--patchwork-frame-toolbar-border);
 }
 
 .toolbar {
