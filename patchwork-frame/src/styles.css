@@ -33,6 +33,9 @@
 
   /* Context sidebar (tabbed) */
   --context-sidebar-bg: var(--patchwork-frame-context-sidebar-fill);
+  /* the tab-bar header rides on the same flat chrome as the toolbar above it,
+     so the two chrome strips read as one continuous band */
+  --context-sidebar-header-bg: var(--studio-chrome, #f2f2f2);
   --context-sidebar-fg: var(--studio-chrome-line, var(--studio-line, black));
   --context-sidebar-border: var(--studio-chrome-offset-20, #ccc);
   --context-sidebar-tab-fg: var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #666));
@@ -176,6 +179,7 @@
   justify-content: center;
   box-sizing: border-box;
   min-height: calc(var(--patchwork-frame-space-2xl) + 1px);
+  background: var(--context-sidebar-header-bg);
   border-bottom: 1px solid var(--context-sidebar-border);
 }
 
@@ -212,8 +216,11 @@
   color: var(--context-sidebar-tab-active-fg);
 }
 
-/* Exception: the selected tab. */
+/* Exception: the selected tab. Pulled down 1px so its fill covers the tab-bar's
+   bottom border, connecting the tab seamlessly into the panel below. */
 .context-sidebar__tab[data-active] {
+  position: relative;
+  margin-bottom: -1px;
   background: var(--context-sidebar-tab-active-bg);
   color: var(--context-sidebar-tab-active-fg);
   border-color: var(--context-sidebar-border);
