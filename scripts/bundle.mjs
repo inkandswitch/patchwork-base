@@ -10,21 +10,19 @@
  * Automerge folder doc's package.json (`exports["."]` under the
  * `patchwork`/`browser`/`import` conditions, falling back to `main`).
  *
+ * This only aggregates; it does not install or build. Install/build the tools
+ * first (from the repo root: `pnpm install` then `pnpm build`, which skip the
+ * output folder), then run this to assemble `static-dist/`.
+ *
  * Usage:
- *   node scripts/build-static.mjs [--out <dir>] [--install] [--build]
+ *   node scripts/bundle.mjs [--out <dir>]
  *
  *   --out <dir>   Output directory (default: static-dist)
- *   --install     Run `pnpm install` in each tool before building. Implies
- *                 --build. Useful in CI where tool node_modules are absent.
- *   --build       Run each tool's own `pnpm build` (in its isolated
- *                 node_modules) before copying. Off by default; we copy the
- *                 existing dist/.
  */
 import { existsSync, readFileSync, rmSync, mkdirSync, cpSync, writeFileSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
 import { join, dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
 
 const ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -43,15 +41,11 @@ const IGNORE_DIRS = new Set([
 ]);
 
 function parseArgs(argv) {
-  const args = { out: "static-dist", build: false, install: false };
+  const args = { out: "static-dist" };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out") args.out = argv[++i];
-    else if (a === "--build") args.build = true;
-    else if (a === "--install") {
-      args.install = true;
-      args.build = true;
-    } else throw new Error(`Unknown argument: ${a}`);
+    else throw new Error(`Unknown argument: ${a}`);
   }
   return args;
 }
@@ -87,30 +81,12 @@ function normalizeRel(p) {
 }
 
 function main() {
-  const { out, build, install } = parseArgs(process.argv.slice(2));
+  const { out } = parseArgs(process.argv.slice(2));
   const outDir = resolvePath(ROOT, out);
   const toolsOutDir = join(outDir, "tools");
 
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(toolsOutDir, { recursive: true });
-
-  // Install & build in parallel across all packages.
-  if (install) {
-    console.log("[install] pnpm -r install --prefer-offline");
-    execSync("pnpm -r install --prefer-offline", { cwd: ROOT, stdio: "inherit" });
-  }
-
-  if (build) {
-    console.log("[build] pnpm -r run --no-bail --if-present build");
-    try {
-      execSync("pnpm -r run --no-bail --if-present build", {
-        cwd: ROOT,
-        stdio: "inherit",
-      });
-    } catch {
-      console.warn("[build] some tools failed to build (see above)");
-    }
-  }
 
   // Copy dists and build manifest.
   const modules = [];

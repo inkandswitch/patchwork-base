@@ -46,9 +46,17 @@ dependents for the current set of links.
 From the repo root:
 
 ```sh
-pnpm -r install   # install in every tool
-pnpm -r build     # build every tool that has a build script
+pnpm install   # install in every tool
+pnpm build     # build every tool that has a build script
 ```
+
+There is no root workspace — these just run `pnpm` recursively over each tool
+directory. The filter (`--filter './*' --filter '!./static-dist/**'`) excludes
+the `static-dist/` output folder, so they're safe to run even when a previous
+bundle is still present. (A bare `pnpm -r build` would instead try to "build"
+the copied bundles under `static-dist/tools/*` and fail, since those have no
+`node_modules`.) Because `install` is a real script, plain `pnpm install` at the
+root installs all the tools too.
 
 ## Static-HTTP deployment (shell + tools bundle)
 
@@ -56,9 +64,9 @@ The tools can be deployed as a static HTTP bundle and loaded by any Patchwork
 **shell** (the boot runtime). The two halves are independent:
 
 - **Tools bundle** (lives here) — `static-dist/` (`modules.json` +
-  `tools/<tool>/dist/…`), produced by `scripts/build-static.mjs`. Deployed to
+  `tools/<tool>/dist/…`), produced by `scripts/bundle.mjs`. Deployed to
   Netlify (the repo is private, so GitHub Pages would need a paid plan).
-  `build:static` also writes a `_headers` file granting
+  `bundle` also writes a `_headers` file granting
   `Access-Control-Allow-Origin: *`, which Netlify (and Cloudflare Pages) honour
   so a shell can load these tools cross-origin.
 - **Shell** (lives in `patchwork-next`) — there is no separate shell in this
@@ -76,15 +84,18 @@ override.
 ### Build / serve / deploy the tools bundle
 
 ```sh
-pnpm build:static     # aggregate already-built tool dist/ -> static-dist/ + modules.json
-pnpm build:static:fresh  # also run each tool's own `pnpm build` first
-pnpm build:tools:ci   # also `pnpm install` in each tool first (for clean CI)
+pnpm install          # install every tool (skips static-dist/)
+pnpm build            # build every tool (skips static-dist/)
+pnpm bundle           # aggregate built tool dist/ -> static-dist/ + modules.json
 
 pnpm serve:tools      # serve static-dist/ on :4455 with CORS (local tools host)
-pnpm dev:tools        # build:static + serve:tools
+pnpm dev:tools        # bundle + serve:tools
 
-pnpm deploy:tools     # build:static + netlify deploy --prod (static-dist/)
+pnpm deploy:tools     # bundle + netlify deploy --prod (static-dist/)
 ```
+
+A clean bundle from scratch is `pnpm install && pnpm build && pnpm bundle`
+(which is exactly what Netlify runs).
 
 `modules.json` uses relative `./tools/…` URLs that resolve against the
 manifest's own URL, so the bundle works at any host or base path.

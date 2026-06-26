@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Serve the aggregated tools bundle (`static-dist/`, produced by
- * `scripts/build-static.mjs`) over plain HTTP with permissive CORS, so a shell
+ * `scripts/bundle.mjs`) over plain HTTP with permissive CORS, so a shell
  * running on a *different* origin (the deployed PWA, `vite preview` on another
  * port, etc.) can `fetch()` the manifest and `import()` each tool.
  *
@@ -49,7 +49,7 @@ const baseDir = resolvePath(ROOT, dir);
 
 if (!existsSync(join(baseDir, "modules.json"))) {
   console.error(
-    `No modules.json in ${baseDir}. Run \`pnpm build:static\` first.`
+    `No modules.json in ${baseDir}. Run \`pnpm bundle\` first.`
   );
   process.exit(1);
 }
