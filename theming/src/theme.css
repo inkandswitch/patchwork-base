@@ -75,67 +75,80 @@
 	   dark themes a dark tinted one, because both fill and secondary come from
 	   the palette. the offset ramp mirrors --studio-fill-offset, curving the
 	   same way, so chrome surfaces get borders/hovers that track the palette. */
-	--studio-chrome: color-mix(in oklch, var(--studio-secondary), var(--studio-fill) 80%);
+	--studio-chrome-fill: var(--studio-fill-offset-10);
 	/* the offset ramp mixes chrome toward --studio-chrome-line (the chrome's own
 	   ink), not --studio-line, so borders/hovers stay sensible whether the chrome
 	   is lighter or darker than the content. defaults to --studio-line, so light
 	   themes are unchanged. */
-	--studio-chrome-offset-10: color-mix(
+	--studio-chrome-fill-offset-10: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome), var(--studio-chrome-line) 0%),
+		color-mix(in oklch, var(--studio-chrome-fill), var(--studio-chrome-line) 0%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
-	--studio-chrome-offset-20: color-mix(
+	--studio-chrome-fill-offset-20: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome), var(--studio-chrome-line) 7%),
+		color-mix(in oklch, var(--studio-chrome-fill), var(--studio-chrome-line) 7%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
-	--studio-chrome-offset-30: color-mix(
+	--studio-chrome-fill-offset-30: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome), var(--studio-chrome-line) 18%),
+		color-mix(in oklch, var(--studio-chrome-fill), var(--studio-chrome-line) 18%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
-	--studio-chrome-offset-40: color-mix(
+	--studio-chrome-fill-offset-40: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome), var(--studio-chrome-line) 32%),
+		color-mix(in oklch, var(--studio-chrome-fill), var(--studio-chrome-line) 32%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
-	--studio-chrome-offset-50: color-mix(
+	--studio-chrome-fill-offset-50: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome), var(--studio-chrome-line) 50%),
+		color-mix(in oklch, var(--studio-chrome-fill), var(--studio-chrome-line) 50%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 
+	/* back-compat aliases for the pre-rename --studio-chrome[-offset-*] names. */
+	--studio-chrome: var(--studio-chrome-fill);
+	--studio-chrome-offset-10: var(--studio-chrome-fill-offset-10);
+	--studio-chrome-offset-20: var(--studio-chrome-fill-offset-20);
+	--studio-chrome-offset-30: var(--studio-chrome-fill-offset-30);
+	--studio-chrome-offset-40: var(--studio-chrome-fill-offset-40);
+	--studio-chrome-offset-50: var(--studio-chrome-fill-offset-50);
+
 	/* the ink/line color for content on chrome surfaces. mirrors --studio-line
-	   but its offset ramp mixes toward --studio-chrome (the chrome surface)
+	   but its offset ramp mixes toward --studio-chrome-fill (the chrome surface)
 	   instead of --studio-fill, so borders/dividers on chrome track the chrome
 	   palette the same way --studio-line-offset tracks the fill. */
 	--studio-chrome-line: var(--studio-line);
 	--studio-chrome-line-offset-10: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome) 10%),
+		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome-fill) 10%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-chrome-line-offset-20: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome) 20%),
+		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome-fill) 20%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-chrome-line-offset-30: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome) 30%),
+		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome-fill) 30%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-chrome-line-offset-40: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome) 40%),
+		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome-fill) 40%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 	--studio-chrome-line-offset-50: color-mix(
 		in oklch,
-		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome) 50%),
+		color-mix(in oklch, var(--studio-chrome-line), var(--studio-chrome-fill) 50%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
+
+	/* the font family for app chrome; tracks the ui family by default. */
+	--studio-chrome-family: var(--studio-family-ui);
+
+	--sideboard-primary: var(--studio-primary);
 
 	--studio-primary: #35f7ca;
 	--studio-added: #35f7ca;
@@ -149,6 +162,10 @@
 	--studio-family-code:
 		"Fantasque Sans Mono", "IBM Plex Mono", "Fira Code", "Iosevka",
 		ui-monospace, monospace;
+	/* the default family for studio content, and a separate ui family for
+	   controls/chrome; both track the sans family by default. */
+	--studio-family: var(--studio-family-sans);
+	--studio-family-ui: var(--studio-family-sans);
 	--studio-font-size: 16px;
 	--studio-font-weight: 400;
 	--studio-selection-fill: #ffee8888;
@@ -241,6 +258,7 @@
 
 	--editor-family-code: var(--studio-family-code);
 	--editor-family-sans: var(--studio-family-sans);
+	--editor-family: var(--editor-family-sans);
 	--editor-font-size: var(--studio-font-size);
 	--editor-font-weight: var(--editor-font-weight);
 	--editor-selection-fill: var(--studio-selection-fill);
@@ -306,6 +324,7 @@
 	);
 	--text-editor-family-code: var(--editor-family-code);
 	--text-editor-family-sans: var(--editor-family-sans);
+	--text-editor-family: var(--text-editor-family-code);
 	--text-editor-cursor-fill: var(--editor-cursor-fill);
 	--text-editor-selection-fill: var(--editor-selection-fill);
 	--text-editor-selection-line: var(--editor-selection-line);
