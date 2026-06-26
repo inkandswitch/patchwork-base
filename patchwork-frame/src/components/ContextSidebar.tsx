@@ -84,28 +84,6 @@ export function ContextSidebar(props: ContextSidebarProps) {
               )}
             </For>
           </div>
-          <button
-            type="button"
-            class="context-sidebar__close"
-            title="Close context sidebar"
-            aria-label="Close context sidebar"
-            onClick={() => props.onClose()}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M15 3v18" />
-            </svg>
-          </button>
         </div>
         <div class="context-sidebar__content">
           <Show when={activeToolId()} keyed>
