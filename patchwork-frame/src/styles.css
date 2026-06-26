@@ -107,6 +107,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
+  padding-bottom: 0
   box-sizing: border-box;
   min-height: var(--patchwork-frame-space-2xl);
   background: var(--patchwork-frame-toolbar);
