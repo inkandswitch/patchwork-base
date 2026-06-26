@@ -190,15 +190,25 @@
 .context-sidebar__tablist {
   display: flex;
   flex: 1;
+  min-width: 0;
   align-items: flex-end;
   gap: var(--patchwork-frame-space-2xs);
   padding-inline: var(--patchwork-frame-space-2xs);
+  /* when there are more tabs than fit, scroll them horizontally rather than
+     letting them shrink/wrap; scrollbar hidden for a clean header. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.context-sidebar__tablist::-webkit-scrollbar {
+  display: none;
 }
 
 /* A single tab. */
 .context-sidebar__tab {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   padding: var(--patchwork-frame-space-xs) var(--patchwork-frame-space-sm);
   border: 1px solid transparent;
   border-bottom: none;
@@ -403,7 +413,10 @@
   padding: 0;
   margin: 0;
   border: 0;
-  width: 1px;
+  /* zero-width: reserves no column, so the sidebar content sits flush against
+     the main view's border (no offset-bg seam). The hit target + pill are
+     pseudo-elements that straddle the boundary, so resize still works. */
+  width: 0;
   z-index: 1;
   cursor: pointer;
   /* transparent at rest - the visible divider is now the main view's border;
@@ -483,14 +496,12 @@ body[data-sidebar-resizing] .sidebar {
   border: 0;
   border-radius: var(--studio-radius-sm, 4px);
   background: transparent;
+  /* icon matches the chrome ink, same as the toolbar text (no dimming) */
   color: var(--patchwork-frame-toolbar-fg);
   cursor: pointer;
-  opacity: 0.55;
-  transition: opacity var(--studio-transition-fast, 0.1s ease),
-    background var(--studio-transition-fast, 0.1s ease);
+  transition: background var(--studio-transition-fast, 0.1s ease);
 }
 .toolbar__sidebar-toggle:hover {
-  opacity: 1;
   background: var(--studio-chrome-offset-10, #e5e5e5);
 }
 .toolbar__sidebar-toggle--right {
