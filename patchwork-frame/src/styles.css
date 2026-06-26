@@ -199,6 +199,12 @@
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  /* extend the clip box 1px past the tab-bar border (compensated by the
+     negative margin so layout is unchanged) so the active tab's -1px overflow
+     isn't clipped by the horizontal scroll container, and it can still cover
+     the border-bottom to connect into the panel. */
+  padding-bottom: 1px;
+  margin-bottom: -1px;
 }
 .context-sidebar__tablist::-webkit-scrollbar {
   display: none;
@@ -411,16 +417,17 @@
   align-self: stretch;
   height: 100%;
   padding: 0;
-  margin: 0;
+  /* 2px wide but pulled in 1px each side, so it reserves *no* layout column
+     (content stays flush against the view's border - no offset-bg seam) yet
+     still paints a full-height glow line straddling the boundary on hover. */
+  width: 2px;
+  margin-inline: -1px;
+  margin-block: 0;
   border: 0;
-  /* zero-width: reserves no column, so the sidebar content sits flush against
-     the main view's border (no offset-bg seam). The hit target + pill are
-     pseudo-elements that straddle the boundary, so resize still works. */
-  width: 0;
   z-index: 1;
   cursor: pointer;
-  /* transparent at rest - the visible divider is now the main view's border;
-     the handle only lights up (glow + pill) on hover to signal resize. */
+  /* transparent at rest - the visible divider is the main view's border; the
+     handle lights up (full-height glow + pill) on hover to signal resize. */
   background: transparent;
   transition: background-color var(--studio-transition, 0.15s ease);
   /* invisible hit target: an equal 5px grab margin on each side of the 1px
