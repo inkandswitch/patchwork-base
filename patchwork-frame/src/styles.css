@@ -386,28 +386,26 @@
 
 .frame {
 .sidebar-toggle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  /* an 11px invisible grab target, positioned (below) centred *on* the boundary
-     line so it can be grabbed equally from either side of the divider */
-  width: 11px;
+  position: relative;
+  align-self: stretch;
+  height: 100%;
   padding: 0;
   margin: 0;
   border: 0;
-  background: transparent;
-  z-index: 2;
+  width: 1px;
+  z-index: 1;
   cursor: pointer;
-  /* the always-present 1px divider line, drawn dead-centre in the grab target */
+  /* the always-present 1px divider line (the button's own background) */
+  background: var(--patchwork-frame-sidebar-divider);
+  transition: background-color var(--studio-transition, 0.15s ease);
+  /* invisible hit target: an equal 5px grab margin on each side of the 1px
+     line. Uses symmetric insets (not left:50% + translateX on a 1px box, whose
+     percentage/transform rounding drifted it sideways) so it's provably centred. */
   &::before {
     content: "";
     position: absolute;
     inset-block: 0;
-    left: 50%;
-    width: 1px;
-    transform: translateX(-50%);
-    background: var(--patchwork-frame-sidebar-divider);
-    transition: background-color var(--studio-transition, 0.15s ease);
+    inset-inline: -5px;
   }
   /* Things-3 style grab pill: invisible at rest; fades + grows in on hover,
      vertically centred (~halfway down). */
@@ -427,8 +425,8 @@
     pointer-events: none;
   }
   /* on hover the divider line lights up in the frame primary */
-  &:hover::before,
-  &:active::before {
+  &:hover,
+  &:active {
     background: var(--patchwork-frame-resize-glow);
   }
   &:hover::after,
@@ -458,18 +456,6 @@
 }
 body[data-sidebar-resizing] .sidebar {
   transition: none;
-}
-
-/* Centre the grab target *on* each sidebar's boundary edge (the handle is on
-   the right edge of the left sidebar and the left edge of the right sidebar),
-   so the divider line and the draggable area share the same centre. */
-.sidebar[data-side="right"] .sidebar-toggle {
-  left: 0;
-  transform: translateX(-50%);
-}
-.sidebar[data-side="left"] .sidebar-toggle {
-  right: 0;
-  transform: translateX(50%);
 }
 
 /* "Bring back" buttons shown in the document toolbar when a sidebar is

@@ -49,6 +49,10 @@
   --sideboard-muted: var(--studio-line-offset-40, #666);
   --sideboard-border: var(--studio-fill-offset-10, #e5e5e5);
   --sideboard-border-strong: var(--studio-fill-offset-20, #ccc);
+  /* subtle divider on the sideboard's chrome surface - the same base-theme
+     token the patchwork-frame sidebar divider uses (chrome mixed toward the
+     chrome ink, so it tracks the palette and reads correctly light/dark). */
+  --sideboard-divider: var(--studio-chrome-offset-20, #d4d4d4);
   --sideboard-added: var(--studio-added, #35f7ca);
   --sideboard-danger: var(--studio-danger, #ff6a90);
   --sideboard-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
@@ -362,19 +366,8 @@ button {
   margin-inline: calc(-1 * var(--sideboard-padding-x));
   background: var(--sideboard-footer-fill);
   color: var(--sideboard-line);
-  border-top: 1px solid
-    color-mix(
-      in oklab,
-      color-mix(in oklab, var(--sideboard-fill), oklch(1 0 0 / 1) 10%),
-      oklch(0 0 0 / 1) 4%
-    );
+  border-top: 1px solid var(--sideboard-divider);
   margin-top: auto;
-  box-shadow: 0 -1px 1px
-    color-mix(
-      in oklab,
-      color-mix(in oklab, var(--sideboard-fill), oklch(1 0 0 / 1) 10%),
-      oklch(0 0 0 / 1) 4%
-    );
   > button {
     border: 1px solid transparent;
     padding-inline: 0.25rem;
@@ -382,12 +375,7 @@ button {
     border-radius: 3px;
     white-space: nowrap;
     &:hover {
-      border: 1px solid
-        color-mix(
-          in oklab,
-          color-mix(in oklab, var(--sideboard-fill), oklch(1 0 0 / 1) 10%),
-          oklch(0 0 0 / 1) 4%
-        );
+      border: 1px solid var(--sideboard-divider);
     }
   }
 }
