@@ -83,10 +83,11 @@ export const DraftListProvider = (element: HTMLElement) => {
   // CheckedOutDraft doc was created; flushed once it exists.
   const pendingCheckedOutSubscribers = new Set<(url: AutomergeUrl) => void>();
 
-  // `draft:baseline` subscribers for the "main" case, keyed by canonical target
-  // url. On main there is no overlay to publish a fork-point baseline, so we
-  // serve the checked-out checkpoint's per-doc `baselineHeads` and re-emit
-  // whenever that checkout doc changes (pin set / cleared / switched).
+  // `draft:baseline` subscribers, keyed by canonical target url. This provider
+  // is the sole answerer (the overlay no longer claims it), serving the
+  // checkpoint's per-doc `from` when pinned and the checked-out draft's
+  // fork point otherwise (see `currentBaseline`). Re-emitted whenever the
+  // checkout doc or a tracked draft's clones change.
   const baselineSubscribers = new Map<
     AutomergeUrl,
     Set<(baseline: Baseline) => void>
@@ -114,10 +115,12 @@ export const DraftListProvider = (element: HTMLElement) => {
   let rewalkInFlight = false;
   let rewalkPending = false;
   // A tracked draft changing can mean either its sub-draft list moved (needs a
-  // rewalk) or its clone map grew (needs a list recompute), so do both.
+  // rewalk) or its clone map grew (needs a list recompute), so do both. A new
+  // clone also gives a checked-out draft a fork-point baseline, so re-publish.
   const onTrackedChange = () => {
     scheduleRewalk();
     recomputeList();
+    notifyBaselines();
   };
   const onHostDocChange = () => scheduleRewalk();
   // The checkout doc changed: its `at` checkpoint may have been set, cleared, or
@@ -205,9 +208,9 @@ export const DraftListProvider = (element: HTMLElement) => {
     }
 
     if (type === BASELINE_SELECTOR) {
-      // The "main" fallback for `draft:baseline`: on a draft the overlay claims
-      // this subscription first (nearer answerer), so this only fires for main,
-      // where the checkpoint's per-doc `baselineHeads` is the diff reference.
+      // Sole answerer for `draft:baseline` (the overlay no longer claims it):
+      // serves the pinned checkpoint's `from` or the checked-out draft's fork
+      // point for `target` (see `currentBaseline`).
       const rawTarget = (event.detail.selector as { url?: unknown }).url;
       if (typeof rawTarget !== "string" || !isValidAutomergeUrl(rawTarget)) {
         return;
@@ -350,12 +353,22 @@ export const DraftListProvider = (element: HTMLElement) => {
     return { url, members, childCount };
   }
 
-  // The diff baseline for `target` in the main case: the checked-out
-  // checkpoint's recorded predecessor heads for that doc, or `null` when no
-  // checkpoint is pinned (live view -> no diff).
+  // The diff baseline for `target`, authoritative for both main and drafts:
+  //  - a pinned checkpoint honors that doc's `from` exactly (`null` = no diff);
+  //  - otherwise, on a draft, the doc diffs against its clone's fork point;
+  //  - otherwise (main, no pin) there is no baseline.
   function currentBaseline(target: AutomergeUrl): Baseline {
-    const heads = checkedOutHandle?.doc()?.at?.baselineHeads?.[target];
-    return { heads: heads ?? null };
+    const doc = checkedOutHandle?.doc();
+    const entry = doc?.at?.[target];
+    if (entry) return { heads: entry.from ?? null };
+
+    const checkedOut = doc?.checkedOut;
+    if (checkedOut) {
+      const clonedAt = trackedDrafts.get(checkedOut)?.doc()?.clones?.[target]
+        ?.clonedAt;
+      return { heads: clonedAt ?? null };
+    }
+    return { heads: null };
   }
 
   function notifyBaselines(): void {

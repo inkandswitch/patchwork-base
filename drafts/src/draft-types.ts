@@ -31,26 +31,26 @@ export type DraftDoc = {
   mergedAt?: number;
 };
 
-// A frozen, read-only view of a draft (or main) at a point in its history.
-// `anchor` is the timeline entry the user clicked: it drives the row highlight
-// and is the timestamp the other docs' heads are resolved against. `heads` maps
-// each member doc's original url to the heads to view it at — exact for the
-// anchor doc, latest-change-before-`anchor.time` for the rest. Docs with no
-// change at or before that time are omitted (they didn't exist yet), so they
-// fall through to their live state.
-//
-// `baselineHeads` maps the same docs to the heads *just before* their pinned
-// change, so a consumer can diff the checkpoint against what each entry
-// introduced. On a draft the overlay supplies the fork-point baseline instead;
-// `baselineHeads` is what the draft-list provider serves for the "main" case,
-// where there is no overlay (see `draft:baseline`). A doc whose pinned change is
-// its first has no predecessor, so its baseline is `[]` (the whole doc reads as
-// added).
-export type DraftCheckpoint = {
-  anchor: { docUrl: AutomergeUrl; hash: string; time: number };
-  heads: Record<AutomergeUrl, UrlHeads>;
-  baselineHeads: Record<AutomergeUrl, UrlHeads>;
+// One member doc's pinned view within a checkpoint. `to` is the heads to render
+// the doc at (a fixed-heads, read-only view); omit it to leave the doc live.
+// `from` is the diff baseline the consumer compares `to` (or live) against;
+// omit it for no diff. A doc whose pinned change is its first has no predecessor,
+// so `from` is `[]` (the whole doc reads as added).
+export type DocCheckpoint = {
+  from?: UrlHeads;
+  to?: UrlHeads;
 };
+
+// A frozen, read-only view of a draft (or main) at a point in its history: maps
+// each member doc's original url to the heads to view it at (`to`) and to diff
+// against (`from`). The selection's `checkedOut` branch gives those heads their
+// meaning, since post-fork changes only exist in that branch's clone.
+//
+// Built from a clicked timeline entry: the clicked doc is pinned exactly to that
+// change, every other member to its latest change at or before the entry's time
+// (approximate but good enough). Docs with no change at or before that time are
+// absent from the map — they didn't exist yet, so they fall through to live.
+export type DraftCheckpoint = Record<AutomergeUrl, DocCheckpoint>;
 
 // Ephemeral, writeable state owned by the draft-list provider and handed to
 // the sidebar via `draft:checked-out`. It holds the selection: which draft is
@@ -65,13 +65,13 @@ export type CheckedOutDraft = {
   at?: DraftCheckpoint | null;
 };
 
-// Response shape for `draft:baseline { url }`. The draft overlay
-// publishes `heads` as the document's fork-point heads (`clones[url].clonedAt`)
-// once the doc has been cloned in this draft; consumers compute a diff
-// against the live doc state from there. `heads` is `null` while there is no
-// baseline yet (e.g. the doc hasn't been resolved in this draft, or "main" is
-// selected). It is `null` rather than optional so the value is a valid
-// structured-cloneable `JSONValue` crossing the provider channel.
+// Response shape for `draft:baseline { url }`, served by the draft-list provider
+// (see `currentBaseline`). `heads` is the doc's diff baseline: the checkpoint's
+// per-doc `from` when a history entry is pinned, otherwise the checked-out
+// draft's fork-point heads (`clones[url].clonedAt`) for a live draft view.
+// `heads` is `null` when there is no baseline (no clone yet, no pin on main).
+// It is `null` rather than optional so the value is a valid structured-cloneable
+// `JSONValue` crossing the provider channel.
 export type Baseline = {
   heads: UrlHeads | null;
 };

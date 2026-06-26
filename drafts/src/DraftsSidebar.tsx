@@ -43,6 +43,9 @@ const EMPTY_DRAFT_LIST: DraftList = {
 // Tool a history entry's document opens in when its title is clicked.
 const RAW_TOOL_ID = "raw";
 
+// Bump on each deploy to eyeball whether the latest build has synced.
+const DRAFTS_VERSION = "0.0.1";
+
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
     type: "draft:root-doc",
@@ -104,13 +107,13 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   const onSelectEntry = (
     draftUrl: AutomergeUrl | null,
     members: DraftMemberDoc[],
-    anchor: DraftCheckpoint["anchor"]
+    entry: ClickedEntry
   ) => {
     const handle = checkedOutHandle();
     const repo = getRepo();
     if (!handle || !repo) return;
     void (async () => {
-      const checkpoint = await computeCheckpoint(repo, members, anchor);
+      const checkpoint = await computeCheckpoint(repo, members, entry);
       handle.change((d) => {
         d.checkedOut = draftUrl;
         d.at = checkpoint;
@@ -206,12 +209,12 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             isSelected={isMainSelected()}
             members={() => list().main.members}
             onSelect={() => selectDraft(null)}
-            onSelectEntry={(anchor) =>
-              onSelectEntry(null, list().main.members, anchor)
+            onSelectEntry={(entry) =>
+              onSelectEntry(null, list().main.members, entry)
             }
             onOpenDocument={openInRaw}
-            activeAnchor={() =>
-              isMainSelected() ? (checkedOut()?.at?.anchor ?? null) : null
+            activeCheckpoint={() =>
+              isMainSelected() ? (checkedOut()?.at ?? null) : null
             }
           />
           <For each={list().drafts}>
@@ -222,13 +225,13 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 childCount={summary.childCount}
                 isSelected={selected() === summary.url}
                 onSelect={selectDraft}
-                onSelectEntry={(anchor) =>
-                  onSelectEntry(summary.url, summary.members, anchor)
+                onSelectEntry={(entry) =>
+                  onSelectEntry(summary.url, summary.members, entry)
                 }
                 onOpenDocument={openInRaw}
-                activeAnchor={() =>
+                activeCheckpoint={() =>
                   selected() === summary.url
-                    ? (checkedOut()?.at?.anchor ?? null)
+                    ? (checkedOut()?.at ?? null)
                     : null
                 }
               />
@@ -275,6 +278,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
           </Show>
         </div>
       </Show>
+      <div class="drafts-version">v{DRAFTS_VERSION}</div>
     </div>
   );
 }
@@ -312,9 +316,9 @@ function MainCard(props: {
   isSelected: boolean;
   members: Accessor<DraftMemberDoc[]>;
   onSelect: () => void;
-  onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
+  onSelectEntry: (entry: ClickedEntry) => void;
   onOpenDocument: (url: AutomergeUrl) => void;
-  activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
+  activeCheckpoint: Accessor<DraftCheckpoint | null>;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -336,7 +340,7 @@ function MainCard(props: {
         members={props.members}
         onSelectEntry={props.onSelectEntry}
         onOpenDocument={props.onOpenDocument}
-        activeAnchor={props.activeAnchor}
+        activeCheckpoint={props.activeCheckpoint}
       />
     </div>
   );
@@ -348,9 +352,9 @@ function DraftCard(props: {
   childCount: number;
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
-  onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
+  onSelectEntry: (entry: ClickedEntry) => void;
   onOpenDocument: (url: AutomergeUrl) => void;
-  activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
+  activeCheckpoint: Accessor<DraftCheckpoint | null>;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -375,7 +379,7 @@ function DraftCard(props: {
         members={() => props.members}
         onSelectEntry={props.onSelectEntry}
         onOpenDocument={props.onOpenDocument}
-        activeAnchor={props.activeAnchor}
+        activeCheckpoint={props.activeCheckpoint}
       />
     </div>
   );
@@ -391,6 +395,15 @@ type DraftChange = {
   time: number;
   actor: string;
   message: string | null;
+};
+
+// The timeline entry the user clicked, fed to `computeCheckpoint`. `time`
+// anchors how the other docs' heads are resolved; it isn't stored in the
+// resulting checkpoint.
+type ClickedEntry = {
+  docUrl: AutomergeUrl;
+  hash: string;
+  time: number;
 };
 
 // A member document's changes in topological (oldest-first) order. The card
@@ -409,9 +422,9 @@ type DraftChangeGroup = {
 // docs edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
-  onSelectEntry: (anchor: DraftCheckpoint["anchor"]) => void;
+  onSelectEntry: (entry: ClickedEntry) => void;
   onOpenDocument: (url: AutomergeUrl) => void;
-  activeAnchor: Accessor<DraftCheckpoint["anchor"] | null>;
+  activeCheckpoint: Accessor<DraftCheckpoint | null>;
 }) {
   const [groups, setGroups] = createSignal<DraftChangeGroup[]>([]);
 
@@ -470,10 +483,13 @@ function DraftChangesList(props: {
               </button>
               <For each={group.changes}>
                 {(change) => {
+                  // A row is the pinned point for its doc when the checkpoint's
+                  // `to` for that doc equals this change's (encoded) heads.
                   const isActive = () => {
-                    const a = props.activeAnchor();
+                    const entry = props.activeCheckpoint()?.[change.docUrl];
                     return (
-                      !!a && a.docUrl === change.docUrl && a.hash === change.hash
+                      !!entry?.to &&
+                      entry.to[0] === encodeHeads([change.hash])[0]
                     );
                   };
                   return (
@@ -514,23 +530,20 @@ function DraftChangesList(props: {
   );
 }
 
-// Resolve the per-document heads to view a draft (or main) at the clicked
-// history entry. The anchor doc is pinned exactly to the clicked change; every
-// other member is pinned to its latest change at or before the anchor's
-// timestamp (approximate but good enough). Members with no change at or before
-// that time are omitted — they didn't exist yet, so they fall through to live.
-//
-// `baselineHeads` records the change immediately before each pinned one (in
-// causal order), so a checkpoint diff shows exactly what that entry introduced.
-// On main the draft-list provider serves this as `draft:baseline`; on a draft
-// the overlay's fork-point baseline wins, so this goes unused there.
+// Build the checkpoint map for the clicked history entry. The clicked doc is
+// pinned exactly to that change (`to`); every other member to its latest change
+// at or before the entry's timestamp (approximate but good enough). Each doc's
+// `from` is the change immediately before its pinned one (in causal order), so a
+// diff shows exactly what that entry introduced — the first change has no
+// predecessor, so `from` is `[]` (the whole doc reads as added). Members with no
+// change at or before that time are omitted: they didn't exist yet, so they fall
+// through to live.
 async function computeCheckpoint(
   repo: Repo,
   members: DraftMemberDoc[],
-  anchor: DraftCheckpoint["anchor"]
+  entry: ClickedEntry
 ): Promise<DraftCheckpoint> {
-  const heads: Record<AutomergeUrl, UrlHeads> = {};
-  const baselineHeads: Record<AutomergeUrl, UrlHeads> = {};
+  const checkpoint: DraftCheckpoint = {};
   for (const member of members) {
     try {
       const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
@@ -539,32 +552,30 @@ async function computeCheckpoint(
       const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
       const metas = Automerge.getChangesMetaSince(doc, since);
 
-      // Find the change to pin this doc to: exactly the clicked entry for the
-      // anchor doc, otherwise its latest change at or before the anchor's time.
+      // Find the change to pin this doc to: exactly the clicked entry for that
+      // doc, otherwise its latest change at or before the entry's time.
       let pinnedIndex = -1;
-      if (member.url === anchor.docUrl) {
-        pinnedIndex = metas.findIndex((m) => m.hash === anchor.hash);
-        // Pin the anchor exactly even if it falls outside the metas window
+      let to: UrlHeads;
+      if (member.url === entry.docUrl) {
+        pinnedIndex = metas.findIndex((m) => m.hash === entry.hash);
+        // Pin the clicked doc exactly even if it falls outside the metas window
         // (robust against a mismatched fork point).
-        heads[member.url] = encodeHeads([anchor.hash]);
+        to = encodeHeads([entry.hash]);
       } else {
         let bestTime = -Infinity;
         metas.forEach((m, i) => {
-          if (m.time <= anchor.time && m.time >= bestTime) {
+          if (m.time <= entry.time && m.time >= bestTime) {
             bestTime = m.time;
             pinnedIndex = i;
           }
         });
         if (pinnedIndex < 0) continue;
-        heads[member.url] = encodeHeads([metas[pinnedIndex].hash]);
+        to = encodeHeads([metas[pinnedIndex].hash]);
       }
 
-      // Baseline = the change just before the pinned one. The first change has
-      // no predecessor, so the baseline is `[]` (the whole doc reads as added).
-      if (pinnedIndex >= 0) {
-        const prev = metas[pinnedIndex - 1];
-        baselineHeads[member.url] = encodeHeads(prev ? [prev.hash] : []);
-      }
+      const prev = pinnedIndex >= 0 ? metas[pinnedIndex - 1] : undefined;
+      const from = encodeHeads(prev ? [prev.hash] : []);
+      checkpoint[member.url] = { from, to };
     } catch (err) {
       console.warn(
         "[drafts] failed to compute checkpoint for member:",
@@ -573,7 +584,7 @@ async function computeCheckpoint(
       );
     }
   }
-  return { anchor, heads, baselineHeads };
+  return checkpoint;
 }
 
 // Collect each member doc's post-fork changes as its own group, in topological

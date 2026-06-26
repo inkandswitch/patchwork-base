@@ -260,3 +260,11 @@
   color: var(--drafts-faint-fg);
   word-break: break-all;
 }
+
+.drafts-version {
+  padding: 0.25rem 0.5rem;
+  font-family: var(--drafts-mono);
+  font-size: 0.625rem;
+  color: var(--drafts-faint-fg);
+  text-align: right;
+}

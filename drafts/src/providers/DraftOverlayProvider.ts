@@ -9,11 +9,10 @@ import {
   type SubscribeEvent,
 } from "@inkandswitch/patchwork-providers";
 
-import type { Baseline, DraftDoc } from "../draft-types.js";
+import type { DraftDoc } from "../draft-types.js";
 import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
 
 const HANDLE_DESCRIPTOR_SELECTOR = "repo:handle-descriptor";
-const BASELINE_SELECTOR = "draft:baseline";
 
 // Mounts on a draft URL and remaps documents resolved beneath it onto
 // per-draft clones, so edits stay inside the draft.
@@ -24,13 +23,13 @@ const BASELINE_SELECTOR = "draft:baseline";
 // `{ url, cloneUrl }`: the clone is forked eagerly the first time a document is
 // requested in this draft (recorded in `DraftDoc.clones`), and the editor then
 // reads and writes the clone while still reporting the original url. The fork
-// point is published as `draft:baseline { heads }` so consumers can render
-// a diff against the pre-draft state.
+// point lives in `DraftDoc.clones[url].clonedAt`; the draft-list provider reads
+// it to serve `draft:baseline` (this provider no longer answers that).
 //
 // If the `url` attribute is absent or empty the provider becomes a no-op: it
-// registers no listeners and lets `repo:handle-descriptor`/`draft:baseline`
-// subscriptions bubble up to the root `<repo-provider>`, so the frame can mount
-// this component unconditionally and have "main" fall through to the host repo.
+// registers no listeners and lets `repo:handle-descriptor` subscriptions bubble
+// up to the root `<repo-provider>`, so the frame can mount this component
+// unconditionally and have "main" fall through to the host repo.
 export const DraftOverlayProvider = (element: HTMLElement) => {
   const rawUrl = element.getAttribute("url");
   if (!rawUrl) return () => {};
@@ -52,21 +51,14 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
   }
   const liveRepo = repo;
 
-  let draftHandle: DocHandle<DraftDoc> | null = null;
   let disposed = false;
 
   // One eager-clone resolution per original url; de-dupes concurrent requests.
   const cloneResolutions = new Map<AutomergeUrl, Promise<AutomergeUrl>>();
-  // `draft:baseline` subscribers keyed by the canonical target url.
-  const baselineSubscribers = new Map<
-    AutomergeUrl,
-    Set<(baseline: Baseline) => void>
-  >();
 
   const ready: Promise<DocHandle<DraftDoc>> = (async () => {
     const handle = await liveRepo.find<DraftDoc>(draftUrl);
     if (disposed) throw new Error("[drafts] provider disposed mid-load");
-    draftHandle = handle;
     return handle;
   })();
   ready.catch((err) => {
@@ -93,35 +85,12 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
       });
       return;
     }
-
-    if (selector.type === BASELINE_SELECTOR) {
-      const rawTarget = selector.url;
-      if (typeof rawTarget !== "string" || !isValidAutomergeUrl(rawTarget)) {
-        return;
-      }
-      const target = canonicalUrl(rawTarget);
-      accept<Baseline>(event, (respond) => {
-        void ready.then(() => {
-          if (disposed) return;
-          respond(currentBaseline(target));
-        });
-        let set = baselineSubscribers.get(target);
-        if (!set) baselineSubscribers.set(target, (set = new Set()));
-        set.add(respond);
-        return () => {
-          set!.delete(respond);
-          if (set!.size === 0) baselineSubscribers.delete(target);
-        };
-      });
-      return;
-    }
   };
 
   element.addEventListener("patchwork:subscribe", onSubscribe);
   return () => {
     disposed = true;
     element.removeEventListener("patchwork:subscribe", onSubscribe);
-    baselineSubscribers.clear();
     cloneResolutions.clear();
   };
 
@@ -173,22 +142,9 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
         d.clones[original] = { cloneUrl, clonedAt };
       });
 
-      notifyBaseline(original);
       return cloneUrl;
     })();
     cloneResolutions.set(original, promise);
     return promise;
-  }
-
-  function currentBaseline(target: AutomergeUrl): Baseline {
-    const heads = draftHandle?.doc()?.clones?.[target]?.clonedAt;
-    return { heads: heads ?? null };
-  }
-
-  function notifyBaseline(target: AutomergeUrl): void {
-    const set = baselineSubscribers.get(target);
-    if (!set) return;
-    const baseline = currentBaseline(target);
-    for (const respond of [...set]) respond(baseline);
   }
 };

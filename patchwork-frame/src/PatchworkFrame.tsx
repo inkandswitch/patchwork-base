@@ -37,16 +37,15 @@ import "./styles.css";
 
 // Mirrors the drafts package's `CheckedOutDraft`/`DraftCheckpoint`: the small
 // writeable doc that holds the current selection plus an optional history pin.
-type DraftCheckpoint = {
-  anchor: { docUrl: AutomergeUrl; hash: string; time: number };
-  // Original doc url -> heads to view it at. Only the selected (top-level) doc
-  // is honored here; transitively-resolved docs are a later phase.
-  heads: Record<AutomergeUrl, UrlHeads>;
-  // Original doc url -> heads just before the pinned change, served as the
-  // `draft:baseline` for the main case. The frame doesn't read this; it's
-  // mirrored to keep the type faithful to the drafts package.
-  baselineHeads: Record<AutomergeUrl, UrlHeads>;
+// Each member doc's original url maps to the heads to view it at (`to`, which the
+// frame reads to pin the doc) and to diff against (`from`, read by the drafts
+// provider to serve `draft:baseline`). A doc absent from the map stays live.
+type DocCheckpoint = {
+  from?: UrlHeads;
+  to?: UrlHeads;
 };
+
+type DraftCheckpoint = Record<AutomergeUrl, DocCheckpoint>;
 
 type CheckedOutDraft = {
   // `null` represents "main" — i.e. the host doc itself, no draft overlay.
@@ -343,7 +342,7 @@ function DraftDocumentArea(props: {
     if (!url) return url;
     const { documentId } = parseAutomergeUrl(url);
     const heads =
-      checkedOut()?.at?.heads?.[stringifyAutomergeUrl({ documentId })];
+      checkedOut()?.at?.[stringifyAutomergeUrl({ documentId })]?.to;
     return heads ? stringifyAutomergeUrl({ documentId, heads }) : url;
   });
 
