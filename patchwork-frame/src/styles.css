@@ -16,6 +16,16 @@
   --patchwork-frame-space-sm: var(--studio-space-sm, 0.5rem);
   --patchwork-frame-space-2xl: var(--studio-space-2xl, 3rem);
 
+  /* Height the frame reserves for its own header chrome. */
+  --patchwork-frame-header-height: 3.5rem;
+  /* The sideboard reads --sideboard-top-margin for the space above its doclist.
+     Extend its default (top safe-area inset) by our header height so the sideboard
+     clears the frame header. Cascades into the sideboard's shadow DOM because the
+     sideboard only reads this var (with a fallback) rather than declaring it. */
+  --sideboard-top-margin: calc(
+    env(safe-area-inset-top, 0px) + var(--patchwork-frame-header-height)
+  );
+
   --patchwork-frame-toolbar: var(--studio-chrome, white);
   /* toolbar text rides on the chrome surface, so it uses the chrome ink */
   --patchwork-frame-toolbar-fg: var(--studio-chrome-line, var(--studio-line, black));
