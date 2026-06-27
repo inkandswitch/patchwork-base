@@ -23,7 +23,7 @@
      clears the frame header. Cascades into the sideboard's shadow DOM because the
      sideboard only reads this var (with a fallback) rather than declaring it. */
   --sideboard-top-margin: calc(
-    env(safe-area-inset-top, 0px) + var(--patchwork-frame-header-height)
+    env(safe-area-inset-top, 0px) + var(--patchwork-frame-space-2xl)
   );
 
   --patchwork-frame-toolbar: var(--studio-chrome, white);
