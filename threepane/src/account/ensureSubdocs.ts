@@ -16,7 +16,7 @@ type SubdocField = "rootFolderUrl" | "moduleSettingsUrl" | "contactUrl";
  * by the time this runs, but subdoc datatypes (contact, etc.) can live in
  * separately-loaded plugin bundles, so we have to tolerate late registration.
  */
-async function loadDatatypeWhenReady<D>(
+export async function loadDatatypeWhenReady<D>(
   id: string
 ): Promise<LoadedDatatype<D> | undefined> {
   const registry = getRegistry<DatatypeDescription>("patchwork:datatype");

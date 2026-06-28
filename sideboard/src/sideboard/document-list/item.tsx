@@ -196,13 +196,13 @@ export default function Item(props: {
           preview.style.cssText = `
             position: absolute;
             top: -1000px;
-            background: var(--sideboard-primary);
+            background: var(--document-list-primary);
             padding: 0.5rem 0.75rem;
-            border-radius: var(--sideboard-radius);
+            border-radius: var(--document-list-radius);
             font-family: inherit;
             font-size: 0.9rem;
             pointer-events: none;
-            color: var(--sideboard-line);
+            color: var(--document-list-line);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           `;
           const count = dragstack.size;

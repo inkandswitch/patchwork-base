@@ -16,7 +16,14 @@ import {
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { render } from "solid-js/web";
-import type { TinyPatchworkLayoutDoc } from "./types";
+import type {
+  TinyPatchworkLayoutDoc,
+  ThreepaneConfigDoc,
+  ToolRef,
+} from "./types";
+
+// Title + spacer are intrinsic to the frame's top bar, not configurable.
+const INTRINSIC_DOCTITLE_TOOLS = new Set(["document-title", "spacer"]);
 
 type ModuleOption = {
   id: string;
@@ -465,16 +472,22 @@ function FrameConfiguratorUI(props: {
     () => props.handle.url
   );
 
+  // The doctitle + contextbar config now live in the threepane config doc; we
+  // edit it here. Entries are [toolId, docId] pairs — the docid is the account
+  // doc (a placeholder; the frame feeds doctitle the selected doc).
+  const [threepaneDoc, threepaneHandle] = useDocument<ThreepaneConfigDoc>(
+    () => accountDoc()?.tools?.["threepane"]
+  );
+
   const allTools = useToolDescriptions();
 
   const frameOptions = createMemo(() =>
     filterToolsByTag([...allTools], "frame-tool")
   );
-  const sidebarOptions = createMemo(() =>
-    filterToolsByTag([...allTools], "sidebar-account")
-  );
   const documentToolbarOptions = createMemo(() =>
-    filterToolsByTag([...allTools], "titlebar-tool")
+    filterToolsByTag([...allTools], "titlebar-tool").filter(
+      (o) => !INTRINSIC_DOCTITLE_TOOLS.has(o.id)
+    )
   );
   const contextToolOptions = createMemo(() =>
     filterToolsByTag([...allTools], "context-tool")
@@ -482,22 +495,28 @@ function FrameConfiguratorUI(props: {
 
   const docUrl = props.handle.url;
 
+  const doctitleIds = () =>
+    threepaneDoc()?.doctitle?.tools?.map((ref) => ref[0]);
+  const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map((ref) => ref[0]);
+
+  const toPairs = (ids: string[]): ToolRef[] =>
+    ids.map((id) => [id, docUrl]);
+
+  const setDoctitle = (next: string[]) =>
+    threepaneHandle()?.change((doc) => {
+      doc.doctitle.tools = toPairs(next);
+    });
+  const setContext = (next: string[]) =>
+    threepaneHandle()?.change((doc) => {
+      doc.contextbar.tabs = toPairs(next);
+    });
+
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(
     key: K,
     value: TinyPatchworkLayoutDoc[K]
   ) => {
     props.handle.change((doc: any) => {
       doc[key] = value as any;
-    });
-  };
-
-  const setArrayField = (
-    key: keyof TinyPatchworkLayoutDoc,
-    next: string[]
-  ) => {
-    props.handle.change((doc: any) => {
-      const arr = doc[key];
-      arr.splice(0, arr.length, ...next);
     });
   };
 
@@ -518,28 +537,27 @@ function FrameConfiguratorUI(props: {
           docUrl={docUrl}
         />
 
-        <PreviewCardGrid
-          label="Account Sidebar"
-          value={accountDoc()!.accountSidebarToolId}
-          onChange={(v) => setField("accountSidebarToolId", v as any)}
-          options={sidebarOptions()}
-          docUrl={docUrl}
-        />
+        <Show
+          when={threepaneDoc()}
+          fallback={
+            <p class="empty-message">Preparing layout configuration…</p>
+          }
+        >
+          <ToolbarStrip
+            label="Toolbar"
+            values={doctitleIds()}
+            setValues={setDoctitle}
+            allOptions={documentToolbarOptions()}
+            docUrl={docUrl}
+          />
 
-        <ToolbarStrip
-          label="Toolbar"
-          values={accountDoc()!.documentToolbarToolIds}
-          setValues={(next) => setArrayField("documentToolbarToolIds", next)}
-          allOptions={documentToolbarOptions()}
-          docUrl={docUrl}
-        />
-
-        <ContextTabs
-          label="Context Tools"
-          values={accountDoc()!.contextToolIds}
-          setValues={(next) => setArrayField("contextToolIds", next)}
-          allOptions={contextToolOptions()}
-        />
+          <ContextTabs
+            label="Context Tools"
+            values={contextIds()}
+            setValues={setContext}
+            allOptions={contextToolOptions()}
+          />
+        </Show>
 
         <Show when={(accountDoc() as any)?.themePreferencesUrl}>
           <div class="config-section">

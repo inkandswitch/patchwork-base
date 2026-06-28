@@ -18,13 +18,18 @@
 
   /* Height the frame reserves for its own header chrome. */
   --patchwork-frame-header-height: 3.5rem;
-  /* The sideboard reads --sideboard-top-margin for the space above its doclist.
-     Extend its default (top safe-area inset) by our header height so the sideboard
-     clears the frame header. Cascades into the sideboard's shadow DOM because the
-     sideboard only reads this var (with a fallback) rather than declaring it. */
-  --sideboard-top-margin: calc(
+  /* The document-list reads --document-list-top-margin for the space above its
+     list. Extend its default (top safe-area inset) by our top-bar height so it
+     clears the frame's top bar. Cascades into the tool's shadow DOM because the
+     tool only reads this var (with a fallback) rather than declaring it. */
+  --document-list-top-margin: calc(
     env(safe-area-inset-top, 0px) + var(--patchwork-frame-space-2xl)
   );
+
+  /* the left footer and right tray boxes share one height so they line up. */
+  --patchwork-frame-tray-height: var(--patchwork-frame-space-2xl);
+  /* sidebar toggles ride a touch paler than the line (first ink offset). */
+  --patchwork-frame-toggle-fg: var(--studio-line-offset-10, #333);
 
   --patchwork-frame-toolbar: var(--studio-chrome, white);
   /* toolbar text rides on the chrome surface, so it uses the chrome ink */
@@ -112,29 +117,119 @@
   overflow: hidden;
 }
 
-.toolbar {
+/* The main column (right of the left sidebar): full-width top bar over a row of
+   [document | right sidebar]. */
+.frame__main-column {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  padding-bottom: 0;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The full-width top toolbar. Its height + top safe-area inset match the
+   sideboard's reserved top margin so the bar reads as continuous across the top
+   (the left sidebar's empty top region lines up with it). */
+.frame__topbar {
+  display: flex;
+  align-items: stretch;
   box-sizing: border-box;
   min-height: var(--patchwork-frame-space-2xl);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-inline: var(--patchwork-frame-space-2xs);
+  gap: var(--patchwork-frame-space-2xs);
   background: var(--patchwork-frame-toolbar);
   color: var(--patchwork-frame-toolbar-fg);
 }
 
-.toolbar patchwork-view {
+.frame__content-row {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  height: 2rem;
   overflow: hidden;
+}
+
+/* A sidebar toggle at either end of the top bar (always present). */
+.frame__sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-inline: var(--patchwork-frame-space-sm);
+  border: none;
+  background: transparent;
+  color: var(--patchwork-frame-toggle-fg);
+  cursor: pointer;
+  transition: color var(--studio-transition-fast, 0.1s ease);
+}
+
+.frame__sidebar-toggle:hover {
+  color: var(--patchwork-frame-fg);
+}
+
+/* The right end of the top bar: context tabs + the right toggle. Its width
+   tracks the right sidebar so the tabs sit directly above it. */
+.frame__topbar-right {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.frame__topbar-right--collapsed {
   width: auto;
 }
 
-.toolbar patchwork-view[tool-id="document-title"],
-.toolbar patchwork-view[tool-id="spacer"] {
-  flex: 1;
+/* The document title, rendered intrinsically: shrinks to the title's width but
+   never past half the bar; ellipsis beyond. */
+.threepane__title {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  padding-inline: 0.5rem;
+}
+
+.threepane__title-text {
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* built-in spacer between the title and the right-hand tools */
+.threepane__spacer {
+  flex: 1;
+  min-width: var(--patchwork-frame-space-sm);
+}
+
+/* configured doctitle tools at the right end; scroll horizontally when they
+   overflow rather than squashing. */
+.threepane__doctitle-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding-inline: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.threepane__doctitle-tools::-webkit-scrollbar {
+  display: none;
+}
+
+.threepane__doctitle-tools patchwork-view {
+  display: flex;
+  align-items: center;
+  height: 2rem;
+  flex-shrink: 0;
+  width: auto;
 }
 
 .document-view {
@@ -291,6 +386,118 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Context tabs hosted in the top bar (rather than a sidebar header): center them
+   vertically and drop the panel-border connection tweaks. */
+.frame__topbar-right .context-sidebar__tablist {
+  align-items: center;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.frame__topbar-right .context-sidebar__tab[data-active] {
+  margin-bottom: 0;
+}
+
+/* Left sidebar: a stack of configured widgets. */
+.threepane-widgets {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.threepane-widget {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.threepane-widget patchwork-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* per-widget remove control, revealed on hover */
+.threepane-widget__remove {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--patchwork-frame-space-2xs));
+  right: var(--patchwork-frame-space-2xs);
+  z-index: 2;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--studio-radius-sm, 4px);
+  background: var(--patchwork-frame-sidebar-fill);
+  color: var(--patchwork-frame-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--studio-transition-fast, 0.1s ease);
+}
+
+.threepane-widget:hover .threepane-widget__remove {
+  opacity: 0.7;
+}
+
+.threepane-widget__remove:hover {
+  opacity: 1;
+}
+
+/* empty state: offer to add the document list */
+.threepane-widgets__empty {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--patchwork-frame-space-2xl));
+}
+
+.threepane-widgets__add {
+  padding: var(--patchwork-frame-space-xs) var(--patchwork-frame-space-sm);
+  border: 1px dashed var(--patchwork-frame-sidebar-divider);
+  border-radius: var(--studio-radius-sm, 4px);
+  background: transparent;
+  color: var(--patchwork-frame-muted);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.threepane-widgets__add:hover:not(:disabled) {
+  color: var(--patchwork-frame-fg);
+  border-color: var(--patchwork-frame-fg);
+}
+
+.threepane-widgets__add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Right sidebar tray: a row of tray-tagged tools pinned to the bottom. */
+.frame-tray {
+  display: flex;
+  align-items: center;
+  gap: var(--patchwork-frame-space-2xs);
+  box-sizing: border-box;
+  min-height: var(--patchwork-frame-tray-height);
+  padding-inline: var(--patchwork-frame-space-sm);
+  border-top: 1px solid var(--context-sidebar-border);
+  background: var(--context-sidebar-content-bg);
+}
+
+.frame-tray patchwork-view {
+  display: flex;
+  width: auto;
+  height: auto;
 }
 
 /* Debug Registry Toast */
@@ -499,29 +706,4 @@
 }
 body[data-sidebar-resizing] .sidebar {
   transition: none;
-}
-
-/* "Bring back" buttons shown in the document toolbar when a sidebar is
-   collapsed: a quiet icon button that brightens toward the chrome ink. */
-.toolbar__sidebar-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--studio-radius-sm, 4px);
-  background: transparent;
-  /* icon matches the chrome ink, same as the toolbar text (no dimming) */
-  color: var(--patchwork-frame-toolbar-fg);
-  cursor: pointer;
-  transition: background var(--studio-transition-fast, 0.1s ease);
-}
-.toolbar__sidebar-toggle:hover {
-  background: var(--studio-chrome-offset-10, #e5e5e5);
-}
-.toolbar__sidebar-toggle--right {
-  margin-left: auto;
 }

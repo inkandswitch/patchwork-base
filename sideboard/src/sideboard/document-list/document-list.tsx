@@ -96,7 +96,7 @@ export function DocumentList(props: DocumentListProps) {
   };
 
   const placeholder = () => (
-    <div class="sideboard__item sideboard__item--visible">
+    <div class="document-list__item document-list__item--visible">
       <NewDocPlaceholder
         repo={props.repo}
         hive={props.hive}
@@ -259,9 +259,9 @@ export function DocumentList(props: DocumentListProps) {
               </Show>
               <div
                 classList={{
-                  sideboard__item: true,
-                  "sideboard__item--visible": visible(),
-                  "sideboard__item--invisible": !visible(),
+                  "document-list__item": true,
+                  "document-list__item--visible": visible(),
+                  "document-list__item--invisible": !visible(),
                 }}
               >
                 <Switch>
