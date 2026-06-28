@@ -55,6 +55,7 @@
   --document-list-added: var(--studio-added, #35f7ca);
   --document-list-danger: var(--studio-danger, #ff6a90);
   --document-list-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
+  --account-bar-fill: var(--studio-chrome-offset-10)
 }
 }
 
@@ -809,13 +810,14 @@ button {
   align-items: center;
   gap: 1rem;
   min-height: 4rem;
-  background: var(--document-list-fill);
+  background: var(--account-bar-fill);
   color: var(--document-list-line);
   border-top: 1px solid var(--document-list-divider);
   padding-block: 0.25rem;
   padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));
   padding-left: calc(env(safe-area-inset-left) + var(--document-list-padding-x));
   padding-right: calc(env(safe-area-inset-right) + var(--document-list-padding-x));
+  justify-content: space-between;
 }
 
 .account-bar__button {
@@ -834,13 +836,6 @@ button {
 
 .account-bar__button:hover {
   border-color: var(--document-list-divider);
-}
-
-.account-bar__avatar {
-  padding: 0;
-  width: 1.75rem;
-  height: 1.75rem;
-  flex-shrink: 0;
 }
 
 .account-bar__avatar patchwork-view {
