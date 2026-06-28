@@ -3,11 +3,6 @@ import { For, Show, type Accessor } from "solid-js";
 import { ContextTabs } from "./ContextTabs";
 import { DocumentTitle } from "./DocumentTitle";
 
-// Title + spacer are rendered intrinsically by the frame's top bar, so they're
-// dropped from the configured doctitle tools (which sit to the right).
-const TITLE_TOOL = "document-title";
-const SPACER_TOOL = "spacer";
-
 type FrameTopBarProps = {
   repo: Repo;
   docUrl: Accessor<AutomergeUrl | undefined>;
@@ -33,10 +28,9 @@ type FrameTopBarProps = {
  */
 export function FrameTopBar(props: FrameTopBarProps) {
   const hasRight = () => !!props.contextToolIds()?.length;
-  const docToolIds = () =>
-    (props.toolIds() ?? []).filter(
-      (id) => id !== TITLE_TOOL && id !== SPACER_TOOL
-    );
+  // Title + spacer are intrinsic to the bar and never in the config (the
+  // migration drops them), so the configured doctitle tools render as-is.
+  const docToolIds = () => props.toolIds() ?? [];
 
   return (
     <div class="frame__topbar">

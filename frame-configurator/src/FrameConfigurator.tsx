@@ -22,9 +22,6 @@ import type {
   ToolRef,
 } from "./types";
 
-// Title + spacer are intrinsic to the frame's top bar, not configurable.
-const INTRINSIC_DOCTITLE_TOOLS = new Set(["document-title", "spacer"]);
-
 type ModuleOption = {
   id: string;
   name: string;
@@ -485,9 +482,7 @@ function FrameConfiguratorUI(props: {
     filterToolsByTag([...allTools], "frame-tool")
   );
   const documentToolbarOptions = createMemo(() =>
-    filterToolsByTag([...allTools], "titlebar-tool").filter(
-      (o) => !INTRINSIC_DOCTITLE_TOOLS.has(o.id)
-    )
+    filterToolsByTag([...allTools], "titlebar-tool")
   );
   const contextToolOptions = createMemo(() =>
     filterToolsByTag([...allTools], "context-tool")

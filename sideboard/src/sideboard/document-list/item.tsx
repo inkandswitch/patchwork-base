@@ -461,31 +461,6 @@ export default function Item(props: {
                 >
                   Automerge url
                 </ContextMenu.Item>
-                <Show when={tools.length}>
-                  <ContextMenu.Sub>
-                    <ContextMenu.SubTrigger class="popmenu__sub-trigger">
-                      Automerge url with...
-                    </ContextMenu.SubTrigger>
-                    <ContextMenu.Portal>
-                      <ContextMenu.SubContent class="popmenu__sub-content">
-                        <For each={tools}>
-                          {(tool) => (
-                            <ContextMenu.Item
-                              class="popmenu__item"
-                              onSelect={() =>
-                                navigator.clipboard.writeText(
-                                  `${props.url}&tool=${tool.id}`
-                                )
-                              }
-                            >
-                              {tool.name}
-                            </ContextMenu.Item>
-                          )}
-                        </For>
-                      </ContextMenu.SubContent>
-                    </ContextMenu.Portal>
-                  </ContextMenu.Sub>
-                </Show>
                 <ContextMenu.Item
                   class="popmenu__item"
                   onSelect={() =>
