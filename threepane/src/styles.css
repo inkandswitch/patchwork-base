@@ -56,7 +56,9 @@
      so the two chrome strips read as one continuous band */
   --context-sidebar-header-bg: var(--studio-chrome, #f2f2f2);
   --context-sidebar-fg: var(--studio-chrome-line, var(--studio-line, black));
-  --context-sidebar-border: var(--studio-chrome-offset-20, #ccc);
+  /* match the lines drawn around the document-view so tab/tray edges read as
+     one continuous frame */
+  --context-sidebar-border: var(--threepane-toolbar-border);
   --context-sidebar-tab-fg: var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #666));
   --context-sidebar-tab-hover: var(--studio-chrome-offset-10, #e5e5e5);
   --context-sidebar-tab-active-bg: var(--studio-fill, white);
@@ -145,6 +147,11 @@
   gap: var(--threepane-space-2xs);
   background: var(--threepane-toolbar);
   color: var(--threepane-toolbar-fg);
+  /* A hairline along the bottom, in the same colour as the document-view's
+     border, so the line under the bar runs unbroken across the whole width
+     (document column + context tabs). The active tab pulls down 1px to break
+     through it and connect to its panel below. */
+  border-bottom: 1px solid var(--threepane-toolbar-border);
   /* Animate the collapsed left-slot in step with the sidebar's width transition
      so the title glides up against the pinned toggle instead of jumping. */
   transition: padding-left var(--studio-transition-slow, 0.25s ease);
@@ -263,11 +270,17 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  /* Border around the rendered view: left + top + right, square corners. The
-     top sits just below the (border-less) toolbar and runs straight across;
-     open at the bottom of the frame. */
-  border: 1px solid var(--threepane-toolbar-border);
-  border-bottom: none;
+  /* Side dividers only (left + right), square corners. The top line is the top
+     bar's border-bottom (continuous across the whole bar) and the bottom is
+     open to the frame edge. When the left sidebar is collapsed the left divider
+     is dropped (see the :has rule below) so nothing rides the frame edge. */
+  border-inline: 1px solid var(--threepane-toolbar-border);
+}
+
+/* Left sidebar collapsed to 0: drop the document-view's left divider so there's
+   no stray line hugging the frame's left edge. */
+.frame:has(.sidebar[data-side="left"][data-collapsed]) .document-view {
+  border-left: none;
 }
 
 .document-view patchwork-view {
@@ -416,14 +429,13 @@
 }
 
 /* Context tabs hosted in the top bar (rather than a sidebar header): center them
-   vertically and drop the panel-border connection tweaks. */
+   vertically. Pull the list 1px left so the active tab's left edge lines up with
+   the divider of the panel below it. The active tab keeps its base -1px pull so
+   it still breaks through the bar's bottom hairline and connects to its panel. */
 .frame__topbar-right .context-sidebar__tablist {
   padding-bottom: 0;
   margin-bottom: 0;
-}
-
-.frame__topbar-right .context-sidebar__tab[data-active] {
-  margin-bottom: 0;
+  margin-left: -1px;
 }
 
 /* Left sidebar body: a stack of widgets with the account footer pinned below. */

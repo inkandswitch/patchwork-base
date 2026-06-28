@@ -23,10 +23,11 @@ type SidebarProps = {
  * Props are accessed via `props.x` (not destructured) to preserve Solid reactivity.
  */
 export function Sidebar(props: SidebarProps) {
-  // Collapsed sidebars shrink to a 1px strip that still shows the divider line
-  // (and its hover glow + grab pill), so it doubles as a drag-to-reopen handle.
+  // Collapsed sidebars shrink to zero width. The resize/toggle button still
+  // renders and straddles the edge (it reserves no layout column), so it stays
+  // grabbable as a drag-to-reopen handle even at 0px.
   const widthStyle = () =>
-    `${props.isCollapsed() ? 1 : props.width()}px`;
+    `${props.isCollapsed() ? 0 : props.width()}px`;
 
   const content = () => {
     if (props.children !== undefined) return props.children;
