@@ -428,13 +428,13 @@
   height: 100%;
 }
 
-/* Context tabs hosted in the top bar (rather than a sidebar header): center them
-   vertically. Pull the list 1px left so the active tab's left edge lines up with
-   the divider of the panel below it. The active tab keeps its base -1px pull so
-   it still breaks through the bar's bottom hairline and connects to its panel. */
+/* Context tabs hosted in the top bar (rather than a sidebar header). Pull the
+   list 1px left so the active tab's left edge lines up with the divider of the
+   panel below it. We keep the base clip-compensation (padding-bottom + negative
+   margin-bottom) so the active tab's -1px pull isn't clipped by the list's
+   overflow and its fill extends down over the bar's bottom hairline, connecting
+   it to its panel. */
 .frame__topbar-right .context-sidebar__tablist {
-  padding-bottom: 0;
-  margin-bottom: 0;
   margin-left: -1px;
 }
 
