@@ -5,7 +5,18 @@ export type TinyPatchworkLayoutDoc = {
   moduleSettingsUrl: AutomergeUrl;
 
   frameToolId: string;
-  accountSidebarToolId: string;
-  contextToolIds: string[];
-  documentToolbarToolIds: string[];
+  /** @deprecated legacy fields, migrated into the threepane config doc */
+  accountSidebarToolId?: string;
+  contextToolIds?: string[];
+  documentToolbarToolIds?: string[];
+
+  tools?: Record<string, AutomergeUrl>;
+};
+
+export type ToolRef = [toolId: string, docId: AutomergeUrl];
+
+export type ThreepaneConfigDoc = {
+  sidebar: { widgets: ToolRef[] };
+  contextbar: { tabs: ToolRef[] };
+  doctitle: { tools: ToolRef[] };
 };

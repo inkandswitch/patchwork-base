@@ -1,9 +1,12 @@
 import "@inkandswitch/patchwork-elements";
-import { useDocHandle } from "@automerge/automerge-repo-solid-primitives";
+import {
+  useDocHandle,
+  useDocument,
+} from "@automerge/automerge-repo-solid-primitives";
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { subscribe } from "@inkandswitch/patchwork-providers";
 import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
-import type { AccountDoc } from "./types";
+import type { AccountDoc, ThreepaneConfigDoc, ToolRef } from "./types";
 import {
   useSidebarState,
   useSidebarResize,
@@ -13,7 +16,8 @@ import {
 } from "./hooks";
 import { Sidebar } from "./components/Sidebar";
 import { ContextSidebar } from "./components/ContextSidebar";
-import { DocumentToolbar } from "./components/DocumentToolbar";
+import { FrameTopBar } from "./components/FrameTopBar";
+import { SidebarWidgets } from "./components/SidebarWidgets";
 import { MainDocumentView } from "./components/MainDocumentView";
 import {
   createEffect,
@@ -26,7 +30,19 @@ import {
   type JSX,
 } from "solid-js";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
-import "./styles.css";
+import { ensureThreepaneConfig } from "./account/ensureThreepaneConfig";
+// Imported as a string (not a side-effect import) so the stylesheet is only
+// injected when the frame tool actually activates — not when index.js loads.
+import frameStyles from "./styles.css?inline";
+
+function ensureFrameStyles() {
+  const id = "patchwork-frame-styles";
+  if (document.getElementById(id)) return;
+  const el = document.createElement("style");
+  el.id = id;
+  el.textContent = frameStyles;
+  document.head.append(el);
+}
 
 type DraftsState = {
   drafts: AutomergeUrl[];
@@ -55,6 +71,7 @@ export const PatchworkFrame = ({
   handle: DocHandle<AccountDoc>;
   repo: Repo;
 }) => {
+  ensureFrameStyles();
   const accountDocUrl = handle.url;
 
   const [accountProviderElement, setAccountProviderElement] =
@@ -116,9 +133,14 @@ function PatchworkFrameInner(props: {
   });
 
   // Lazily populate subdoc fields (rootFolderUrl, moduleSettingsUrl, contactUrl)
-  // on first mount. Each is created via createDocOfDatatype2 of its own
-  // datatype, so defaults and shape are owned by the datatype, not the frame.
-  void ensureAccountSubdocs(props.handle, props.repo);
+  // on first mount, then create the threepane layout config doc and migrate the
+  // legacy account arrays into it (non-destructive — old fields stay so older
+  // builds keep working). Ordered: the migration seeds the sidebar's default
+  // document-list widget against rootFolderUrl, so the subdocs must land first.
+  void (async () => {
+    await ensureAccountSubdocs(props.handle, props.repo);
+    await ensureThreepaneConfig(props.handle, props.repo);
+  })();
 
   const [docVersion, setDocVersion] = createSignal(0);
   createEffect(() => {
@@ -134,6 +156,39 @@ function PatchworkFrameInner(props: {
     return accountDocHandle()?.doc();
   });
   const accountDocUrl = props.handle.url;
+
+  // The threepane layout config doc (sidebar widgets / context tabs / doctitle
+  // tools). Read via handle + version counter (same reason as accountDoc: store
+  // proxying conflicts with Automerge splice).
+  const threepaneUrl = () => accountDoc()?.tools?.["threepane"];
+  const threepaneConfigHandle = useDocHandle<ThreepaneConfigDoc>(
+    () => threepaneUrl(),
+    { repo: props.repo }
+  );
+  const [threepaneVersion, setThreepaneVersion] = createSignal(0);
+  createEffect(() => {
+    const h = threepaneConfigHandle();
+    if (!h) return;
+    const onChange = () => setThreepaneVersion((v) => v + 1);
+    h.on("change", onChange);
+    onCleanup(() => h.off("change", onChange));
+  });
+  const threepaneConfig = createMemo(() => {
+    threepaneVersion();
+    return threepaneConfigHandle()?.doc();
+  });
+
+  // Derived layout lanes, read from the threepane config doc. The migration
+  // seeds it from the legacy account fields (dropping the intrinsic title +
+  // spacer); older builds read those fields directly, so branch-flipping stays
+  // safe without a fallback here.
+  const doctitleToolIds = () =>
+    threepaneConfig()?.doctitle?.tools?.map((ref) => ref[0]);
+  const contextTabIds = () =>
+    threepaneConfig()?.contextbar?.tabs?.map((ref) => ref[0]);
+  const sidebarWidgets = (): ToolRef[] =>
+    threepaneConfig()?.sidebar?.widgets ?? [];
+  const rootFolderUrl = () => accountDoc()?.rootFolderUrl;
 
   const sidebarState = useSidebarState();
   const sidebarResize = useSidebarResize({
@@ -210,6 +265,9 @@ function PatchworkFrameInner(props: {
             accountDocUrl={accountDocUrl}
             sidebarState={sidebarState}
             sidebarResize={sidebarResize}
+            sidebarWidgets={sidebarWidgets}
+            configHandle={threepaneConfigHandle}
+            rootFolderUrl={rootFolderUrl}
           >
             <div class="main-area">
               <MainDocumentView
@@ -239,13 +297,19 @@ function PatchworkFrameInner(props: {
                 accountDocUrl={accountDocUrl}
                 sidebarState={sidebarState}
                 sidebarResize={sidebarResize}
+                sidebarWidgets={sidebarWidgets}
+                configHandle={threepaneConfigHandle}
+                rootFolderUrl={rootFolderUrl}
               >
                 <DraftDocumentArea
                   host={host()}
+                  repo={props.repo}
                   accountDoc={accountDoc}
                   accountDocUrl={accountDocUrl}
                   selectedDocUrl={selectedDocUrl}
                   selectedToolId={selectedToolId}
+                  doctitleToolIds={doctitleToolIds}
+                  contextTabIds={contextTabIds}
                   sidebarState={sidebarState}
                   sidebarResize={sidebarResize}
                   selectedContextToolId={selectedContextToolId}
@@ -270,24 +334,78 @@ function FrameLayout(props: {
   accountDocUrl: AutomergeUrl;
   sidebarState: SidebarState;
   sidebarResize: SidebarResize;
+  sidebarWidgets: Accessor<ToolRef[]>;
+  configHandle: Accessor<DocHandle<ThreepaneConfigDoc> | undefined>;
+  rootFolderUrl: Accessor<AutomergeUrl | undefined>;
   children: JSX.Element;
 }) {
+  const isCollapsed = props.sidebarState.isSidebarCollapsed;
   return (
     <>
-      {props.accountDoc()?.accountSidebarToolId && (
-        <Sidebar
-          side="left"
-          isCollapsed={props.sidebarState.isSidebarCollapsed}
-          width={props.sidebarState.leftSidebarWidth}
-          toolId={props.accountDoc()!.accountSidebarToolId}
-          docUrl={props.accountDocUrl}
-          onMouseDown={props.sidebarResize.handleMouseDown}
-          onToggleClick={props.sidebarResize.handleToggleClick}
-        />
-      )}
+      {/*
+        The left toggle is pinned to the frame's top-left corner (absolute,
+        outside the collapsing sidebar) so it holds the same spot whether the
+        sidebar is open or closed. The title, in the top bar, slides up against
+        it as the sidebar closes rather than travelling the full sidebar width.
+      */}
+      <button
+        type="button"
+        class="frame__sidebar-toggle frame__left-toggle"
+        title={isCollapsed() ? "Show sidebar" : "Hide sidebar"}
+        aria-label={isCollapsed() ? "Show sidebar" : "Hide sidebar"}
+        aria-pressed={!isCollapsed()}
+        onClick={() =>
+          props.sidebarState.setIsSidebarCollapsed((v) => !v)
+        }
+      >
+        <PanelLeftIcon />
+      </button>
+
+      <Sidebar
+        side="left"
+        isCollapsed={isCollapsed}
+        width={props.sidebarState.leftSidebarWidth}
+        onMouseDown={props.sidebarResize.handleMouseDown}
+        onToggleClick={props.sidebarResize.handleToggleClick}
+      >
+        <div class="threepane-sidebar">
+          <SidebarWidgets
+            widgets={props.sidebarWidgets}
+            configHandle={props.configHandle}
+            rootFolderUrl={props.rootFolderUrl}
+          />
+          {/* account / packages / settings, pinned to the sidebar's bottom */}
+          <div class="threepane-sidebar__footer">
+            <patchwork-view
+              doc-url={props.accountDocUrl}
+              tool-id="chee/account-bar"
+            />
+          </div>
+        </div>
+      </Sidebar>
 
       {props.children}
     </>
+  );
+}
+
+// lucide `panel-left`
+function PanelLeftIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+    </svg>
   );
 }
 
@@ -308,10 +426,13 @@ function FrameLayout(props: {
 // identity-sensitive toolbar tools (e.g. add-to-sidebar) are unaffected.
 function DraftDocumentArea(props: {
   host: HTMLElement;
+  repo: Repo;
   accountDoc: Accessor<AccountDoc | undefined>;
   accountDocUrl: AutomergeUrl;
   selectedDocUrl: Accessor<AutomergeUrl | undefined>;
   selectedToolId: Accessor<string | undefined>;
+  doctitleToolIds: Accessor<string[] | undefined>;
+  contextTabIds: Accessor<string[] | undefined>;
   sidebarState: SidebarState;
   sidebarResize: SidebarResize;
   selectedContextToolId: Accessor<string | undefined>;
@@ -370,47 +491,44 @@ function DraftDocumentArea(props: {
               ref={setFocusProviderElement}
             >
               <Show when={areDocProvidersReady()}>
-                <div class="main-area">
-                  <DocumentToolbar
-                    toolIds={() => props.accountDoc()?.documentToolbarToolIds}
+                <div class="frame__main-column">
+                  <FrameTopBar
+                    repo={props.repo}
                     docUrl={props.selectedDocUrl}
-                    showLeftSidebarButton={() =>
-                      !!props.accountDoc()?.accountSidebarToolId &&
-                      props.sidebarState.isSidebarCollapsed()
-                    }
-                    onShowLeftSidebar={() =>
-                      props.sidebarState.setIsSidebarCollapsed(false)
-                    }
-                    showRightSidebarButton={() =>
-                      !!props.accountDoc()?.contextToolIds?.length &&
-                      props.sidebarState.isRightSidebarCollapsed()
-                    }
-                    onShowRightSidebar={() =>
-                      props.sidebarState.setIsRightSidebarCollapsed(false)
+                    toolIds={props.doctitleToolIds}
+                    isLeftCollapsed={props.sidebarState.isSidebarCollapsed}
+                    contextToolIds={props.contextTabIds}
+                    selectedContextToolId={props.selectedContextToolId}
+                    setSelectedContextToolId={props.setSelectedContextToolId}
+                    isRightCollapsed={props.sidebarState.isRightSidebarCollapsed}
+                    rightWidth={props.sidebarState.rightSidebarWidth}
+                    onToggleRight={() =>
+                      props.sidebarState.setIsRightSidebarCollapsed((v) => !v)
                     }
                   />
-                  <MainDocumentView
-                    viewKey={props.selectedDocUrl}
-                    selectedDocUrl={props.selectedDocUrl}
-                    toolId={props.selectedToolId}
-                  />
-                </div>
 
-                {!!props.accountDoc()?.contextToolIds?.length && (
-                  <ContextSidebar
-                    contextToolIds={() => props.accountDoc()?.contextToolIds}
-                    docUrl={props.accountDocUrl}
-                    selectedToolId={props.selectedContextToolId}
-                    setSelectedToolId={props.setSelectedContextToolId}
-                    isCollapsed={props.sidebarState.isRightSidebarCollapsed}
-                    width={props.sidebarState.rightSidebarWidth}
-                    onMouseDown={props.sidebarResize.handleMouseDown}
-                    onToggleClick={props.sidebarResize.handleToggleClick}
-                    onClose={() =>
-                      props.sidebarState.setIsRightSidebarCollapsed(true)
-                    }
-                  />
-                )}
+                  <div class="frame__content-row">
+                    <div class="main-area">
+                      <MainDocumentView
+                        viewKey={props.selectedDocUrl}
+                        selectedDocUrl={props.selectedDocUrl}
+                        toolId={props.selectedToolId}
+                      />
+                    </div>
+
+                    <Show when={!!props.contextTabIds()?.length}>
+                      <ContextSidebar
+                        contextToolIds={props.contextTabIds}
+                        docUrl={props.accountDocUrl}
+                        selectedToolId={props.selectedContextToolId}
+                        isCollapsed={props.sidebarState.isRightSidebarCollapsed}
+                        width={props.sidebarState.rightSidebarWidth}
+                        onMouseDown={props.sidebarResize.handleMouseDown}
+                        onToggleClick={props.sidebarResize.handleToggleClick}
+                      />
+                    </Show>
+                  </div>
+                </div>
               </Show>
             </patchwork-view>
           </patchwork-view>

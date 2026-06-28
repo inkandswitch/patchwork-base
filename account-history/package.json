@@ -7,7 +7,9 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@automerge/automerge-repo-solid-primitives": "2.5.2"
@@ -22,10 +24,12 @@
     "@inkandswitch/patchwork-filesystem": "^0.0.4",
     "@inkandswitch/patchwork-plugins": "^0.0.6",
     "babel-preset-solid": "^1.9.9",
+    "happy-dom": "^15.11.7",
     "solid-js": "^1.9.9",
     "typescript": "^5.9.3",
     "vite": "^7.1.9",
+    "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-solid": "^2.11.10",
-    "vite-plugin-css-injected-by-js": "^3.5.2"
+    "vitest": "^3.2.4"
   }
 }

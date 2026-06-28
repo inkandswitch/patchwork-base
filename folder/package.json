@@ -15,7 +15,9 @@
     "dev": "node esbuild/watch.ts",
     "pushwatch": "pnpm dev pushwork",
     "sync": "pnpm build && npx pushwork sync",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "Ink & Switch",
@@ -27,6 +29,8 @@
   },
   "devDependencies": {
     "@automerge/automerge-repo": "^2.6.0-subduction.9",
-    "esbuild": "^0.23.1"
+    "esbuild": "^0.23.1",
+    "happy-dom": "^15.11.7",
+    "vitest": "^3.2.4"
   }
 }

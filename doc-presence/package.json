@@ -1,5 +1,13 @@
 {
   "name": "document presence",
   "type": "module",
-  "main": "doc-presence.js"
+  "main": "doc-presence.js",
+  "devDependencies": {
+    "happy-dom": "^15.11.7",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
 }

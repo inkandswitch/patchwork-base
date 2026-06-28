@@ -5,6 +5,12 @@
   "main": "./index.js",
   "scripts": {
     "sync": "pushwork sync",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "happy-dom": "^15.11.7",
+    "vitest": "^3.2.4"
   }
 }

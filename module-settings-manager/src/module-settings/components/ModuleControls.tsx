@@ -17,9 +17,12 @@ import {
 import {
   DEFAULT_BRANCH,
   chosenBranchFor,
+  chosenPinFor,
   getModuleEntryKind,
+  publishVersions,
   type BranchesDoc,
   type ModuleSettingsDocWithBranches,
+  type UrlHeads,
 } from "../utils/module-types.ts";
 import { unregisterPlugins } from "@inkandswitch/patchwork-plugins";
 import {
@@ -75,6 +78,12 @@ export function ModuleControls(props: ModuleControlsProps) {
         />
       </Show>
       <Show when={kind() === "folder" || kind() === "directory"}>
+        <VersionControls
+          folderUrl={props.url}
+          repo={props.repo}
+          settingsHandle={props.settingsHandle}
+          userSettingsHandle={props.userSettingsHandle}
+        />
         <ConvertToBranchesButton
           moduleUrl={props.url}
           repo={props.repo}
@@ -83,6 +92,99 @@ export function ModuleControls(props: ModuleControlsProps) {
         />
       </Show>
     </>
+  );
+}
+
+interface VersionControlsProps {
+  /** The folder doc whose versions can be pinned. */
+  folderUrl: AutomergeUrl;
+  repo: Repo;
+  settingsHandle: DocHandle<ModuleSettingsDocWithBranches>;
+  userSettingsHandle?: DocHandle<ModuleSettingsDocWithBranches>;
+}
+
+/**
+ * Pin a folder module to a frozen previous version. Pins are written into the
+ * user's own settings doc (like branch choices) under `pinned`, keyed by the
+ * folder URL. The watcher then loads that exact, already-cached version instead
+ * of the latest, and stops hot-reloading it until unpinned.
+ */
+function VersionControls(props: VersionControlsProps) {
+  // Write pins to the user's own settings doc so they're user-local.
+  const targetHandle = () => props.userSettingsHandle ?? props.settingsHandle;
+  const targetDoc = createMemo(() => makeDocumentProjection(targetHandle()));
+
+  const [folderHandle] = createResource(
+    () => props.folderUrl,
+    (url) => props.repo.find<{ lastSyncAt?: number }>(url)
+  );
+
+  const versions = createMemo(() => {
+    const handle = folderHandle();
+    return handle ? publishVersions(handle) : [];
+  });
+
+  const currentPin = createMemo(() =>
+    chosenPinFor([targetDoc()], props.folderUrl)
+  );
+
+  const isPinned = createMemo(() => !!currentPin());
+
+  const sameHeads = (a: UrlHeads | undefined, b: UrlHeads | undefined) =>
+    !!a && !!b && a.length === b.length && a.every((h, i) => h === b[i]);
+
+  // The <option> value currently selected: "latest" when unpinned, otherwise
+  // the index of the matching version (or "latest" if the pin isn't in range).
+  const selectedValue = createMemo(() => {
+    const pin = currentPin();
+    if (!pin) return "latest";
+    const idx = versions().findIndex((v) => sameHeads(v.heads, pin));
+    return idx === -1 ? "latest" : String(idx);
+  });
+
+  const pin = (heads: UrlHeads) => {
+    targetHandle().change((d) => {
+      if (!d.pinned) d.pinned = {} as Record<AutomergeUrl, UrlHeads>;
+      d.pinned[props.folderUrl] = heads;
+    });
+  };
+
+  const unpin = () => {
+    targetHandle().change((d) => {
+      if (d.pinned) delete d.pinned[props.folderUrl];
+    });
+  };
+
+  return (
+    <span class="module-settings-manager__version">
+      <select
+        class="module-settings-manager__version-select"
+        value={selectedValue()}
+        onChange={(e) => {
+          const v = e.currentTarget.value;
+          if (v === "latest") {
+            unpin();
+            return;
+          }
+          const chosen = versions()[Number(v)];
+          if (chosen) pin(chosen.heads);
+        }}
+        title={
+          isPinned()
+            ? "Pinned to a previous version — won't update"
+            : "Latest version — updates live"
+        }
+      >
+        <option value="latest">latest</option>
+        <For each={versions()}>
+          {(v, i) => (
+            <option value={i()}>
+              {v.heads[0]?.slice(0, 7) ?? "?"}
+            </option>
+          )}
+        </For>
+      </select>
+    </span>
   );
 }
 
@@ -159,15 +261,33 @@ function BranchControls(props: BranchControlsProps) {
     !!props.userSettingsHandle &&
     props.userSettingsHandle.url !== props.settingsHandle.url;
 
+  // The folder doc the current branch resolves to — pin versions of *that*.
+  const branchFolderUrl = createMemo(() => {
+    const url = props.branchesDoc?.branches?.[currentBranch()];
+    return url && isValidAutomergeUrl(url) ? url : undefined;
+  });
+
   return (
-    <FilterableBranchPicker
-      branches={branchNames()}
-      branchUrls={props.branchesDoc?.branches}
-      value={currentBranch()}
-      personal={isPersonal()}
-      onChange={setBranch}
-      onAdd={addBranch}
-    />
+    <>
+      <FilterableBranchPicker
+        branches={branchNames()}
+        branchUrls={props.branchesDoc?.branches}
+        value={currentBranch()}
+        personal={isPersonal()}
+        onChange={setBranch}
+        onAdd={addBranch}
+      />
+      <Show when={branchFolderUrl()}>
+        {(folderUrl) => (
+          <VersionControls
+            folderUrl={folderUrl()}
+            repo={props.repo}
+            settingsHandle={props.settingsHandle}
+            userSettingsHandle={props.userSettingsHandle}
+          />
+        )}
+      </Show>
+    </>
   );
 }
 

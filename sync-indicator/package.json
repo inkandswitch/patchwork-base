@@ -14,7 +14,9 @@
     "build": "vite build",
     "dev": "vite build --watch",
     "pushwatch": "pnpm dev pushwork",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@automerge/automerge": "^3.2.5",
@@ -28,11 +30,13 @@
   },
   "devDependencies": {
     "esbuild": "~0.25.0",
+    "happy-dom": "^15.11.7",
     "typescript": "~5.9.3",
     "vite": "^7.1.9",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-solid": "^2.11.10",
-    "vite-plugin-top-level-await": "^1.6.0"
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vitest": "^3.2.4"
   },
   "pnpm": {
     "overrides": {
