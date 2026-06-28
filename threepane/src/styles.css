@@ -737,3 +737,12 @@
 body[data-sidebar-resizing] .sidebar {
   transition: none;
 }
+
+/* While the right sidebar is being resized, carry its divider glow up through
+   the top bar: `.frame__topbar-right` sits directly above the right sidebar and
+   is set to the same width, so its left edge aligns with the resize handle. This
+   makes the right resize line span the full frame height, matching the left
+   handle (which already runs the full height of the left sidebar). */
+body[data-sidebar-resizing="right"] .frame__topbar-right {
+  box-shadow: inset 1px 0 0 0 var(--threepane-resize-glow);
+}

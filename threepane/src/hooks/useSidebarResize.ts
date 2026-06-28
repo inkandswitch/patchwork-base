@@ -88,9 +88,11 @@ export function useSidebarResize({
   // and toggles collapse.
   let dragOverlay: HTMLDivElement | null = null;
 
-  const beginDragVisuals = () => {
-    // suppress the width transition so the panel tracks the pointer 1:1
-    document.body.setAttribute("data-sidebar-resizing", "");
+  const beginDragVisuals = (side: "left" | "right") => {
+    // suppress the width transition so the panel tracks the pointer 1:1, and tag
+    // which side is dragging so the divider glow can extend up through the top
+    // bar on that side (see `[data-sidebar-resizing]` rules in the stylesheet).
+    document.body.setAttribute("data-sidebar-resizing", side);
     dragOverlay = document.createElement("div");
     dragOverlay.style.cssText =
       "position:fixed;inset:0;z-index:2147483647;cursor:col-resize;";
@@ -133,7 +135,7 @@ export function useSidebarResize({
     const deltaY = Math.abs(e.clientY - dragStartPos.y);
     if (!hasDragged && (deltaX > dragThreshold || deltaY > dragThreshold)) {
       hasDragged = true;
-      beginDragVisuals();
+      beginDragVisuals(isResizing);
     }
 
     if (isResizing === "left") {
