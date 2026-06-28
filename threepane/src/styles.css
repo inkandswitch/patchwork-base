@@ -1,5 +1,3 @@
-/* Layout */
-
 :root,
 :host,
 [theme] {
@@ -411,7 +409,6 @@
 /* Context tabs hosted in the top bar (rather than a sidebar header): center them
    vertically and drop the panel-border connection tweaks. */
 .frame__topbar-right .context-sidebar__tablist {
-  align-items: center;
   padding-bottom: 0;
   margin-bottom: 0;
 }
