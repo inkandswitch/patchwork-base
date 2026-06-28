@@ -42,9 +42,8 @@
   font-family: var(--folder-view-family);
   color: var(--folder-view-fg);
   background: var(--folder-view-well);
-  /* Inset border so the surface reads as sunken. The view fills its pane, so
-     the host frames the outer corners — no radius of our own here. */
-  border: 1px solid var(--folder-view-well-edge);
+  /* No outer border: the host frame already draws the lines around the pane, so
+     the well reads as flush rather than double-edged. */
 }
 
 /* State: a document is being dragged in from the sidebar. Outline the well
