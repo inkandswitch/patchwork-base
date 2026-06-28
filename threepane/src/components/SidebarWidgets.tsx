@@ -6,8 +6,9 @@ const DOCUMENT_LIST_TOOL = "chee/document-list";
 
 /**
  * The left pane: a stack of configured widgets (`[toolId, docId]`), each
- * rendered against its pinned doc, with per-widget remove. When empty, offers to
- * add a document list on the account's root folder.
+ * rendered against its pinned doc. Normally seeded with a document list on the
+ * account's root folder; the empty-state add button is a fallback for when no
+ * widgets are configured (there's no add/remove UI yet).
  */
 export function SidebarWidgets(props: {
   widgets: Accessor<ToolRef[]>;
@@ -20,12 +21,6 @@ export function SidebarWidgets(props: {
     if (!root || !handle) return;
     handle.change((doc) => {
       doc.sidebar.widgets.push([DOCUMENT_LIST_TOOL, root]);
-    });
-  };
-
-  const removeWidget = (index: number) => {
-    props.configHandle()?.change((doc) => {
-      doc.sidebar.widgets.splice(index, 1);
     });
   };
 
@@ -47,17 +42,8 @@ export function SidebarWidgets(props: {
         }
       >
         <For each={props.widgets()}>
-          {(widget, index) => (
+          {(widget) => (
             <div class="threepane-widget">
-              <button
-                type="button"
-                class="threepane-widget__remove"
-                title="Remove widget"
-                aria-label="Remove widget"
-                onClick={() => removeWidget(index())}
-              >
-                ×
-              </button>
               <patchwork-view doc-url={widget[1]} tool-id={widget[0]} />
             </div>
           )}

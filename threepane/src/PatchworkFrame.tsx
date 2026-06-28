@@ -133,12 +133,14 @@ function PatchworkFrameInner(props: {
   });
 
   // Lazily populate subdoc fields (rootFolderUrl, moduleSettingsUrl, contactUrl)
-  // on first mount. Each is created via createDocOfDatatype2 of its own
-  // datatype, so defaults and shape are owned by the datatype, not the frame.
-  void ensureAccountSubdocs(props.handle, props.repo);
-  // Create the threepane layout config doc and migrate the legacy account arrays
-  // into it (non-destructive — old fields stay so older builds keep working).
-  void ensureThreepaneConfig(props.handle, props.repo);
+  // on first mount, then create the threepane layout config doc and migrate the
+  // legacy account arrays into it (non-destructive — old fields stay so older
+  // builds keep working). Ordered: the migration seeds the sidebar's default
+  // document-list widget against rootFolderUrl, so the subdocs must land first.
+  void (async () => {
+    await ensureAccountSubdocs(props.handle, props.repo);
+    await ensureThreepaneConfig(props.handle, props.repo);
+  })();
 
   const [docVersion, setDocVersion] = createSignal(0);
   createEffect(() => {
@@ -337,24 +339,73 @@ function FrameLayout(props: {
   rootFolderUrl: Accessor<AutomergeUrl | undefined>;
   children: JSX.Element;
 }) {
+  const isCollapsed = props.sidebarState.isSidebarCollapsed;
   return (
     <>
+      {/*
+        The left toggle is pinned to the frame's top-left corner (absolute,
+        outside the collapsing sidebar) so it holds the same spot whether the
+        sidebar is open or closed. The title, in the top bar, slides up against
+        it as the sidebar closes rather than travelling the full sidebar width.
+      */}
+      <button
+        type="button"
+        class="frame__sidebar-toggle frame__left-toggle"
+        title={isCollapsed() ? "Show sidebar" : "Hide sidebar"}
+        aria-label={isCollapsed() ? "Show sidebar" : "Hide sidebar"}
+        aria-pressed={!isCollapsed()}
+        onClick={() =>
+          props.sidebarState.setIsSidebarCollapsed((v) => !v)
+        }
+      >
+        <PanelLeftIcon />
+      </button>
+
       <Sidebar
         side="left"
-        isCollapsed={props.sidebarState.isSidebarCollapsed}
+        isCollapsed={isCollapsed}
         width={props.sidebarState.leftSidebarWidth}
         onMouseDown={props.sidebarResize.handleMouseDown}
         onToggleClick={props.sidebarResize.handleToggleClick}
       >
-        <SidebarWidgets
-          widgets={props.sidebarWidgets}
-          configHandle={props.configHandle}
-          rootFolderUrl={props.rootFolderUrl}
-        />
+        <div class="threepane-sidebar">
+          <SidebarWidgets
+            widgets={props.sidebarWidgets}
+            configHandle={props.configHandle}
+            rootFolderUrl={props.rootFolderUrl}
+          />
+          {/* account / packages / settings, pinned to the sidebar's bottom */}
+          <div class="threepane-sidebar__footer">
+            <patchwork-view
+              doc-url={props.accountDocUrl}
+              tool-id="chee/account-bar"
+            />
+          </div>
+        </div>
       </Sidebar>
 
       {props.children}
     </>
+  );
+}
+
+// lucide `panel-left`
+function PanelLeftIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+    </svg>
   );
 }
 
@@ -445,11 +496,7 @@ function DraftDocumentArea(props: {
                     repo={props.repo}
                     docUrl={props.selectedDocUrl}
                     toolIds={props.doctitleToolIds}
-                    hasLeftSidebar={() => true}
                     isLeftCollapsed={props.sidebarState.isSidebarCollapsed}
-                    onToggleLeft={() =>
-                      props.sidebarState.setIsSidebarCollapsed((v) => !v)
-                    }
                     contextToolIds={props.contextTabIds}
                     selectedContextToolId={props.selectedContextToolId}
                     setSelectedContextToolId={props.setSelectedContextToolId}

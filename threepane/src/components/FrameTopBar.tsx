@@ -8,9 +8,7 @@ type FrameTopBarProps = {
   docUrl: Accessor<AutomergeUrl | undefined>;
   toolIds: Accessor<string[] | undefined>;
 
-  hasLeftSidebar: Accessor<boolean>;
   isLeftCollapsed: Accessor<boolean>;
-  onToggleLeft: () => void;
 
   contextToolIds: Accessor<string[] | undefined>;
   selectedContextToolId: Accessor<string | undefined>;
@@ -21,10 +19,11 @@ type FrameTopBarProps = {
 };
 
 /**
- * The full-width top toolbar: a left sidebar toggle, the document tool views,
- * and — above the right sidebar — the context tabs with a right sidebar toggle.
- * Spans the main column; the left sidebar's reserved top margin lines up with it
- * so it reads as one continuous bar across the top.
+ * The full-width top toolbar: the document title and tool views, and — above the
+ * right sidebar — the context tabs with a right sidebar toggle. Spans the main
+ * column; the left sidebar toggle is pinned separately to the frame's top-left
+ * corner. When the left sidebar is collapsed the bar reserves a matching slot at
+ * its start so the title slides up against (not under) that toggle.
  */
 export function FrameTopBar(props: FrameTopBarProps) {
   const hasRight = () => !!props.contextToolIds()?.length;
@@ -33,20 +32,10 @@ export function FrameTopBar(props: FrameTopBarProps) {
   const docToolIds = () => props.toolIds() ?? [];
 
   return (
-    <div class="frame__topbar">
-      <Show when={props.hasLeftSidebar()}>
-        <button
-          type="button"
-          class="frame__sidebar-toggle"
-          title={props.isLeftCollapsed() ? "Show sidebar" : "Hide sidebar"}
-          aria-label={props.isLeftCollapsed() ? "Show sidebar" : "Hide sidebar"}
-          aria-pressed={!props.isLeftCollapsed()}
-          onClick={() => props.onToggleLeft()}
-        >
-          <PanelLeftIcon />
-        </button>
-      </Show>
-
+    <div
+      class="frame__topbar"
+      classList={{ "frame__topbar--left-collapsed": props.isLeftCollapsed() }}
+    >
       {/* document title, rendered intrinsically: shrinks to the title length,
           capped at half the bar. */}
       <Show when={props.docUrl()}>
@@ -105,26 +94,6 @@ export function FrameTopBar(props: FrameTopBarProps) {
         </div>
       </Show>
     </div>
-  );
-}
-
-// lucide `panel-left`
-function PanelLeftIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.75"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M9 3v18" />
-    </svg>
   );
 }
 
