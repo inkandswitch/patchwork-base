@@ -7,7 +7,11 @@ import {
   untrack,
   type JSX,
 } from "solid-js";
-import { useSupportedToolsForType } from "../lib/solid-plugins";
+import { useSupportedToolsForType, useFilteredDatatypes } from "../lib/solid-plugins";
+import type {
+  DatatypeDescription,
+  Plugin,
+} from "@inkandswitch/patchwork-plugins";
 import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import {
   type SideboardDragAndDropItem,
@@ -60,8 +64,12 @@ export default function Item(props: {
   itemIndex?: number;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  /** when set (i.e. this item is a folder), enables a "Create" submenu that
+   * makes a new doc of the picked datatype inside this folder */
+  createInside?(datatype: Plugin<DatatypeDescription>): void;
 }) {
   const tools = useSupportedToolsForType(props.type);
+  const datatypes = useFilteredDatatypes((item) => !item.unlisted);
   const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
 
   createEffect((prev) => {
@@ -424,6 +432,27 @@ export default function Item(props: {
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content class="popmenu__content">
+          <Show when={props.createInside}>
+            <ContextMenu.Sub>
+              <ContextMenu.SubTrigger class="popmenu__sub-trigger">
+                Create
+              </ContextMenu.SubTrigger>
+              <ContextMenu.Portal>
+                <ContextMenu.SubContent class="popmenu__sub-content">
+                  <For each={datatypes}>
+                    {(datatype) => (
+                      <ContextMenu.Item
+                        class="popmenu__item"
+                        onSelect={() => props.createInside!(datatype)}
+                      >
+                        {datatype.name}
+                      </ContextMenu.Item>
+                    )}
+                  </For>
+                </ContextMenu.SubContent>
+              </ContextMenu.Portal>
+            </ContextMenu.Sub>
+          </Show>
           <Show when={tools.length}>
             <ContextMenu.Sub>
               <ContextMenu.SubTrigger class="popmenu__sub-trigger">

@@ -17,6 +17,11 @@ import { filter, filterMatches, setRenaming, setPendingNewDoc } from "../state.t
 import { DocumentList } from "./document-list.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { createNew } from "../create-new.tsx";
+import type {
+  DatatypeDescription,
+  Plugin,
+} from "@inkandswitch/patchwork-plugins";
 import { Chevron } from "../icons.tsx";
 import {
   getDropTarget,
@@ -101,6 +106,20 @@ export default function Folder(props: {
 
   function rename(name: string) {
     handle()?.change((doc) => updateText(doc, ["title"], name));
+  }
+
+  async function createInside(datatype: Plugin<DatatypeDescription>) {
+    const h = handle();
+    if (!h) return;
+    const freshy = await createNew(props.repo, datatype, props.hive);
+    let newIndex = 0;
+    h.change((folder) => {
+      folder.docs.push(freshy);
+      newIndex = folder.docs.length - 1;
+    });
+    setExpanded(true);
+    props.open(freshy);
+    setRenaming(h.url + "/" + newIndex);
   }
 
   async function handleDropIntoFolder(
@@ -230,6 +249,7 @@ export default function Folder(props: {
         itemIndex={props.itemIndex}
         isExpanded={expanded()}
         onToggleExpand={() => setExpanded((yn) => !yn)}
+        createInside={createInside}
         openWith={(toolId) => {
           props.open({
             url: props.url,

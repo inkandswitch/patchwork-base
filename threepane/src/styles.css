@@ -1,48 +1,57 @@
 :root,
 :host,
 [theme] {
-  --patchwork-frame-bg: var(--studio-fill, white);
-  --patchwork-frame-sidebar-fill: var(--studio-chrome, var(--studio-fill, white));
-  --patchwork-frame-fg: var(--studio-line, black);
-  --patchwork-frame-muted: var(--studio-line-offset-50, #999);
-  --patchwork-frame-family: var(--studio-family-sans, system-ui, sans-serif);
-  --patchwork-frame-family-code: var(--studio-family-code, ui-monospace, monospace);
+  --threepane-bg: var(--studio-fill, white);
+  --threepane-sidebar-fill: var(--studio-chrome, var(--studio-fill, white));
+  --threepane-fg: var(--studio-line, black);
+  --threepane-muted: var(--studio-line-offset-50, #999);
+  --threepane-family: var(--studio-family-sans, system-ui, sans-serif);
+  --threepane-family-code: var(--studio-family-code, ui-monospace, monospace);
 
   /* spacing scale, aliased from the base theme */
-  --patchwork-frame-space-2xs: var(--studio-space-2xs, 0.25rem);
-  --patchwork-frame-space-xs: var(--studio-space-xs, 0.375rem);
-  --patchwork-frame-space-sm: var(--studio-space-sm, 0.5rem);
-  --patchwork-frame-space-2xl: var(--studio-space-2xl, 3rem);
+  --threepane-space-3xs: var(--studio-space-3xs, 0.125rem);
+  --threepane-space-2xs: var(--studio-space-2xs, 0.25rem);
+  --threepane-space-xs: var(--studio-space-xs, 0.375rem);
+  --threepane-space-sm: var(--studio-space-sm, 0.5rem);
+  --threepane-space: var(--studio-space, 0.75rem);
+  --threepane-space-md: var(--studio-space-md, 1rem);
+  --threepane-space-2xl: var(--studio-space-2xl, 3rem);
+
+  /* radius scale, aliased from the base theme */
+  --threepane-radius-xs: var(--studio-radius-xs, 2px);
+  --threepane-radius-sm: var(--studio-radius-sm, 4px);
+  --threepane-radius-md: var(--studio-radius-md, 8px);
+  --threepane-radius-round: var(--studio-radius-round, 9999px);
 
   /* Height of the frame's top strip: the top bar over the main column, and the
      matching empty space reserved above the left sidebar's widgets so the two
      line up and the left toggle has a home. */
-  --patchwork-frame-header-height: calc(
-    env(safe-area-inset-top, 0px) + var(--patchwork-frame-space-2xl)
+  --threepane-header-height: calc(
+    env(safe-area-inset-top, 0px) + var(--threepane-space-2xl)
   );
 
   /* the left footer and right tray boxes share one height so they line up. */
-  --patchwork-frame-tray-height: var(--patchwork-frame-space-2xl);
+  --threepane-tray-height: var(--threepane-space-2xl);
   /* sidebar toggles ride a touch paler than the line (first ink offset). */
-  --patchwork-frame-toggle-fg: var(--studio-line-offset-10, #333);
+  --threepane-toggle-fg: var(--studio-line-offset-10, #333);
 
-  --patchwork-frame-toolbar: var(--studio-chrome, white);
+  --threepane-toolbar: var(--studio-chrome, white);
   /* toolbar text rides on the chrome surface, so it uses the chrome ink */
-  --patchwork-frame-toolbar-fg: var(--studio-chrome-line, var(--studio-line, black));
-  --patchwork-frame-toolbar-border: var(--studio-chrome-offset-20, #ccc);
+  --threepane-toolbar-fg: var(--studio-chrome-line, var(--studio-line, black));
+  --threepane-toolbar-border: var(--studio-chrome-offset-10, #ddd);
   /* Resize handle: a faint 1px divider that tracks the chrome ramp's contrast
      (it mixes toward the chrome ink, so it reads darker on light themes and
      lighter on dark ones), plus a primary-tinted glow + grab pill on hover. */
-  --patchwork-frame-sidebar-divider: var(--studio-chrome-offset-20, #d4d4d4);
-  --patchwork-frame-resize-glow: color-mix(in oklch, var(--studio-primary, #35f7ca), transparent 35%);
-  --patchwork-frame-resize-pill: var(--studio-primary, #35f7ca);
+  --threepane-sidebar-divider: var(--studio-chrome-offset-20, #d4d4d4);
+  --threepane-resize-glow: color-mix(in oklch, var(--studio-primary, #35f7ca), transparent 35%);
+  --threepane-resize-pill: var(--studio-primary, #35f7ca);
 
   /* The context (right) sidebar sits on a chrome surface stepped one offset off
      the toolbar's flat chrome, so the two chrome regions read as distinct. */
-  --patchwork-frame-context-sidebar-fill: var(--studio-chrome-offset-10, #ececec);
+  --threepane-context-sidebar-fill: var(--studio-chrome-offset-10, #ececec);
 
   /* Context sidebar (tabbed) */
-  --context-sidebar-bg: var(--patchwork-frame-context-sidebar-fill);
+  --context-sidebar-bg: var(--threepane-context-sidebar-fill);
   /* the tab-bar header rides on the same flat chrome as the toolbar above it,
      so the two chrome strips read as one continuous band */
   --context-sidebar-header-bg: var(--studio-chrome, #f2f2f2);
@@ -64,16 +73,16 @@
   display: flex;
   width: 100%;
   height: 100%;
-  font-family: var(--patchwork-frame-family);
-  color: var(--patchwork-frame-fg);
-  background: var(--patchwork-frame-bg);
+  font-family: var(--threepane-family);
+  color: var(--threepane-fg);
+  background: var(--threepane-bg);
 
 .frame__version {
   position: absolute;
-  top: 4px;
-  right: 8px;
+  top: var(--threepane-space-2xs);
+  right: var(--threepane-space-sm);
   z-index: 10;
-  color: var(--patchwork-frame-muted);
+  color: var(--threepane-muted);
   font-size: 0.75rem;
   font-weight: 500;
   pointer-events: none;
@@ -96,11 +105,11 @@
 }
 
 .sidebar[data-side="left"] {
-  background: var(--patchwork-frame-sidebar-fill);
+  background: var(--threepane-sidebar-fill);
 }
 
 .sidebar[data-side="right"] {
-  background: var(--patchwork-frame-context-sidebar-fill);
+  background: var(--threepane-context-sidebar-fill);
 }
 
 .main-area {
@@ -130,12 +139,12 @@
   display: flex;
   align-items: stretch;
   box-sizing: border-box;
-  min-height: var(--patchwork-frame-space-2xl);
+  min-height: var(--threepane-space-2xl);
   padding-top: env(safe-area-inset-top, 0px);
-  padding-inline: var(--patchwork-frame-space-2xs);
-  gap: var(--patchwork-frame-space-2xs);
-  background: var(--patchwork-frame-toolbar);
-  color: var(--patchwork-frame-toolbar-fg);
+  padding-inline: var(--threepane-space-2xs);
+  gap: var(--threepane-space-2xs);
+  background: var(--threepane-toolbar);
+  color: var(--threepane-toolbar-fg);
   /* Animate the collapsed left-slot in step with the sidebar's width transition
      so the title glides up against the pinned toggle instead of jumping. */
   transition: padding-left var(--studio-transition-slow, 0.25s ease);
@@ -145,7 +154,7 @@
    where the pinned left toggle lives; reserve a matching slot so the title slides
    up against the toggle rather than under it. */
 .frame__topbar--left-collapsed {
-  padding-left: var(--patchwork-frame-space-2xl);
+  padding-left: var(--threepane-space-2xl);
 }
 
 .frame__content-row {
@@ -163,8 +172,8 @@
   top: 0;
   left: 0;
   z-index: 5;
-  width: var(--patchwork-frame-space-2xl);
-  height: var(--patchwork-frame-header-height);
+  width: var(--threepane-space-2xl);
+  height: var(--threepane-header-height);
   padding-top: env(safe-area-inset-top, 0px);
 }
 
@@ -174,16 +183,16 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding-inline: var(--patchwork-frame-space-sm);
+  padding-inline: var(--threepane-space-sm);
   border: none;
   background: transparent;
-  color: var(--patchwork-frame-toggle-fg);
+  color: var(--threepane-toggle-fg);
   cursor: pointer;
   transition: color var(--studio-transition-fast, 0.1s ease);
 }
 
 .frame__sidebar-toggle:hover {
-  color: var(--patchwork-frame-fg);
+  color: var(--threepane-fg);
 }
 
 /* The right end of the top bar: context tabs + the right toggle. Its width
@@ -208,7 +217,7 @@
   min-width: 0;
   max-width: 50%;
   overflow: hidden;
-  padding-inline: 0.5rem;
+  padding-inline: var(--threepane-space-sm);
 }
 
 .threepane__title-text {
@@ -222,7 +231,7 @@
 /* built-in spacer between the title and the right-hand tools */
 .threepane__spacer {
   flex: 1;
-  min-width: var(--patchwork-frame-space-sm);
+  min-width: var(--threepane-space-sm);
 }
 
 /* configured doctitle tools at the right end; scroll horizontally when they
@@ -230,9 +239,9 @@
 .threepane__doctitle-tools {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--threepane-space-sm);
   min-width: 0;
-  padding-inline: 0.5rem;
+  padding-inline: var(--threepane-space-sm);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -257,7 +266,7 @@
   /* Border around the rendered view: left + top + right, square corners. The
      top sits just below the (border-less) toolbar and runs straight across;
      open at the bottom of the frame. */
-  border: 1px solid var(--patchwork-frame-toolbar-border);
+  border: 1px solid var(--threepane-toolbar-border);
   border-bottom: none;
 }
 
@@ -272,7 +281,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--patchwork-frame-fg);
+  color: var(--threepane-fg);
 }
 
 .sidebar patchwork-view {
@@ -306,7 +315,7 @@
   align-items: flex-end;
   justify-content: center;
   box-sizing: border-box;
-  min-height: calc(var(--patchwork-frame-space-2xl) + 1px);
+  min-height: calc(var(--threepane-space-2xl) + 1px);
   background: var(--context-sidebar-header-bg);
   border-bottom: 1px solid var(--context-sidebar-border);
 }
@@ -316,8 +325,8 @@
   flex: 1;
   min-width: 0;
   align-items: flex-end;
-  gap: var(--patchwork-frame-space-2xs);
-  padding-inline: var(--patchwork-frame-space-2xs);
+  gap: var(--threepane-space-2xs);
+  padding-inline: var(--threepane-space-2xs);
   /* when there are more tabs than fit, scroll them horizontally rather than
      letting them shrink/wrap; scrollbar hidden for a clean header. */
   overflow-x: auto;
@@ -339,11 +348,11 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  padding: var(--patchwork-frame-space-xs) var(--patchwork-frame-space-sm);
+  padding: var(--threepane-space-xs) var(--threepane-space-sm);
   border: 1px solid transparent;
   border-bottom: none;
-  border-top-left-radius: var(--studio-radius-sm, 4px);
-  border-top-right-radius: var(--studio-radius-sm, 4px);
+  border-top-left-radius: var(--threepane-radius-xs);
+  border-top-right-radius: var(--threepane-radius-xs);
   background: transparent;
   font-family: inherit;
   font-size: 0.875rem;
@@ -368,7 +377,7 @@
   background: var(--context-sidebar-tab-active-bg);
   color: var(--context-sidebar-tab-active-fg);
   border-color: var(--context-sidebar-border);
-  box-shadow: inset 0 2px 0 0 var(--context-sidebar-tab-active-accent);
+  box-shadow: inset 0 1px 0 0 var(--context-sidebar-tab-active-accent);
 }
 
 /* The close (collapse) button. */
@@ -377,9 +386,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding-inline: var(--patchwork-frame-space-sm);
-  margin-bottom: var(--patchwork-frame-space-xs);
-  margin-right: var(--patchwork-frame-space-2xs);
+  padding-inline: var(--threepane-space-sm);
+  margin-bottom: var(--threepane-space-xs);
+  margin-right: var(--threepane-space-2xs);
   border: none;
   background: transparent;
   color: var(--context-sidebar-fg);
@@ -446,7 +455,7 @@
   flex-direction: column;
   width: 100%;
   min-height: 0;
-  padding-top: var(--patchwork-frame-header-height);
+  padding-top: var(--threepane-header-height);
 }
 
 .threepane-widget {
@@ -471,19 +480,19 @@
 }
 
 .threepane-widgets__add {
-  padding: var(--patchwork-frame-space-xs) var(--patchwork-frame-space-sm);
-  border: 1px dashed var(--patchwork-frame-sidebar-divider);
-  border-radius: var(--studio-radius-sm, 4px);
+  padding: var(--threepane-space-xs) var(--threepane-space-sm);
+  border: 1px dashed var(--threepane-sidebar-divider);
+  border-radius: var(--threepane-radius-sm);
   background: transparent;
-  color: var(--patchwork-frame-muted);
+  color: var(--threepane-muted);
   font: inherit;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .threepane-widgets__add:hover:not(:disabled) {
-  color: var(--patchwork-frame-fg);
-  border-color: var(--patchwork-frame-fg);
+  color: var(--threepane-fg);
+  border-color: var(--threepane-fg);
 }
 
 .threepane-widgets__add:disabled {
@@ -495,10 +504,10 @@
 .frame-tray {
   display: flex;
   align-items: center;
-  gap: var(--patchwork-frame-space-2xs);
+  gap: var(--threepane-space-2xs);
   box-sizing: border-box;
-  min-height: var(--patchwork-frame-tray-height);
-  padding-inline: var(--patchwork-frame-space-sm);
+  min-height: var(--threepane-tray-height);
+  padding-inline: var(--threepane-space-sm);
   border-top: 1px solid var(--context-sidebar-border);
   background: var(--context-sidebar-content-bg);
 }
@@ -512,15 +521,15 @@
 /* Debug Registry Toast */
 .debug-registry-toast {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
+  bottom: var(--threepane-space-md);
+  right: var(--threepane-space-md);
   z-index: 9999;
   max-width: 360px;
-  font-family: var(--patchwork-frame-family-code);
+  font-family: var(--threepane-family-code);
   font-size: 0.75rem;
   background: oklch(0.15 0.01 270);
   border: 1px solid oklch(0.35 0.03 270);
-  border-radius: 8px;
+  border-radius: var(--threepane-radius-md);
   box-shadow:
     0 8px 32px oklch(0 0 0 / 0.4),
     0 0 0 1px oklch(1 0 0 / 0.05) inset;
@@ -532,7 +541,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0.75rem;
+  padding: var(--threepane-space-sm) var(--threepane-space);
   background: oklch(0.2 0.02 270);
   border-bottom: 1px solid oklch(0.3 0.02 270);
 }
@@ -548,8 +557,8 @@
   border: none;
   color: oklch(0.6 0.05 270);
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  padding: var(--threepane-space-2xs) var(--threepane-space-sm);
+  border-radius: var(--threepane-radius-sm);
   transition: all 0.15s ease;
 }
 
@@ -566,8 +575,8 @@
 .debug-registry-toast__item {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: var(--threepane-space-sm);
+  padding: var(--threepane-space-sm) var(--threepane-space);
   border-left: 3px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -591,7 +600,7 @@
 .debug-registry-toast__content {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: var(--threepane-space-3xs);
   min-width: 0;
 }
 
@@ -675,8 +684,8 @@
     left: 50%;
     width: 4px;
     height: 44px;
-    border-radius: var(--studio-radius-round, 9999px);
-    background: var(--patchwork-frame-resize-pill);
+    border-radius: var(--threepane-radius-round);
+    background: var(--threepane-resize-pill);
     opacity: 0;
     transform: translate(-50%, -50%) scaleY(0.55);
     transition: opacity var(--studio-transition, 0.15s ease),
@@ -686,7 +695,7 @@
   /* on hover the divider line lights up in the frame primary */
   &:hover,
   &:active {
-    background: var(--patchwork-frame-resize-glow);
+    background: var(--threepane-resize-glow);
   }
   &:hover::after,
   &:active::after {
