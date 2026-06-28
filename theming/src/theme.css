@@ -193,11 +193,25 @@
 	--studio-space-xl: 2rem;       /* 32px */
 	--studio-space-2xl: 3rem;      /* 48px */
 
-	/* Shadows */
-	--studio-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
-	--studio-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px rgb(0 0 0 / 0.06);
-	--studio-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-	--studio-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	/* Shadows. the shadow colour is the line pulled toward the offset tint by
+	   the same amount as the rest of the ramp, so shadows read as part of the
+	   palette instead of a flat neutral black. */
+	--studio-shadow-color: color-mix(
+		in oklch,
+		var(--studio-line),
+		var(--studio-offset-tint) var(--studio-offset-tint-amount)
+	);
+	--studio-shadow-sm: 0 1px 2px
+		color-mix(in oklch, var(--studio-shadow-color), transparent 95%);
+	--studio-shadow: 0 1px 3px
+			color-mix(in oklch, var(--studio-shadow-color), transparent 90%),
+		0 1px 2px color-mix(in oklch, var(--studio-shadow-color), transparent 94%);
+	--studio-shadow-md: 0 4px 6px -1px
+			color-mix(in oklch, var(--studio-shadow-color), transparent 90%),
+		0 2px 4px -2px color-mix(in oklch, var(--studio-shadow-color), transparent 90%);
+	--studio-shadow-lg: 0 10px 15px -3px
+			color-mix(in oklch, var(--studio-shadow-color), transparent 90%),
+		0 4px 6px -4px color-mix(in oklch, var(--studio-shadow-color), transparent 90%);
 
 	/* Transitions */
 	--studio-transition-fast: 0.1s ease;
