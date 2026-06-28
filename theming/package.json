@@ -26,7 +26,9 @@
     "build": "node esbuild/build.ts",
     "dev": "node esbuild/watch.ts",
     "pushwatch": "pnpm dev pushwork",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@codemirror/language": "^6.11.3",
@@ -40,9 +42,13 @@
   "devDependencies": {
     "@babel/core": "^7.28.4",
     "@babel/parser": "^7.28.4",
-    "babel-preset-solid": "^1.9.9",
     "@node-types/node": "npm:@types/node@^24.9.1",
+    "babel-preset-solid": "^1.9.9",
     "esbuild": "^0.23.1",
-    "typescript": "~5.9.3"
+    "happy-dom": "^15.11.7",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.9",
+    "vite-plugin-solid": "^2.11.10",
+    "vitest": "^3.2.4"
   }
 }

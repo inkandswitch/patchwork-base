@@ -11,8 +11,14 @@
   "scripts": {
     "build": "echo 'bundleless — nothing to build'",
     "push": "pushwork sync",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
-  "author": "Ink & Switch"
+  "author": "Ink & Switch",
+  "devDependencies": {
+    "happy-dom": "^15.11.7",
+    "vitest": "^3.2.4"
+  }
 }

@@ -18,7 +18,9 @@
     "build": "vite build",
     "dev": "vite build --watch",
     "push": "pnpm build && pushwork sync",
-    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
+    "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "Ink & Switch",
@@ -54,8 +56,10 @@
   },
   "devDependencies": {
     "@inkandswitch/patchwork-bootloader": "^0.0.4",
+    "happy-dom": "^15.11.7",
     "typescript": "^5.8.3",
     "vite": "^5.4.19",
-    "vite-plugin-solid": "^2.10.0"
+    "vite-plugin-solid": "^2.10.0",
+    "vitest": "^3.2.4"
   }
 }

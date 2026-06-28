@@ -10,7 +10,10 @@
     "build:tools:ci": "node scripts/build-static.mjs --install",
     "serve:tools": "node scripts/serve-tools.mjs",
     "dev:tools": "pnpm build:static && pnpm serve:tools",
-    "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod"
+    "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod",
+    "lint": "node scripts/lint-standalone.mjs",
+    "lint:standalone": "node scripts/lint-standalone.mjs",
+    "test": "pnpm -r test"
   },
   "packageManager": "pnpm@11.9.0"
 }
