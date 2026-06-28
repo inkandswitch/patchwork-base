@@ -35,6 +35,9 @@ export function useSidebarResize({
   let isResizing: "left" | "right" | null = null;
   let dragStartPos: { x: number; y: number } | null = null;
   let hasDragged = false;
+  // The last *open* width applied during the live drag (null while the drag is
+  // previewing a collapse). Read on release to decide whether to spring back.
+  let lastDragWidth: number | null = null;
 
   const setWidth = (side: "left" | "right", w: number) =>
     side === "left" ? setLeftSidebarWidth(w) : setRightSidebarWidth(w);
@@ -47,16 +50,34 @@ export function useSidebarResize({
   const isCollapsed = (side: "left" | "right") =>
     side === "left" ? isLeftCollapsed() : isRightCollapsed();
 
-  // Apply a candidate width from a drag: snap closed below the auto-close
-  // threshold (keeping the last good width so re-opening restores it), pop back
-  // open once dragged past it, and clamp to [min, max] otherwise.
+  // Apply a candidate width from a live drag. The panel tracks the pointer to
+  // *any* size (Things 3 / nextaction feel) - it is allowed below `minWidth` so
+  // you can see it shrink past the limit; the over-shrink is rejected later, on
+  // release (see `settleDrag`). Below the auto-close threshold it snaps shut
+  // live (so it reads as "let go here and it stays closed", and so the collapsed
+  // 1px strip can be grabbed and dragged back open).
   const applyDragWidth = (side: "left" | "right", raw: number) => {
     if (raw < autoCloseWidth) {
       if (!isCollapsed(side)) setCollapsed(side, true);
+      lastDragWidth = null;
       return;
     }
     if (isCollapsed(side)) setCollapsed(side, false);
-    setWidth(side, Math.min(maxWidth, Math.max(minWidth, raw)));
+    const w = Math.min(maxWidth, raw);
+    setWidth(side, w);
+    lastDragWidth = w;
+  };
+
+  // Decide the resting state when a drag ends. The width transition is live
+  // again by now (the resizing flag was cleared in `endDrag`), so any width we
+  // set here animates: if the drag finished too small (in the [auto-close, min)
+  // band) the panel springs back out to `minWidth`; if it finished below
+  // auto-close it already snapped collapsed during the drag, so we leave it.
+  const settleDrag = (side: "left" | "right") => {
+    if (isCollapsed(side)) return;
+    if (lastDragWidth !== null && lastDragWidth < minWidth) {
+      setWidth(side, minWidth);
+    }
   };
 
   // A full-window overlay, added the moment a real drag begins. It keeps every
@@ -89,12 +110,18 @@ export function useSidebarResize({
     e.preventDefault();
     dragStartPos = { x: e.clientX, y: e.clientY };
     hasDragged = false;
+    lastDragWidth = null;
     isResizing = side;
     document.body.style.userSelect = "none";
   };
 
   const handleMouseUp = () => {
+    // Capture the drag state before endDrag() clears it, then resolve the
+    // resting size with the width transition restored so spring-backs animate.
+    const side = isResizing;
+    const dragged = hasDragged;
     endDrag();
+    if (side && dragged) settleDrag(side);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
