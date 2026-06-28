@@ -365,6 +365,15 @@ button {
   &:hover {
     background: var(--document-list-toggle-hover);
   }
+
+  & svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  & path {
+    stroke: var(--studio-chrome-line-offset-30);
+  }
 }
 
 .document-list-folder__contents--hidden {
