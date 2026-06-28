@@ -176,14 +176,14 @@ function PatchworkFrameInner(props: {
     return threepaneConfigHandle()?.doc();
   });
 
-  // Derived layout lanes — prefer the threepane config doc, fall back to the
-  // legacy account fields until migration completes.
+  // Derived layout lanes, read from the threepane config doc. The migration
+  // seeds it from the legacy account fields (dropping the intrinsic title +
+  // spacer); older builds read those fields directly, so branch-flipping stays
+  // safe without a fallback here.
   const doctitleToolIds = () =>
-    threepaneConfig()?.doctitle?.tools?.map((ref) => ref[0]) ??
-    accountDoc()?.documentToolbarToolIds;
+    threepaneConfig()?.doctitle?.tools?.map((ref) => ref[0]);
   const contextTabIds = () =>
-    threepaneConfig()?.contextbar?.tabs?.map((ref) => ref[0]) ??
-    accountDoc()?.contextToolIds;
+    threepaneConfig()?.contextbar?.tabs?.map((ref) => ref[0]);
   const sidebarWidgets = (): ToolRef[] =>
     threepaneConfig()?.sidebar?.widgets ?? [];
   const rootFolderUrl = () => accountDoc()?.rootFolderUrl;
