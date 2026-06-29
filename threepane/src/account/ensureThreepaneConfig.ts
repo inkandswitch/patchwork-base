@@ -1,6 +1,6 @@
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { createDocOfDatatype2 } from "@inkandswitch/patchwork-plugins";
-import type { AccountDoc, ThreepaneConfigDoc, ToolRef } from "../types";
+import type { AccountDoc, ThreepaneConfigDoc, ToolRef, ToolSlot } from "../types";
 import { loadDatatypeWhenReady } from "./ensureSubdocs";
 
 // Title + spacer are intrinsic to the frame's top bar, never configured tools.
@@ -63,12 +63,13 @@ export async function ensureThreepaneConfig(
   const account = accountHandle.doc();
   const accountDocUrl = accountHandle.url;
 
-  // doctitle + contextbar migrate with the account doc as a placeholder docid
-  // (the frame still feeds doctitle the selected doc / contextbar the account
-  // doc). The sidebar is seeded with the default document-list widget.
-  const doctitleTools: ToolRef[] = (account?.documentToolbarToolIds ?? [])
-    .filter((id) => !INTRINSIC_DOCTITLE_TOOLS.has(id))
-    .map((id) => [id, accountDocUrl]);
+  // contextbar migrates with the account doc as a placeholder docid (the frame
+  // still feeds it the account doc). doctitle tools migrate as bare ids: the
+  // frame always points them at the selected main-view doc, so a slot tuple's
+  // docid would be ignored — keep them as plain strings. The sidebar is seeded
+  // with the default document-list widget.
+  const doctitleTools: ToolSlot[] = (account?.documentToolbarToolIds ?? [])
+    .filter((id) => !INTRINSIC_DOCTITLE_TOOLS.has(id));
   const contextTabs: ToolRef[] = (account?.contextToolIds ?? []).map((id) => [
     id,
     accountDocUrl,
