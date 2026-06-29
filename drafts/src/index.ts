@@ -1,4 +1,4 @@
-import type { Plugin } from "@inkandswitch/patchwork-plugins";
+import type { Plugin, ToolElement } from "@inkandswitch/patchwork-plugins";
 
 export const plugins: Plugin<any>[] = [
   {
@@ -41,6 +41,19 @@ export const plugins: Plugin<any>[] = [
     async load() {
       const { renderDraftsSidebar } = await import("./main");
       return renderDraftsSidebar;
+    },
+  },
+  // Same sidebar, but as a `patchwork:component` that takes no document: the
+  // render function ignores its handle (it reads everything off `element`),
+  // so we pass `null` and it can be slotted in without an account doc.
+  {
+    type: "patchwork:component",
+    id: "drafts-component",
+    name: "Drafts",
+    async load() {
+      const { renderDraftsSidebar } = await import("./main");
+      return (element: ToolElement) =>
+        renderDraftsSidebar(null as never, element);
     },
   },
 ];
