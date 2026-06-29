@@ -36,6 +36,17 @@
   font-weight: 500;
 }
 
+.comments-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--comments-muted-fg);
+}
+
 .comments-thread {
   display: flex;
   flex-direction: column;

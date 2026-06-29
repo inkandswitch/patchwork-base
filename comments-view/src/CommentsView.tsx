@@ -185,18 +185,23 @@ export function CommentsView(props: { element: HTMLElement }) {
           </button>
         </Show>
       </div>
-      <For each={threadUrls()}>
-        {(threadUrl) => (
-          <ThreadView
-            threadUrl={threadUrl}
-            repo={repo}
-            primaryThreadUrl={primaryThreadUrl}
-            secondaryThreadUrls={secondaryThreadUrls}
-            onSelectThread={onSelectThread}
-            currentContactUrl={currentContactUrl}
-          />
-        )}
-      </For>
+      <Show
+        when={threadUrls().length > 0}
+        fallback={<div class="comments-empty">No comments yet</div>}
+      >
+        <For each={threadUrls()}>
+          {(threadUrl) => (
+            <ThreadView
+              threadUrl={threadUrl}
+              repo={repo}
+              primaryThreadUrl={primaryThreadUrl}
+              secondaryThreadUrls={secondaryThreadUrls}
+              onSelectThread={onSelectThread}
+              currentContactUrl={currentContactUrl}
+            />
+          )}
+        </For>
+      </Show>
     </div>
   );
 }
