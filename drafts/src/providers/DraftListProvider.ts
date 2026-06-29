@@ -125,7 +125,9 @@ export const DraftListProvider = (element: HTMLElement) => {
   const onHostDocChange = () => scheduleRewalk();
   // The checkout doc changed: its `at` checkpoint may have been set, cleared, or
   // moved, so re-publish every live `draft:baseline` subscriber.
-  const onCheckedOutChange = () => notifyBaselines();
+  const onCheckedOutChange = () => {
+    notifyBaselines();
+  };
 
   const onMounted = (event: MountedEvent) => {
     const detail = event.detail;
@@ -228,6 +230,7 @@ export const DraftListProvider = (element: HTMLElement) => {
       });
       return;
     }
+
   };
 
   element.addEventListener("patchwork:subscribe", onSubscribe);

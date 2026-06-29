@@ -346,6 +346,17 @@ function DraftDocumentArea(props: {
     return heads ? stringifyAutomergeUrl({ documentId, heads }) : url;
   });
 
+  // Remount key for the main view. Nested docs (embeds, folder entries) resolve
+  // their checkpoint pin once, at mount, via `repo:handle-descriptor`; they only
+  // re-resolve when the subtree remounts. `pinnedDocUrl` alone misses checkpoint
+  // moves that don't change the main doc's own heads (e.g. an entry that only
+  // pins an embedded doc), so fold the whole `at` map into the key.
+  const mainViewKey = createMemo<string | undefined>(() => {
+    const url = pinnedDocUrl();
+    if (!url) return url;
+    return `${url}|${JSON.stringify(checkedOut()?.at ?? null)}`;
+  });
+
   const [draftOverlayProviderHost, setDraftOverlayProviderHost] =
     createSignal<HTMLElement>();
   const isDraftOverlayProviderReady = useProviderReady(
@@ -397,7 +408,7 @@ function DraftDocumentArea(props: {
                     docUrl={props.selectedDocUrl}
                   />
                   <MainDocumentView
-                    viewKey={pinnedDocUrl}
+                    viewKey={mainViewKey}
                     selectedDocUrl={pinnedDocUrl}
                     toolId={props.selectedToolId}
                   />

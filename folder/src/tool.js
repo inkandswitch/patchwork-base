@@ -113,6 +113,9 @@ function buildEntry(docLink) {
     "Open"
   );
 
+  // The nested view names the doc without heads; resolution (the drafts
+  // `repo:handle-descriptor` answer) pins it to the active checkpoint when one
+  // is checked out, so the entry freezes with the folder it lives in.
   const node = el(
     "div",
     { className: "folder-entry", "data-type": docLink.type },
@@ -139,7 +142,14 @@ function buildEntry(docLink) {
         )
   );
 
-  return { node, nameEl, typeEl, openEl, isFolder };
+  return {
+    node,
+    nameEl,
+    typeEl,
+    openEl,
+    isFolder,
+    url: docLink.url,
+  };
 }
 
 function updateEntry(entry, docLink) {
@@ -290,7 +300,8 @@ export const FolderTool = (handle, element) => {
     }
 
     for (const url of [...entries.keys()]) {
-      if (!seen.has(url)) entries.delete(url);
+      if (seen.has(url)) continue;
+      entries.delete(url);
     }
 
     listEl.replaceChildren(...ordered);

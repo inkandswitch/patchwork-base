@@ -67,6 +67,10 @@ class EmbedWidget extends WidgetType {
     label.appendChild(openLink);
 
     const view = document.createElement("patchwork-view");
+    // Name the doc without heads. Resolution (OverlayRepo + the drafts
+    // `repo:handle-descriptor` answer) pins it to the active checkpoint when one
+    // is checked out, so the embed freezes with the document it lives in;
+    // otherwise it renders live.
     view.setAttribute("doc-url", `automerge:${this.docId}`);
     if (this.toolId) view.setAttribute("tool-id", this.toolId);
     // The <patchwork-view> needs an explicit, non-zero height set inline:
@@ -221,11 +225,7 @@ const embedPlugin = ViewPlugin.fromClass(
     update(update: ViewUpdate) {
       // Recompute when the document changes, the selection moves, or the
       // viewport scrolls (so newly-visible markers get decorated).
-      if (
-        update.docChanged ||
-        update.selectionSet ||
-        update.viewportChanged
-      ) {
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
         this.decorations = getEmbedLinks(update.view);
       }
     }
