@@ -17,34 +17,41 @@ function addStyles(textContent: string) {
   document.head.append(el);
 }
 
-export const plugins = [
-  {
-    id: "chee/document-list",
-    type: "patchwork:tool",
-    name: "Document List",
-    supportedDatatypes: ["folder"],
-    icon: "FolderOpen",
-    unlisted: true,
-    async load(): Promise<ToolImplementation<FolderDoc>> {
-      const [{ DocumentListPanel }, styles] = await Promise.all([
-        import("./sideboard/document-list-panel.tsx"),
-        loadStyles(),
-      ]);
-      return (handle, element) => {
-        addStyles(styles);
-        return render(
-          () => (
-            <DocumentListPanel
-              folderUrl={handle.url}
-              repo={element.repo}
-              element={element}
-            />
-          ),
-          element
-        );
-      };
-    },
+const doclist = {
+  id: "chee/document-list",
+  type: "patchwork:tool",
+  name: "Document List",
+  supportedDatatypes: ["folder"],
+  icon: "FolderOpen",
+  unlisted: true,
+  async load(): Promise<ToolImplementation<FolderDoc>> {
+    const [{ DocumentListPanel }, styles] = await Promise.all([
+      import("./sideboard/document-list-panel.tsx"),
+      loadStyles(),
+    ]);
+    return (handle, element) => {
+      addStyles(styles);
+      return render(
+        () => (
+          <DocumentListPanel
+            folderUrl={handle.url}
+            repo={element.repo}
+            element={element}
+          />
+        ),
+        element
+      );
+    };
   },
+};
+
+export const plugins = [
+  doclist,
+  Object.assign({}, doclist, {
+    id: "folder-tree-view",
+    name: "Folder Tree View",
+    icon: "Tree",
+  }),
   {
     id: "chee/account-bar",
     type: "patchwork:tool",
