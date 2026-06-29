@@ -19,7 +19,6 @@ import { render } from "solid-js/web";
 import type {
   TinyPatchworkLayoutDoc,
   ThreepaneConfigDoc,
-  ToolRef,
   ToolSlot,
 } from "./types";
 
@@ -509,8 +508,19 @@ function FrameConfiguratorUI(props: {
   const documentToolbarOptions = createMemo(() =>
     filterToolsByTag([...allTools], "titlebar-tool")
   );
+  // Context tabs accept both: tools (tagged "context-tool", rendered against a
+  // doc) and components (same tag, rendered doc-less). The add list unions them;
+  // the setter stores tools as [id, docId] tuples and components as bare ids.
   const contextToolOptions = createMemo(() =>
     filterToolsByTag([...allTools], "context-tool")
+  );
+  const contextComponentOptions = createMemo(() =>
+    filterToolsByTag([...allComponents], "context-tool")
+  );
+  const contextOptions = createMemo(() =>
+    [...contextToolOptions(), ...contextComponentOptions()].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    )
   );
   // The system tray hosts patchwork:components (not tools), so its options come
   // from the component registry and its entries are stored as bare ids.
@@ -527,8 +537,6 @@ function FrameConfiguratorUI(props: {
   const doctitleIds = () => threepaneDoc()?.doctitle?.tools?.map(slotId);
   const trayIds = () => threepaneDoc()?.tray?.tools?.map(slotId);
   const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map(slotId);
-
-  const toPairs = (ids: string[]): ToolRef[] => ids.map((id) => [id, docUrl]);
 
   // Rebuild the lane from the strip's id list, preserving any entry that was a
   // bare component id (so reordering/removing doesn't turn a component into a
@@ -551,10 +559,19 @@ function FrameConfiguratorUI(props: {
       if (!doc.tray) doc.tray = { tools: [] };
       doc.tray.tools = [...next];
     });
-  // Context tabs are components too, stored bare like the tray.
+  // Context tabs accept tools and components: an id is stored bare when it's a
+  // registered context component (or was already bare), otherwise as a tuple.
   const setContext = (next: string[]) =>
     threepaneHandle()?.change((doc) => {
-      doc.contextbar.tabs = [...next];
+      const components = new Set([
+        ...contextComponentOptions().map((o) => o.id),
+        ...(doc.contextbar.tabs ?? []).filter(
+          (s): s is string => typeof s === "string"
+        ),
+      ]);
+      doc.contextbar.tabs = next.map((id) =>
+        components.has(id) ? id : [id, docUrl]
+      );
     });
 
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(
@@ -601,7 +618,7 @@ function FrameConfiguratorUI(props: {
             label="Context Tools"
             values={contextIds()}
             setValues={setContext}
-            allOptions={contextToolOptions()}
+            allOptions={contextOptions()}
           />
 
           <ToolbarStrip
