@@ -3,7 +3,7 @@ import { For, Show, type Accessor } from "solid-js";
 import type { ToolSlot } from "../types";
 import { ContextTabs } from "./ContextTabs";
 import { DocumentTitle } from "./DocumentTitle";
-import { SlotView } from "./SlotView";
+import { slotId } from "./SlotView";
 
 type FrameTopBarProps = {
   repo: Repo;
@@ -49,11 +49,17 @@ export function FrameTopBar(props: FrameTopBarProps) {
       {/* built-in spacer */}
       <div class="threepane__spacer" />
 
-      {/* configured doctitle tools, at the end on the right, scrollable */}
+      {/* configured doctitle tools, at the end on the right, scrollable.
+          Unlike other lanes these always run against the currently selected
+          main-view doc — they follow whatever document is open. Tuple and bare
+          string are treated the same: take the slot's id as the tool, ignore
+          any doc named in the tuple, and point it at the open doc. */}
       <Show when={props.docUrl() && docToolSlots().length}>
         <div class="threepane__doctitle-tools">
           <For each={docToolSlots()}>
-            {(slot) => <SlotView slot={slot} />}
+            {(slot) => (
+              <patchwork-view tool-id={slotId(slot)} doc-url={props.docUrl()} />
+            )}
           </For>
         </div>
       </Show>
