@@ -16,23 +16,12 @@ import {
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { render } from "solid-js/web";
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-import type { TinyPatchworkLayoutDoc } from "./types";
-=======
->>>>>>> Stashed changes
 import type {
   TinyPatchworkLayoutDoc,
   ThreepaneConfigDoc,
   ToolRef,
-<<<<<<< Updated upstream
-} from "./types";
-=======
   ToolSlot,
 } from "./types";
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
 type ModuleOption = {
   id: string;
@@ -504,19 +493,6 @@ function FrameConfiguratorUI(props: {
     () => props.handle.url
   );
 
-<<<<<<< Updated upstream
-  // The doctitle + contextbar config now live in the threepane config doc; we
-  // edit it here. Entries are [toolId, docId] pairs — the docid is the account
-  // doc (a placeholder; the frame feeds doctitle the selected doc).
-  const [threepaneDoc, threepaneHandle] = useDocument<ThreepaneConfigDoc>(
-    () => accountDoc()?.tools?.["threepane"]
-  );
-
-=======
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-  const allTools = useToolDescriptions();
-=======
   // The doctitle + contextbar config now live in the threepane config doc; we
   // edit it here. Entries are [toolId, docId] pairs — the docid is the account
   // doc (a placeholder; the frame feeds doctitle the selected doc).
@@ -526,7 +502,6 @@ function FrameConfiguratorUI(props: {
 
   const allTools = useDescriptions("patchwork:tool");
   const allComponents = useDescriptions("patchwork:component");
->>>>>>> Stashed changes
 
   const frameOptions = createMemo(() =>
     filterToolsByTag([...allTools], "frame-tool")
@@ -545,27 +520,13 @@ function FrameConfiguratorUI(props: {
 
   const docUrl = props.handle.url;
 
-<<<<<<< Updated upstream
-  const doctitleIds = () =>
-    threepaneDoc()?.doctitle?.tools?.map((ref) => ref[0]);
-  const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map((ref) => ref[0]);
-
-  const toPairs = (ids: string[]): ToolRef[] =>
-    ids.map((id) => [id, docUrl]);
-
-  const setDoctitle = (next: string[]) =>
-    threepaneHandle()?.change((doc) => {
-      doc.doctitle.tools = toPairs(next);
-=======
-<<<<<<< Updated upstream
-=======
-  // doctitle/tray entries may be bare component ids (strings) as well as
-  // [toolId, docId] tuples; the strip UI works in ids either way.
+  // Lane entries may be bare component ids (strings) as well as [toolId, docId]
+  // tuples; the strip/tab UIs work in ids either way.
   const slotId = (slot: ToolSlot) => (typeof slot === "string" ? slot : slot[0]);
 
   const doctitleIds = () => threepaneDoc()?.doctitle?.tools?.map(slotId);
   const trayIds = () => threepaneDoc()?.tray?.tools?.map(slotId);
-  const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map((ref) => ref[0]);
+  const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map(slotId);
 
   const toPairs = (ids: string[]): ToolRef[] => ids.map((id) => [id, docUrl]);
 
@@ -589,17 +550,13 @@ function FrameConfiguratorUI(props: {
     threepaneHandle()?.change((doc) => {
       if (!doc.tray) doc.tray = { tools: [] };
       doc.tray.tools = [...next];
->>>>>>> Stashed changes
     });
+  // Context tabs are components too, stored bare like the tray.
   const setContext = (next: string[]) =>
     threepaneHandle()?.change((doc) => {
-      doc.contextbar.tabs = toPairs(next);
+      doc.contextbar.tabs = [...next];
     });
 
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(
     key: K,
     value: TinyPatchworkLayoutDoc[K]
@@ -640,34 +597,12 @@ function FrameConfiguratorUI(props: {
             docUrl={docUrl}
           />
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-        <ToolbarStrip
-          label="Toolbar"
-          values={accountDoc()!.documentToolbarToolIds}
-          setValues={(next) => setArrayField("documentToolbarToolIds", next)}
-          allOptions={documentToolbarOptions()}
-          docUrl={docUrl}
-        />
-
-        <ContextTabs
-          label="Context Tools"
-          values={accountDoc()!.contextToolIds}
-          setValues={(next) => setArrayField("contextToolIds", next)}
-          allOptions={contextToolOptions()}
-        />
-=======
->>>>>>> Stashed changes
           <ContextTabs
             label="Context Tools"
             values={contextIds()}
             setValues={setContext}
             allOptions={contextToolOptions()}
           />
-<<<<<<< Updated upstream
-        </Show>
-=======
 
           <ToolbarStrip
             label="System Tray"
@@ -678,8 +613,6 @@ function FrameConfiguratorUI(props: {
             previewKind="component"
           />
         </Show>
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
         <Show when={(accountDoc() as any)?.themePreferencesUrl}>
           <div class="config-section">
