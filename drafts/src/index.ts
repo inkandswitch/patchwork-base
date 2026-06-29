@@ -48,8 +48,9 @@ export const plugins: Plugin<any>[] = [
   // so we pass `null` and it can be slotted in without an account doc.
   {
     type: "patchwork:component",
-    id: "drafts-component",
+    id: "drafts",
     name: "Drafts",
+    tags: ["context-tool"],
     async load() {
       const { renderDraftsSidebar } = await import("./main");
       return (element: ToolElement) =>

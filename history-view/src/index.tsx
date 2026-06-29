@@ -55,7 +55,8 @@ export const plugins: Plugin<any>[] = [
   // account doc.
   {
     type: "patchwork:component",
-    id: "history-view-component",
+    id: "history-view",
+    tags: ["context-tool"],
     name: "History",
     icon: "History",
     async load() {

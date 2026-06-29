@@ -18,7 +18,8 @@ export const plugins: Plugin<any>[] = [
   // so we pass `null` and it can be slotted in without an account doc.
   {
     type: "patchwork:component",
-    id: "comments-view-component",
+    id: "comments-view",
+    tags: ["context-tool"],
     name: "Comments",
     async load() {
       const { renderCommentsView } = await import("./main");
