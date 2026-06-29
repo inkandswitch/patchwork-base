@@ -339,6 +339,37 @@ button {
   }
 }
 
+.document-list-item--loading {
+  pointer-events: none;
+  padding-left: calc(1.8rem * var(--depth) + var(--doclist-padding-x));
+}
+
+.document-list-item__skeleton {
+  flex: 1;
+  min-width: 0;
+  max-width: 12rem;
+  height: 0.75em;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--placeholder-line) 25%,
+    color-mix(in oklch, var(--placeholder-line), transparent 65%) 50%,
+    var(--placeholder-line) 75%
+  );
+  background-size: 200% 100%;
+  opacity: 0.35;
+  animation: doclist-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes doclist-skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 .document-list-item__name {
   overflow: hidden;
   text-overflow: ellipsis;

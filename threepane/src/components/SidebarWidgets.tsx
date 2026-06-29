@@ -29,16 +29,19 @@ export function SidebarWidgets(props: {
       <Show
         when={props.widgets().length}
         fallback={
-          <div class="threepane-widgets__empty">
-            <button
-              type="button"
-              class="threepane-widgets__add"
-              disabled={!props.rootFolderUrl() || !props.configHandle()}
-              onClick={addDocumentList}
-            >
-              ＋ Add document list
-            </button>
-          </div>
+          // While the config/root folder are still loading we can't add a
+          // widget yet — show nothing rather than a disabled button.
+          <Show when={props.rootFolderUrl() && props.configHandle()}>
+            <div class="threepane-widgets__empty">
+              <button
+                type="button"
+                class="threepane-widgets__add"
+                onClick={addDocumentList}
+              >
+                ＋ Add document list
+              </button>
+            </div>
+          </Show>
         }
       >
         <For each={props.widgets()}>

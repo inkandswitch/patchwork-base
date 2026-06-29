@@ -41,6 +41,7 @@ import {
 import Folder from "./folder.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { LoadingRow } from "./loading-row.tsx";
 import { NewDocPlaceholder } from "../create-new.tsx";
 import { ShareModal } from "../share-modal.tsx";
 
@@ -264,6 +265,9 @@ export function DocumentList(props: DocumentListProps) {
                   "document-list__item--invisible": !visible(),
                 }}
               >
+                {/* Per-row boundary: a folder still loading its handle shows a
+                    skeleton here without blocking its siblings. */}
+                <Suspense fallback={<LoadingRow depth={props.depth} />}>
                 <Switch>
                 <Match when={doc.type == "folder"}>
                   <Show
@@ -340,6 +344,7 @@ export function DocumentList(props: DocumentListProps) {
                   </Item>
                 </Match>
                 </Switch>
+                </Suspense>
               </div>
             </>
           );

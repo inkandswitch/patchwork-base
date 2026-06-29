@@ -3,13 +3,14 @@ import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
 import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
-import { createSignal } from "solid-js";
+import { createSignal, Suspense } from "solid-js";
 
 import { filter, setFilter, setPendingNewDoc } from "./state.ts";
 import CreateNew from "./create-new.tsx";
 import { createOpenEvent } from "./events.ts";
 import { SearchIcon } from "./icons.tsx";
 import { DocumentList } from "./document-list/document-list.tsx";
+import { LoadingRow } from "./document-list/loading-row.tsx";
 import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
 import { copyMode, isNewDocDrag } from "./dnd/dnd.ts";
@@ -146,17 +147,19 @@ export function DocumentListPanel(props: {
             />
           </div>
         </div>
-        <DocumentList
-          depth={0}
-          repo={props.repo}
-          docs={folder()?.docs}
-          handle={folderHandle.latest!}
-          open={open}
-          hive={props.element.hive}
-          selectedDocUrls={selectedDocUrls()}
-          element={props.element}
-          rootFolderHandle={folderHandle.latest!}
-        />
+        <Suspense fallback={<LoadingRow depth={0} />}>
+          <DocumentList
+            depth={0}
+            repo={props.repo}
+            docs={folder()?.docs}
+            handle={folderHandle.latest!}
+            open={open}
+            hive={props.element.hive}
+            selectedDocUrls={selectedDocUrls()}
+            element={props.element}
+            rootFolderHandle={folderHandle.latest!}
+          />
+        </Suspense>
       </nav>
     </aside>
   );

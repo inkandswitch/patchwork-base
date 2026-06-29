@@ -12,11 +12,19 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { handleFilesDrop } from "./file-drop.ts";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+  Suspense,
+} from "solid-js";
 import { filter, filterMatches, setRenaming, setPendingNewDoc } from "../state.ts";
 import { DocumentList } from "./document-list.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { LoadingRow } from "./loading-row.tsx";
 import { createNew } from "../create-new.tsx";
 import type {
   DatatypeDescription,
@@ -289,18 +297,20 @@ export default function Folder(props: {
         data-depth={depth()}
         style={depthStyle()}
       >
-        <DocumentList
-          docs={folder()?.docs}
-          repo={props.repo}
-          depth={depth() + 1}
-          handle={handle.latest!}
-          open={props.open}
-          hive={props.hive}
-          selectedDocUrls={props.selectedDocUrls}
-          visitedFolders={nextVisitedFolders}
-          element={props.element}
-          rootFolderHandle={props.rootFolderHandle}
-        />
+        <Suspense fallback={<LoadingRow depth={depth() + 1} />}>
+          <DocumentList
+            docs={folder()?.docs}
+            repo={props.repo}
+            depth={depth() + 1}
+            handle={handle.latest!}
+            open={props.open}
+            hive={props.hive}
+            selectedDocUrls={props.selectedDocUrls}
+            visitedFolders={nextVisitedFolders}
+            element={props.element}
+            rootFolderHandle={props.rootFolderHandle}
+          />
+        </Suspense>
       </div>
     </div>
   );
