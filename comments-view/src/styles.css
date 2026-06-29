@@ -35,6 +35,29 @@
   color: var(--comments-fg);
 }
 
+.comments-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--comments-muted-fg);
+}
+
+.comments-panel-header-title {
+  font-weight: 500;
+}
+
+.comments-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--comments-muted-fg);
+}
+
 .comments-thread {
   display: flex;
   flex-direction: column;
@@ -73,6 +96,13 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.comments-thread-doc-level {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--comments-muted-fg);
 }
 
 .comments-thread-header {

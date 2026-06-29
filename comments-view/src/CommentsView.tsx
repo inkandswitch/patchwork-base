@@ -25,7 +25,13 @@ import {
   subscribeDoc,
   subscribe,
 } from "@inkandswitch/patchwork-providers-solid";
-import { createReply, type Comment, type CommentThread } from "./comments";
+import {
+  createDocumentThread,
+  createReply,
+  type Comment,
+  type CommentThread,
+  type DocWithComments,
+} from "./comments";
 
 export function CommentsView(props: { element: HTMLElement }) {
   const repo = useRepo();
@@ -33,6 +39,15 @@ export function CommentsView(props: { element: HTMLElement }) {
   const commentEntries = subscribe<
     { targetUrl: AutomergeUrl; threadUrl: AutomergeUrl }[]
   >(props.element, { type: "patchwork:comments" }, []);
+
+  // The doc to attach untargeted (document-level) comments to: whatever is
+  // currently selected in the main view.
+  const selectedDocUrls = subscribe<AutomergeUrl[]>(
+    props.element,
+    { type: "patchwork:selected-doc" },
+    []
+  );
+  const targetDocUrl = () => selectedDocUrls()[0] as AutomergeUrl | undefined;
 
   // `selection` is read-only input (driven by the active editor), `highlight`
   // is our output. Splitting them avoids the feedback loop a single shared
@@ -91,6 +106,32 @@ export function CommentsView(props: { element: HTMLElement }) {
 
   const renderableThreadUrls = createMemo<AutomergeUrl[]>(() =>
     threadUrls().filter((url) => threadsWithVisibleTarget().has(url))
+  );
+
+  // Document-level threads target the whole document (a bare url, no `/` path
+  // or `#` heads), so they have no resolvable range and never pass the
+  // visible-target filter. They should always be listed regardless.
+  const docLevelThreadUrls = createMemo<Set<AutomergeUrl>>(() => {
+    const map = threadTargetUrlMap();
+    const set = new Set<AutomergeUrl>();
+    for (const [threadUrl, targets] of map) {
+      if (
+        targets.length > 0 &&
+        targets.every((t) => !t.includes("/") && !t.includes("#"))
+      ) {
+        set.add(threadUrl);
+      }
+    }
+    return set;
+  });
+
+  // What the panel actually renders: ranged threads whose target is still
+  // visible, plus all document-level threads.
+  const displayedThreadUrls = createMemo<AutomergeUrl[]>(() =>
+    threadUrls().filter(
+      (url) =>
+        threadsWithVisibleTarget().has(url) || docLevelThreadUrls().has(url)
+    )
   );
 
   const overlappingThreads = createMemo<AutomergeUrl[]>(() =>
@@ -158,20 +199,48 @@ export function CommentsView(props: { element: HTMLElement }) {
     });
   });
 
+  const canAddComment = () =>
+    Boolean(targetDocUrl()) && Boolean(currentContactUrl());
+
+  const onAddComment = async () => {
+    const url = targetDocUrl();
+    const contactUrl = currentContactUrl();
+    if (!url || !contactUrl) return;
+    const handle = await repo.find<DocWithComments>(url);
+    createDocumentThread({ docHandle: handle, contactUrl });
+  };
+
   return (
     <div class="comments-panel">
-      <For each={renderableThreadUrls()}>
-        {(threadUrl) => (
-          <ThreadView
-            threadUrl={threadUrl}
-            repo={repo}
-            primaryThreadUrl={primaryThreadUrl}
-            secondaryThreadUrls={secondaryThreadUrls}
-            onSelectThread={onSelectThread}
-            currentContactUrl={currentContactUrl}
-          />
-        )}
-      </For>
+      <div class="comments-panel-header">
+        <span class="comments-panel-header-title">Comments</span>
+        <Show when={canAddComment()}>
+          <button
+            class="comment-btn"
+            onClick={onAddComment}
+            title="Comment on this document"
+          >
+            Add comment
+          </button>
+        </Show>
+      </div>
+      <Show
+        when={displayedThreadUrls().length > 0}
+        fallback={<div class="comments-empty">No comments yet</div>}
+      >
+        <For each={displayedThreadUrls()}>
+          {(threadUrl) => (
+            <ThreadView
+              threadUrl={threadUrl}
+              repo={repo}
+              primaryThreadUrl={primaryThreadUrl}
+              secondaryThreadUrls={secondaryThreadUrls}
+              onSelectThread={onSelectThread}
+              currentContactUrl={currentContactUrl}
+            />
+          )}
+        </For>
+      </Show>
     </div>
   );
 }
@@ -355,6 +424,16 @@ function ThreadView(props: {
     onCleanup(() => h.off("change", onChange));
   });
 
+  // A document-level thread targets the whole document: its ref is a bare
+  // document url (no `/` path or `#` heads pointing at a range within it).
+  const isDocLevel = createMemo(() => {
+    const refs = thread()?.refs ?? [];
+    return (
+      refs.length > 0 &&
+      refs.every((ref) => !ref.includes("/") && !ref.includes("#"))
+    );
+  });
+
   const isPrimary = createMemo(
     () => props.primaryThreadUrl() === props.threadUrl
   );
@@ -464,6 +543,9 @@ function ThreadView(props: {
           onClick={onClickThreadCard}
         >
           <div class="comments-thread-card-body">
+            <Show when={isDocLevel()}>
+              <span class="comments-thread-doc-level">On this document</span>
+            </Show>
             <For each={commentIds()}>
               {(commentId) => {
                 const commentHandle = createMemo(() => {
