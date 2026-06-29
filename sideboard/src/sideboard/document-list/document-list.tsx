@@ -31,10 +31,17 @@ import {
   Suspense,
   Switch,
 } from "solid-js";
-import { filter, filterMatches, setRenaming } from "../state.ts";
+import {
+  filter,
+  filterMatches,
+  setRenaming,
+  pendingNewDoc,
+  setPendingNewDoc,
+} from "../state.ts";
 import Folder from "./folder.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { NewDocPlaceholder } from "../create-new.tsx";
 import { ShareModal } from "../share-modal.tsx";
 
 // TODO: Re-enable when secure copy feature is ready
@@ -71,6 +78,33 @@ export function DocumentList(props: DocumentListProps) {
   function removeItem(index: number) {
     props.handle.change((folder) => deleteAt(folder.docs, index));
   }
+
+  // True when a "new document" drag/click targeted this folder's list.
+  const pendingHere = () =>
+    !!props.handle && pendingNewDoc()?.containerUrl === props.handle.url;
+
+  // Commit the pending placeholder: insert the freshly created doc at the drop
+  // index, open it, and drop straight into rename mode.
+  const commitPending = (docLink: DocLink) => {
+    const target = pendingNewDoc();
+    if (!target) return;
+    const index = target.index;
+    setPendingNewDoc(null);
+    props.handle.change((folder) => folder.docs.splice(index, 0, docLink));
+    props.open(docLink);
+    setRenaming(props.handle.url + "/" + index);
+  };
+
+  const placeholder = () => (
+    <div class="sideboard__item sideboard__item--visible">
+      <NewDocPlaceholder
+        repo={props.repo}
+        hive={props.hive}
+        onCreate={commitPending}
+        onDismiss={() => setPendingNewDoc(null)}
+      />
+    </div>
+  );
 
   async function makeSecureCopy(docLink: DocLink) {
     if (!props.hive) return;
@@ -219,14 +253,18 @@ export function DocumentList(props: DocumentListProps) {
           });
 
           return (
-            <div
-              classList={{
-                sideboard__item: true,
-                "sideboard__item--visible": visible(),
-                "sideboard__item--invisible": !visible(),
-              }}
-            >
-              <Switch>
+            <>
+              <Show when={pendingHere() && pendingNewDoc()!.index === index()}>
+                {placeholder()}
+              </Show>
+              <div
+                classList={{
+                  sideboard__item: true,
+                  "sideboard__item--visible": visible(),
+                  "sideboard__item--invisible": !visible(),
+                }}
+              >
+                <Switch>
                 <Match when={doc.type == "folder"}>
                   <Show
                     when={!visitedFolders.has(doc.url)}
@@ -244,6 +282,8 @@ export function DocumentList(props: DocumentListProps) {
                       depth={props.depth}
                       repo={props.repo}
                       removeFromParent={remove}
+                      parentFolderHandle={props.handle}
+                      itemIndex={index()}
                       open={props.open}
                       name={doc.name}
                       hive={props.hive}
@@ -299,11 +339,17 @@ export function DocumentList(props: DocumentListProps) {
                     </Show>
                   </Item>
                 </Match>
-              </Switch>
-            </div>
+                </Switch>
+              </div>
+            </>
           );
         }}
       </For>
+      <Show
+        when={pendingHere() && pendingNewDoc()!.index >= (props.docs?.length ?? 0)}
+      >
+        {placeholder()}
+      </Show>
       <Show when={shareModalUrl() && props.hive}>
         <ShareModal
           isOpen={!!shareModalUrl()}

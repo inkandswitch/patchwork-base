@@ -18,16 +18,5 @@ export const plugins = [
       const { FolderTool } = await import('./tool.js');
       return FolderTool;
     },
-  },
-  {
-    type: 'patchwork:datatype',
-    id: 'file',
-    name: 'File',
-    icon: 'File',
-    unlisted: true,
-    async load() {
-      const { FileDatatype } = await import('./datatype.js');
-      return FileDatatype;
-    },
-  },
+  }
 ];

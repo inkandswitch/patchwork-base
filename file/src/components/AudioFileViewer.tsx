@@ -1,0 +1,28 @@
+import {createMemo} from "solid-js"
+import type {FileDoc} from "../types"
+import {isBinaryFileDoc} from "../datatype"
+
+export const isAudioFile = (doc: FileDoc) => {
+	return doc.mimeType?.startsWith("audio/")
+}
+
+export function AudioFileViewer(props: {doc: FileDoc}) {
+	const audioUrl = createMemo(() => {
+		if (isBinaryFileDoc(props.doc)) {
+			return URL.createObjectURL(
+				new Blob([props.doc.content as BlobPart], {type: props.doc.mimeType})
+			)
+		}
+		return undefined
+	})
+
+	return (
+		<div class="flex items-center justify-center h-full">
+			{audioUrl() ? (
+				<audio src={audioUrl()} controls />
+			) : (
+				<div class="text-gray-500">No audio to play</div>
+			)}
+		</div>
+	)
+}

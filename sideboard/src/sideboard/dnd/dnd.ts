@@ -4,6 +4,16 @@ import type { AutomergeUrl } from "@automerge/automerge-repo";
 export const [dragging, setDragging] = createSignal(false);
 export const [copyMode, setCopyMode] = createSignal(false);
 
+// Dragging the "new document" button. Carries no document — on drop it asks the
+// list to open a pending-doc placeholder at the drop location instead of moving
+// anything.
+export const NEW_DOC_DND_TYPE = "application/x-patchwork-new-doc";
+export const [newDocDragging, setNewDocDragging] = createSignal(false);
+
+export function isNewDocDrag(event: DragEvent) {
+  return event.dataTransfer?.types.includes(NEW_DOC_DND_TYPE) ?? false;
+}
+
 export type DropPosition = "above" | "below" | "inside" | null;
 
 // Drop target is a plain variable — not a SolidJS signal.

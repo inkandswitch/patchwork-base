@@ -11,5 +11,6 @@
     "serve:tools": "node scripts/serve-tools.mjs",
     "dev:tools": "pnpm build:static && pnpm serve:tools",
     "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod"
-  }
+  },
+  "packageManager": "pnpm@11.9.0"
 }

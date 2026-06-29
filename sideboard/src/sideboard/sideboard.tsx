@@ -10,7 +10,7 @@ type TinyPatchworkAccountDoc = {
 };
 
 import type { PatchworkToolProps } from "../types.ts";
-import { filter, setFilter } from "./state.ts";
+import { filter, setFilter, setPendingNewDoc } from "./state.ts";
 import CreateNew from "./create-new.tsx";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { createOpenEvent } from "./events.ts";
@@ -21,7 +21,7 @@ import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { createSignal, Show } from "solid-js";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
-import { copyMode } from "./dnd/dnd.ts";
+import { copyMode, isNewDocDrag } from "./dnd/dnd.ts";
 import { executeDrop } from "./dnd/operations.ts";
 import { getDndPayload, hasDocumentDrag } from "./dnd/payload.ts";
 
@@ -52,24 +52,6 @@ export function Sideboard(
 
   return (
     <aside class="sideboard">
-      <header class="sideboard-header">
-        <CreateNew
-          changeFolder={(fn) => folderHandle()?.change(fn)}
-          repo={props.repo}
-          hive={props.element.hive}
-          open={open}
-        />
-      </header>
-      <div class="sideboard__filter-container sideboard-widget">
-        <SearchIcon />
-        <input
-          name="filter"
-          class="sideboard__filter"
-          placeholder="Filter by title"
-          value={filter()}
-          onInput={(event) => setFilter(event.target.value.toLowerCase())}
-        />
-      </div>
       <nav
         class="sideboard__doclist sideboard-widget"
         classList={{
@@ -86,7 +68,8 @@ export function Sideboard(
             return;
           }
           // Item drags (dropping into the list's empty space appends to root)
-          if (hasDocumentDrag(event.dataTransfer)) {
+          // and new-doc drags both append to the root list.
+          if (hasDocumentDrag(event.dataTransfer) || isNewDocDrag(event)) {
             event.preventDefault();
             event.dataTransfer!.dropEffect = copyMode() ? "copy" : "move";
           }
@@ -100,6 +83,17 @@ export function Sideboard(
         onDrop={(event: DragEvent) => {
           event.preventDefault();
           setIsDraggingFile(false);
+
+          // New-doc drag onto the list's empty space: append a placeholder at
+          // the end of the root list.
+          if (isNewDocDrag(event)) {
+            const h = folderHandle();
+            if (h) {
+              const len = h.doc()?.docs?.length ?? 0;
+              setPendingNewDoc({ containerUrl: h.url, index: len });
+            }
+            return;
+          }
 
           const files = event.dataTransfer?.files;
           if (files && files.length > 0 && folderHandle()) {
@@ -140,6 +134,26 @@ export function Sideboard(
           );
         }}
       >
+        <div class="sideboard__toolbar">
+          <CreateNew
+            square
+            draggable
+            changeFolder={(fn) => folderHandle()?.change(fn)}
+            repo={props.repo}
+            hive={props.element.hive}
+            open={open}
+          />
+          <div class="sideboard__filter-container">
+            <SearchIcon />
+            <input
+              name="filter"
+              class="sideboard__filter"
+              placeholder="Filter by title"
+              value={filter()}
+              onInput={(event) => setFilter(event.target.value.toLowerCase())}
+            />
+          </div>
+        </div>
         <DocumentList
           depth={0}
           repo={props.repo}

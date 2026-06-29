@@ -23,8 +23,10 @@ type SidebarProps = {
  * Props are accessed via `props.x` (not destructured) to preserve Solid reactivity.
  */
 export function Sidebar(props: SidebarProps) {
+  // Collapsed sidebars shrink to a 1px strip that still shows the divider line
+  // (and its hover glow + grab pill), so it doubles as a drag-to-reopen handle.
   const widthStyle = () =>
-    `${props.isCollapsed() ? (props.side === "right" ? 2 : 0) : props.width()}px`;
+    `${props.isCollapsed() ? 1 : props.width()}px`;
 
   const content = () => {
     if (props.children !== undefined) return props.children;
@@ -59,9 +61,10 @@ export function Sidebar(props: SidebarProps) {
       {props.side === "left" && props.isCollapsed() && (
         <button
           onClick={(e) => props.onToggleClick(props.side, e)}
-          class="sidebar-toggle"
+          onMouseDown={(e) => props.onMouseDown(props.side, e)}
+          class="sidebar-toggle sidebar-toggle--resizable"
           aria-label="Expand sidebar"
-          title="Expand sidebar"
+          title="Click to expand, drag to resize"
         />
       )}
 
@@ -80,9 +83,10 @@ export function Sidebar(props: SidebarProps) {
       {props.side === "right" && props.isCollapsed() && (
         <button
           onClick={(e) => props.onToggleClick(props.side, e)}
-          class="sidebar-toggle"
+          onMouseDown={(e) => props.onMouseDown(props.side, e)}
+          class="sidebar-toggle sidebar-toggle--resizable"
           aria-label="Expand sidebar"
-          title="Expand sidebar"
+          title="Click to expand, drag to resize"
         />
       )}
 

@@ -42,4 +42,14 @@ export const plugins = [
       return markdownLinks();
     },
   },
+  {
+    type: "codemirror:extension",
+    id: "codemirror-embed",
+    name: "Patchwork Embed",
+    supportedDatatypes: ["essay", "markdown"],
+    async load(): Promise<Extension> {
+      const { markdownEmbed } = await import("./extensions/embed.js");
+      return markdownEmbed();
+    },
+  },
 ];

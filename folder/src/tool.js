@@ -1,6 +1,76 @@
-import { parseAutomergeUrl } from "@automerge/automerge-repo";
+import {
+  parseAutomergeUrl,
+  isValidAutomergeUrl,
+} from "@automerge/automerge-repo";
 import "@inkandswitch/patchwork-elements";
 import styles from "./styles.css";
+
+// MIME types we can extract document drags from, in order of preference.
+// These mirror what the sideboard sets on dragstart so dropping a sidebar
+// item into the folder view adds it to the folder.
+const DND_DATA_TYPES = [
+  "text/x-patchwork-dnd",
+  "text/x-patchwork-urls",
+  "text/uri-list",
+  "text/plain",
+];
+
+function hasDocumentDrag(dataTransfer) {
+  return Boolean(
+    dataTransfer &&
+      DND_DATA_TYPES.some((type) => dataTransfer.types.includes(type))
+  );
+}
+
+function urlFromText(text) {
+  const trimmed = text.trim();
+  if (isValidAutomergeUrl(trimmed)) return trimmed;
+  // patchwork web links carry the document id in the fragment: #doc=<documentId>
+  const docId = trimmed.match(/#doc=([^&\s]+)/)?.[1];
+  if (docId && isValidAutomergeUrl(`automerge:${docId}`)) {
+    return `automerge:${docId}`;
+  }
+  return null;
+}
+
+// Extract the dragged documents from a drop event. Returns an array of
+// { url, name?, type? } items, or an empty array if there's nothing droppable.
+function getDndItems(event) {
+  const data = event.dataTransfer;
+  if (!data) return [];
+
+  const dndData = data.getData("text/x-patchwork-dnd");
+  if (dndData) {
+    try {
+      const parsed = JSON.parse(dndData);
+      if (Array.isArray(parsed?.items) && parsed.items.length > 0) {
+        return parsed.items.filter((item) => isValidAutomergeUrl(item?.url));
+      }
+    } catch {
+      // fall through to the other types
+    }
+  }
+
+  const urlData = data.getData("text/x-patchwork-urls");
+  if (urlData) {
+    try {
+      const urls = JSON.parse(urlData);
+      const items = (Array.isArray(urls) ? urls : [])
+        .filter((url) => isValidAutomergeUrl(url))
+        .map((url) => ({ url }));
+      if (items.length > 0) return items;
+    } catch {
+      // fall through to the other types
+    }
+  }
+
+  const text = data.getData("text/uri-list") || data.getData("text/plain");
+  return text
+    .split(/\r?\n/)
+    .map(urlFromText)
+    .filter((url) => url !== null)
+    .map((url) => ({ url }));
+}
 
 function el(tag, attrs, ...children) {
   const node = document.createElement(tag);
@@ -104,6 +174,72 @@ export const FolderTool = (handle, element) => {
   );
 
   element.append(styleEl);
+
+  // --- drag-and-drop: accept documents dragged in from the sidebar ---
+
+  // dragenter/dragleave fire for every descendant, so track nesting depth to
+  // know when the pointer has actually left the folder view.
+  let dragDepth = 0;
+
+  function endDrag() {
+    dragDepth = 0;
+    shell.removeAttribute("data-drop-active");
+  }
+
+  function addDroppedDocs(event) {
+    const folder = handle.doc();
+    if (!folder) return;
+
+    const existing = new Set(folder.docs.map((docLink) => docLink.url));
+    const selfUrl = handle.url;
+
+    const links = [];
+    for (const item of getDndItems(event)) {
+      if (item.url === selfUrl) continue; // don't nest a folder inside itself
+      if (existing.has(item.url)) continue; // already here
+      existing.add(item.url); // de-dupe within a single drop too
+      links.push({
+        url: item.url,
+        name: item.name || "Untitled",
+        type: item.type || "",
+      });
+    }
+
+    if (links.length === 0) return;
+
+    handle.change((doc) => {
+      doc.docs.push(...links);
+    });
+  }
+
+  shell.addEventListener("dragenter", (event) => {
+    if (!hasDocumentDrag(event.dataTransfer)) return;
+    event.preventDefault();
+    dragDepth++;
+    shell.setAttribute("data-drop-active", "");
+  });
+
+  shell.addEventListener("dragover", (event) => {
+    if (!hasDocumentDrag(event.dataTransfer)) return;
+    event.preventDefault();
+    // "link": dropping here adds a new DocLink to the same automerge url — the
+    // doc isn't moved or cloned. Requires the source's effectAllowed to permit
+    // link (the sideboard sets "all").
+    event.dataTransfer.dropEffect = "link";
+  });
+
+  shell.addEventListener("dragleave", (event) => {
+    if (!hasDocumentDrag(event.dataTransfer)) return;
+    dragDepth--;
+    if (dragDepth <= 0) endDrag();
+  });
+
+  shell.addEventListener("drop", (event) => {
+    if (!hasDocumentDrag(event.dataTransfer)) return;
+    event.preventDefault();
+    endDrag();
+    addDroppedDocs(event);
+  });
 
   let mounted = null;
 

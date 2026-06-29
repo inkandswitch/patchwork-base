@@ -12,7 +12,7 @@ import {
   isValidDocumentId,
   parseAutomergeUrl,
 } from "@automerge/automerge-repo";
-import { embedTheme } from "./theme.ts";
+import { embedTheme } from "../themes/embed.ts";
 import { openLinkIcon } from "./icons.ts";
 import { hasDocumentDrag, getDocumentDragPayload } from "./dnd.ts";
 
@@ -235,6 +235,6 @@ const embedPlugin = ViewPlugin.fromClass(
   }
 );
 
-export function codeMirrorEmbed() {
+export function markdownEmbed() {
   return [embedPlugin, embedTheme, embedDropHandlers()];
 }

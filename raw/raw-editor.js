@@ -7,6 +7,7 @@ import {isValidAutomergeUrl, isImmutableString} from "@automerge/automerge-repo"
 const ROW_H = 24
 const OVERSCAN = 30
 const INDENT = 18
+const ROOT_ID = "\x00root"
 
 // ── styles (must be before use) ──────────────────────────────────────────────
 
@@ -430,7 +431,18 @@ function flattenInto(obj, exp, path, depth, rows, parentIsArray) {
 
 function flattenDoc(doc, exp) {
   let rows = []
-  flattenInto(doc, exp, [], 0, rows)
+  if (!isCollection(doc)) {
+    flattenInto(doc, exp, [], 0, rows)
+    return rows
+  }
+  let isArr = Array.isArray(doc)
+  let count = isArr ? doc.length : Object.keys(doc).length
+  let expanded = exp.has(ROOT_ID)
+  rows.push({id: ROOT_ID, type: "node", root: true, depth: 0, path: [], key: "", value: doc, coll: true, isArr, count, expanded, parentIsArray: false})
+  if (expanded) {
+    flattenInto(doc, exp, [], 1, rows, isArr)
+    rows.push({id: ROOT_ID + "\x01close", type: "close", depth: 0, isArr})
+  }
   return rows
 }
 
@@ -701,7 +713,7 @@ function RawEditorApp(props) {
 
   // ── state ──
   let [doc, setDoc] = createSignal(handle.doc())
-  let [exp, setExp] = createSignal(new Set())
+  let [exp, setExp] = createSignal(new Set([ROOT_ID]))
   let [scrollTop, setScrollTop] = createSignal(0)
   let [viewportH, setViewportH] = createSignal(600)
   let [editing, setEditing] = createSignal(null)  // {pk, path, value, mode:"value"} or {pk, path, key, mode:"key"}
@@ -722,7 +734,7 @@ function RawEditorApp(props) {
     let d = doc()
     if (!d || inited) return
     inited = true
-    let set = new Set()
+    let set = new Set([ROOT_ID])
     autoExpand(d, 3, [], 0, set)
     setExp(set)
   })
@@ -960,6 +972,7 @@ function RawEditorApp(props) {
         ? html`<span class="re-toggle" onClick=${() => toggle(row.id)}><span class="re-icon" innerHTML=${row.expanded ? ICONS.chevronDown : ICONS.chevronRight} /></span>`
         : html`<span class="re-toggle-spacer" />`}
       ${() => {
+        if (row.root) return ""
         let ed = editing()
         if (ed && ed.pk === row.id && ed.mode === "key") {
           return html`<${KeyEditor} initialKey=${ed.key} confirm=${confirmKeyEdit} cancel=${(_) => setEditing(null)} />`
@@ -967,7 +980,7 @@ function RawEditorApp(props) {
         return html`<span class=${row.parentIsArray ? "re-key re-key-index" : "re-key"}
           on:dblclick=${() => { if (!row.parentIsArray) startKeyEdit(row) }}>${row.parentIsArray ? row.key : JSON.stringify(String(row.key))}</span>`
       }}
-      <span class="re-colon">: </span>
+      ${row.root ? "" : html`<span class="re-colon">: </span>`}
       ${() => {
         let ed = editing()
         if (ed && ed.pk === row.id && ed.mode === "value") {
@@ -997,8 +1010,8 @@ function RawEditorApp(props) {
           ><span class="re-icon" innerHTML=${ICONS.plus} /></span>` : ""}
         <span class="re-act" data-action="copy" title="Copy value"
           ><span class="re-icon" innerHTML=${ICONS.copy} /></span>
-        <span class="re-act" data-action="delete" title="Delete"
-          ><span class="re-icon" innerHTML=${ICONS.trash} /></span>
+        ${row.root ? "" : html`<span class="re-act" data-action="delete" title="Delete"
+          ><span class="re-icon" innerHTML=${ICONS.trash} /></span>`}
       </span>
     </div>
     ${() => {

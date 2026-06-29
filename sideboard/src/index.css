@@ -2,15 +2,20 @@
 :root,
 :host,
 [theme] {
-  --sideboard-fill: light-dark(
-    color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
-    black
+  --sideboard-fill: var(
+    --studio-chrome,
+    light-dark(
+      color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
+      black
+    )
   );
   --sideboard-fill-offset: color-mix(
     in oklab,
     var(--sideboard-fill),
     oklch(1 0 0 / 1) 10%
   );
+  /* the footer sits a touch darker than the sideboard surface. */
+  --sideboard-footer-fill: var(--studio-chrome-fill-offset-10);
 
   --sideboard-line: var(--studio-line, black);
   --sideboard-widget-fill: var(--studio-fill, white);
@@ -46,6 +51,10 @@
   --sideboard-muted: var(--studio-line-offset-40, #666);
   --sideboard-border: var(--studio-fill-offset-10, #e5e5e5);
   --sideboard-border-strong: var(--studio-fill-offset-20, #ccc);
+  /* subtle divider on the sideboard's chrome surface - the same base-theme
+     token the patchwork-frame sidebar divider uses (chrome mixed toward the
+     chrome ink, so it tracks the palette and reads correctly light/dark). */
+  --sideboard-divider: var(--studio-chrome-offset-20, #d4d4d4);
   --sideboard-added: var(--studio-added, #35f7ca);
   --sideboard-danger: var(--studio-danger, #ff6a90);
   --sideboard-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
@@ -74,6 +83,11 @@ button {
   gap: 0.75rem;
   font-family: var(--sideboard-family);
   padding-inline: var(--sideboard-padding-x);
+  /* Space above the doclist. Defaults to just the top safe-area inset; hosts
+     like patchwork-frame override --sideboard-top-margin to also clear their
+     own header. Declared via the var() fallback (not on :host) so an ancestor's
+     value can cascade in. */
+  padding-top: var(--sideboard-top-margin, env(safe-area-inset-top, 0px));
   padding-bottom: env(safe-area-inset-bottom);
   --depth: 0;
   .sideboard-close-button {
@@ -95,35 +109,86 @@ button {
   }
 }
 
-.sideboard-header {
-  flex-shrink: 0;
-  container-type: inline-size;
-  height: 4rem;
+.create-new-button {
   display: flex;
-  overflow: hidden;
-  justify-content: space-between;
+  padding-inline: 0.75rem;
+  padding-block: 0.375rem;
+  border: none;
+  border-radius: var(--sideboard-radius);
+  background: var(--sideboard-create-new-fill);
+  color: var(--sideboard-line);
+  font-weight: 400;
   align-items: center;
-  gap: 1rem;
+  justify-content: start;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  text-align: left;
+  gap: 1ex;
+  position: relative;
+  flex-shrink: 0;
+}
 
-  .create-new-button {
-    display: flex;
-    padding-inline: 0.75rem;
-    padding-block: 0.375rem;
-    border: 2px solid var(--sideboard-create-new-border-line);
-    border-radius: var(--sideboard-radius);
-    background: var(--sideboard-create-new-fill);
-    color: var(--sideboard-line);
-    font-weight: 400;
-    width: 100%;
-    align-items: center;
-    justify-content: start;
-    white-space: nowrap;
-    font-size: 0.9rem;
-    text-align: left;
-    gap: 1ex;
-    position: relative;
-    flex-shrink: 0;
-  }
+/* square, icon-only variant used in the doclist toolbar; also the drag handle
+   for creating a doc at a specific spot. */
+.create-new-button--square {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  justify-content: center;
+  cursor: grab;
+  /* icon rides a little paler than the full ink at rest */
+  color: color-mix(in oklch, var(--sideboard-line), transparent 35%);
+  transition:
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+/* darken and grow a little buttony shadow on hover */
+.create-new-button--square:hover {
+  color: var(--sideboard-line);
+  box-shadow: var(--studio-shadow, 0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px rgb(0 0 0 / 0.06));
+}
+
+.create-new-button--square:active {
+  cursor: grabbing;
+}
+
+/* the visible button handles click + drag; a 0-size aria-hidden Kobalte trigger
+   overlays it purely to anchor the dropdown menu. */
+.create-new-button-anchor {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.create-new-button-anchor__trigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: none;
+}
+
+/* sticky toolbar pinned to the top of the scrolling doclist: square new-doc
+   button + filter, laid out horizontally. */
+.sideboard__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem;
+  background: var(--sideboard-widget-fill);
+  border-bottom: 1px solid var(--sideboard-divider);
+}
+
+.sideboard__toolbar .sideboard__filter-container {
+  flex: 1;
+  min-width: 0;
 }
 
 .icon {
@@ -160,7 +225,6 @@ button {
   padding-top: 0.375rem;
   padding-bottom: 0.375rem;
   border: none;
-  box-shadow: 0 1px 2px rgba(0, 20, 50, 0.05);
   border-radius: var(--sideboard-radius);
 
   &::placeholder {
@@ -209,14 +273,6 @@ button {
   color: var(--sidebar-widget-line);
   cursor: default;
   position: relative;
-
-  .create-new-button {
-    margin-left: auto;
-  }
-
-  .create-new-button__text {
-    display: none;
-  }
 
   &:focus-visible {
     outline-color: #000;
@@ -359,19 +415,8 @@ button {
   margin-inline: calc(-1 * var(--sideboard-padding-x));
   background: var(--sideboard-footer-fill);
   color: var(--sideboard-line);
-  border-top: 1px solid
-    color-mix(
-      in oklab,
-      color-mix(in oklab, var(--sideboard-fill), oklch(1 0 0 / 1) 10%),
-      oklch(0 0 0 / 1) 4%
-    );
+  border-top: 1px solid var(--sideboard-divider);
   margin-top: auto;
-  box-shadow: 0 -1px 1px
-    color-mix(
-      in oklab,
-      color-mix(in oklab, var(--sideboard-fill), oklch(1 0 0 / 1) 10%),
-      oklch(0 0 0 / 1) 4%
-    );
   > button {
     border: 1px solid transparent;
     padding-inline: 0.25rem;
@@ -379,18 +424,12 @@ button {
     border-radius: 3px;
     white-space: nowrap;
     &:hover {
-      border: 1px solid
-        color-mix(
-          in oklab,
-          color-mix(in oklab, var(--sideboard-fill), oklch(1 0 0 / 1) 10%),
-          oklch(0 0 0 / 1) 4%
-        );
+      border: 1px solid var(--sideboard-divider);
     }
   }
 }
 
 .sideboard-widget {
-  margin-top: 0.5rem;
   width: 100%;
   background: var(--sideboard-widget-fill);
   color: var(--sideboard-widget-line);
@@ -400,8 +439,11 @@ button {
   display: none;
 }
 
-.sideboard__filter-container:has(~ .sideboard__doclist:empty) {
-  display: none;
+/* the pending "New document" row created by dropping the new-doc button:
+   renders like a normal list item, but italic and faded. */
+.document-list-placeholder {
+  font-style: italic;
+  color: var(--placeholder-line);
 }
 
 .popmenu__trigger,

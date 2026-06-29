@@ -13,8 +13,7 @@ import type {
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { handleFilesDrop } from "./file-drop.ts";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
-import CreateNew from "../create-new.tsx";
-import { filter, filterMatches, setRenaming } from "../state.ts";
+import { filter, filterMatches, setRenaming, setPendingNewDoc } from "../state.ts";
 import { DocumentList } from "./document-list.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
@@ -24,6 +23,7 @@ import {
   setDropTarget,
   clearDropTarget,
   copyMode,
+  isNewDocDrag,
 } from "../dnd/dnd.ts";
 import { executeDrop } from "../dnd/operations.ts";
 import { getDndPayload } from "../dnd/payload.ts";
@@ -41,6 +41,8 @@ export default function Folder(props: {
   visitedFolders?: Set<AutomergeUrl>;
   element: PatchworkViewElement;
   rootFolderHandle: DocHandle<FolderDoc>;
+  parentFolderHandle?: DocHandle<FolderDoc>;
+  itemIndex?: number;
 }) {
   const [ref, setRef] = createSignal<HTMLElement>();
   const [expanded, setExpanded] = createSignal(false);
@@ -194,7 +196,18 @@ export default function Folder(props: {
         const target = getDropTarget();
 
         if (target?.position === "inside") {
-          handleDropIntoFolder(event, props.url);
+          // New-doc drag: open a pending placeholder at the top of this folder
+          // instead of moving a document into it. Expand the folder so the
+          // placeholder is visible.
+          if (isNewDocDrag(event)) {
+            const h = handle();
+            if (h) {
+              setExpanded(true);
+              setPendingNewDoc({ containerUrl: h.url, index: 0 });
+            }
+          } else {
+            handleDropIntoFolder(event, props.url);
+          }
         }
         clearDropTarget();
       }}
@@ -213,6 +226,8 @@ export default function Folder(props: {
         element={props.element}
         repo={props.repo}
         rootFolderHandle={props.rootFolderHandle}
+        parentFolderHandle={props.parentFolderHandle}
+        itemIndex={props.itemIndex}
         isExpanded={expanded()}
         onToggleExpand={() => setExpanded((yn) => !yn)}
         openWith={(toolId) => {
@@ -244,13 +259,6 @@ export default function Folder(props: {
           name={folder()?.title ?? props.name}
           id={props.url}
           rename={rename}
-        />
-        <CreateNew
-          context={folder()?.title ?? props.name ?? ""}
-          repo={props.repo}
-          hive={props.hive}
-          changeFolder={(fn) => handle()?.change(fn)}
-          open={props.open}
         />
       </Item>
 
