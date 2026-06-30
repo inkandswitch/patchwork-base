@@ -33,6 +33,9 @@ export type DraftDoc = {
   drafts: AutomergeUrl[];
   clones: Record<AutomergeUrl, CloneEntry>;
   mergedAt?: number;
+  // An optional user-given name shown on the draft's card. Missing means the
+  // card falls back to the generic "Draft" label.
+  name?: string;
 };
 
 // How to show one document inside a frozen "this is how it looked back then"
@@ -110,6 +113,9 @@ export type DraftSummary = {
   members: DraftMemberDoc[];
   // How many sub-drafts branch off this one, shown on the card.
   childCount: number;
+  // The draft's user-given name, if it has one (see DraftDoc.name). Undefined
+  // for Main and for unnamed drafts.
+  name?: string;
 };
 
 // The whole list shown in the sidebar: the Main entry plus all the open

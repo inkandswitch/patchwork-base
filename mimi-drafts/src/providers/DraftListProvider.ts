@@ -395,6 +395,7 @@ export const DraftListProvider = (element: HTMLElement) => {
         url,
         members: clonesToMembers(doc.clones),
         childCount: doc.drafts.length,
+        name: doc.name,
       });
     }
     return { main: computeMainSummary(), drafts };
@@ -576,6 +577,7 @@ function summariesEqual(a: DraftSummary, b: DraftSummary): boolean {
   return (
     a.url === b.url &&
     a.childCount === b.childCount &&
+    a.name === b.name &&
     memberListsEqual(a.members, b.members)
   );
 }

@@ -162,6 +162,58 @@
   font-weight: 500;
 }
 
+.draft-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-card-rename {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0.125rem;
+  border: none;
+  border-radius: var(--drafts-radius-sm);
+  background: transparent;
+  color: var(--drafts-muted-fg);
+  cursor: pointer;
+  /* Hidden until the card header is hovered (or the button is focused). */
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.draft-card-header:hover .draft-card-rename,
+.draft-card-rename:focus-visible {
+  opacity: 1;
+}
+
+.draft-card-rename:hover {
+  color: var(--drafts-fg);
+  background: var(--drafts-hover-bg);
+}
+
+.draft-card-pencil {
+  display: block;
+}
+
+.draft-card-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--drafts-fg);
+  background: var(--drafts-bg);
+  border: 1px solid var(--drafts-primary);
+  border-radius: var(--drafts-radius-sm);
+  padding: 0.0625rem 0.25rem;
+}
+
 .draft-badge {
   font-size: 0.625rem;
   line-height: 1;
@@ -253,13 +305,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.draft-change-hash {
-  font-family: var(--drafts-mono);
-  font-size: 0.625rem;
-  color: var(--drafts-faint-fg);
-  word-break: break-all;
 }
 
 .drafts-version {

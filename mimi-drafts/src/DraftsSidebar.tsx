@@ -261,6 +261,27 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     return mainDraft;
   };
 
+  // Save (or clear) a draft's display name. An empty name removes the field so
+  // the card falls back to the generic "Draft" label.
+  const onRenameDraft = async (url: AutomergeUrl, name: string) => {
+    const repo = getRepo();
+    if (!repo) {
+      console.warn("[drafts] window.repo is not set");
+      return;
+    }
+    const trimmed = name.trim();
+    log(
+      trimmed
+        ? `renaming draft ${short(url)} → "${trimmed}"`
+        : `clearing the name on draft ${short(url)}`
+    );
+    const handle = await repo.find<DraftDoc>(url);
+    handle.change((d) => {
+      if (trimmed) d.name = trimmed;
+      else delete d.name;
+    });
+  };
+
   const onMergeDraft = async () => {
     const draftUrl = selected();
     if (!draftUrl) return;
@@ -283,59 +304,6 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
         when={hostDoc()}
         fallback={<div class="drafts-empty">No document selected.</div>}
       >
-        <div class="drafts-list">
-          <MainCard
-            hostDocUrl={hostDocHandle()?.url}
-            isSelected={isMainSelected()}
-            members={() => list().main.members}
-            onSelect={() => selectDraft(null)}
-            onSelectEntry={(entry) =>
-              onSelectEntry(null, list().main.members, entry)
-            }
-            onEntryDragStart={(entry) =>
-              beginDrag(null, list().main.members, entry)
-            }
-            onEntryDragEnd={endDrag}
-            activeAnchor={() => (isMainSelected() ? selectedEntry() : null)}
-          />
-          <For each={list().drafts}>
-            {(summary) => (
-              <DraftCard
-                url={summary.url}
-                members={summary.members}
-                mainDocUrl={hostDocHandle()?.url}
-                childCount={summary.childCount}
-                isSelected={selected() === summary.url}
-                onSelect={selectDraft}
-                onSelectEntry={(entry) =>
-                  onSelectEntry(summary.url, summary.members, entry)
-                }
-                onEntryDragStart={(entry) =>
-                  beginDrag(summary.url, summary.members, entry)
-                }
-                onEntryDragEnd={endDrag}
-                activeAnchor={() =>
-                  selected() === summary.url ? selectedEntry() : null
-                }
-              />
-            )}
-          </For>
-        </div>
-        <Show when={pendingDrag()}>
-          <div
-            class="drafts-dropzone"
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              void onDropCreateDraft();
-            }}
-          >
-            Drop here to start a new draft from this point
-          </div>
-        </Show>
         <div class="drafts-actions">
           <Show when={checkedOut()?.at}>
             <button
@@ -375,6 +343,61 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             </button>
           </Show>
         </div>
+        <div class="drafts-list">
+          <MainCard
+            hostDocUrl={hostDocHandle()?.url}
+            isSelected={isMainSelected()}
+            members={() => list().main.members}
+            onSelect={() => selectDraft(null)}
+            onSelectEntry={(entry) =>
+              onSelectEntry(null, list().main.members, entry)
+            }
+            onEntryDragStart={(entry) =>
+              beginDrag(null, list().main.members, entry)
+            }
+            onEntryDragEnd={endDrag}
+            activeAnchor={() => (isMainSelected() ? selectedEntry() : null)}
+          />
+          <For each={list().drafts}>
+            {(summary) => (
+              <DraftCard
+                url={summary.url}
+                name={summary.name}
+                members={summary.members}
+                mainDocUrl={hostDocHandle()?.url}
+                childCount={summary.childCount}
+                isSelected={selected() === summary.url}
+                onSelect={selectDraft}
+                onRename={(name) => onRenameDraft(summary.url, name)}
+                onSelectEntry={(entry) =>
+                  onSelectEntry(summary.url, summary.members, entry)
+                }
+                onEntryDragStart={(entry) =>
+                  beginDrag(summary.url, summary.members, entry)
+                }
+                onEntryDragEnd={endDrag}
+                activeAnchor={() =>
+                  selected() === summary.url ? selectedEntry() : null
+                }
+              />
+            )}
+          </For>
+        </div>
+        <Show when={pendingDrag()}>
+          <div
+            class="drafts-dropzone"
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              void onDropCreateDraft();
+            }}
+          >
+            Drop here to start a new draft from this point
+          </div>
+        </Show>
       </Show>
       <div class="drafts-version">v{DRAFTS_VERSION}</div>
     </div>
@@ -449,37 +472,127 @@ function MainCard(props: {
   );
 }
 
+// A small pencil glyph for the rename affordance. Inherits color via
+// `currentColor` and sizes to the surrounding font.
+function PencilIcon() {
+  return (
+    <svg
+      class="draft-card-pencil"
+      viewBox="0 0 16 16"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10z" />
+    </svg>
+  );
+}
+
 function DraftCard(props: {
   url: AutomergeUrl;
+  name: string | undefined;
   members: DraftMemberDoc[];
   mainDocUrl: AutomergeUrl | undefined;
   childCount: number;
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
+  onRename: (name: string) => void;
   onSelectEntry: (entry: ClickedEntry) => void;
   onEntryDragStart: (entry: ClickedEntry) => void;
   onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
 }) {
+  // Inline rename state. `draftName` holds the in-progress edit; it's seeded
+  // from the current name each time editing starts.
+  const [editing, setEditing] = createSignal(false);
+  const [draftName, setDraftName] = createSignal("");
+
+  const startEditing = () => {
+    setDraftName(props.name ?? "");
+    setEditing(true);
+  };
+  const commit = () => {
+    if (!editing()) return;
+    setEditing(false);
+    props.onRename(draftName());
+  };
+  const cancel = () => setEditing(false);
+
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
-      <button
-        type="button"
+      {/* A div (not a button) so it can hold the rename input and pencil button
+          without nesting interactive elements inside a button. */}
+      <div
         class="draft-card-header"
-        onClick={() => props.onSelect(props.url)}
+        role="button"
+        tabindex="0"
         title="Open draft"
+        onClick={() => {
+          if (!editing()) props.onSelect(props.url);
+        }}
+        onKeyDown={(e) => {
+          if (editing()) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            props.onSelect(props.url);
+          }
+        }}
       >
         <div class="draft-card-title">
-          <span>Draft</span>
-          <Show when={props.isSelected}>
-            <span class="draft-badge">current</span>
+          <Show
+            when={editing()}
+            fallback={
+              <>
+                <span class="draft-card-name">{props.name || "Draft"}</span>
+                <button
+                  type="button"
+                  class="draft-card-rename"
+                  title="Rename draft"
+                  aria-label="Rename draft"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditing();
+                  }}
+                >
+                  <PencilIcon />
+                </button>
+                <Show when={props.isSelected}>
+                  <span class="draft-badge">current</span>
+                </Show>
+              </>
+            }
+          >
+            <input
+              class="draft-card-name-input"
+              value={draftName()}
+              placeholder="Draft"
+              ref={(el) => queueMicrotask(() => el.select())}
+              onClick={(e) => e.stopPropagation()}
+              onInput={(e) => setDraftName(e.currentTarget.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commit();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancel();
+                }
+              }}
+            />
           </Show>
         </div>
         <div class="draft-card-url">{props.url}</div>
         <div class="draft-card-meta">
           {props.members.length} cloned doc(s) · {props.childCount} draft(s)
         </div>
-      </button>
+      </div>
       <DraftChangesList
         members={() => props.members}
         mainDocUrl={props.mainDocUrl}
@@ -642,9 +755,6 @@ function DraftChangesList(props: {
                     <span class="draft-change-msg">{change.message}</span>
                   </Show>
                 </div>
-                <span class="draft-change-hash">
-                  {encodeHeads([change.hash])[0]}
-                </span>
               </button>
             );
           }}
@@ -791,7 +901,15 @@ async function collectInterleavedChanges(
       const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
       const metas = Automerge.getChangesMetaSince(doc, since);
       if (metas.length === 0) continue;
-      const title = await resolveDocTitle(doc, member.url);
+      // The doc's live title, used as the row label and as the fallback for
+      // changes from before a name was set.
+      const liveTitle = await resolveDocTitle(doc, member.url);
+      // Renaming writes `@patchwork.title`. Only when the doc carries such a
+      // field do we bother reading the title per-change (so a rename doesn't
+      // retroactively relabel older rows). Datatype/url-derived titles stay on
+      // the single `liveTitle` — looking those up per change would be the slow
+      // path we want to avoid.
+      const titled = !!titleField(doc);
       metas.forEach((meta, seq) => {
         // Skip anything from before the project was created. (We still number
         // every change by its real position, so skipping rows here doesn't mess
@@ -801,7 +919,9 @@ async function collectInterleavedChanges(
         }
         rows.push({
           docUrl: member.url,
-          title,
+          // `Automerge.view` is a cheap, copy-free immutable snapshot; reading
+          // one string field off it per change is inexpensive.
+          title: titled ? titleAtChange(doc, meta.hash, liveTitle) : liveTitle,
           hash: meta.hash,
           time: meta.time,
           actor: meta.actor,
@@ -820,6 +940,35 @@ async function collectInterleavedChanges(
   // changes still read newest-to-oldest.
   rows.sort((a, b) => b.time - a.time || b.seq - a.seq);
   return rows;
+}
+
+// Read a document's `@patchwork.title` field, if any. Used to decide whether a
+// doc is named via a stored title (so we should track it per-change) versus a
+// datatype/url-derived name (which we leave constant for speed).
+function titleField(doc: unknown): string | undefined {
+  const title = (doc as { "@patchwork"?: { title?: unknown } })["@patchwork"]
+    ?.title;
+  return typeof title === "string" ? title : undefined;
+}
+
+// The document's title as of one specific change. Uses `Automerge.view` — a
+// cheap, copy-free immutable view at those heads — and reads the stored title
+// field straight off it. Falls back to `fallback` for changes from before the
+// title was set (or if the view can't be taken).
+function titleAtChange(
+  doc: unknown,
+  hash: string,
+  fallback: string
+): string {
+  try {
+    const view = Automerge.view(
+      doc as Automerge.Doc<unknown>,
+      [hash] as unknown as Automerge.Heads
+    );
+    return titleField(view) ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 // When was a document created? Reads its history and returns the time of its
