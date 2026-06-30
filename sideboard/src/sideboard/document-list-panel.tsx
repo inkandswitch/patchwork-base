@@ -10,7 +10,7 @@ import CreateNew from "./create-new.tsx";
 import { createOpenEvent } from "./events.ts";
 import { SearchIcon } from "./icons.tsx";
 import { DocumentList } from "./document-list/document-list.tsx";
-import { LoadingRow } from "./document-list/loading-row.tsx";
+import { LoadingRows } from "./document-list/loading-row.tsx";
 import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
 import { copyMode, isNewDocDrag } from "./dnd/dnd.ts";
@@ -147,7 +147,7 @@ export function DocumentListPanel(props: {
             />
           </div>
         </div>
-        <Suspense fallback={<LoadingRow depth={0} />}>
+        <Suspense fallback={<LoadingRows depth={0} />}>
           <DocumentList
             depth={0}
             repo={props.repo}

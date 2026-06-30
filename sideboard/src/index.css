@@ -339,9 +339,20 @@ button {
   }
 }
 
+.document-list__loading {
+  display: flex;
+  flex-direction: column;
+}
+
 .document-list-item--loading {
   pointer-events: none;
   padding-left: calc(1.8rem * var(--depth) + var(--doclist-padding-x));
+}
+
+/* In the loading-box, each skeleton keeps its own (inline) width so the stack
+   reads as a list of distinct items rather than identical full-width bars. */
+.document-list__loading .document-list-item__skeleton {
+  flex: 0 0 auto;
 }
 
 .document-list-item__skeleton {
