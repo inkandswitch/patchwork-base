@@ -5,7 +5,6 @@ import {
 } from "@automerge/automerge-repo-solid-primitives";
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { subscribe } from "@inkandswitch/patchwork-providers";
-import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
 import type { AccountDoc, ThreepaneConfigDoc, ToolSlot } from "./types";
 import {
   useSidebarState,
@@ -14,13 +13,17 @@ import {
   useMainDocMounted,
   useDebugRegistryToast,
   DebugRegistryToast,
+  getStoredNumber,
+  getStoredBoolean,
+  SIDEBAR_KEYS,
+  DEFAULT_SIDEBAR_WIDTH,
 } from "./hooks";
 import { Sidebar } from "./components/Sidebar";
-import { ContextSidebar } from "./components/ContextSidebar";
-import { FrameTopBar } from "./components/FrameTopBar";
 import { SidebarWidgets } from "./components/SidebarWidgets";
 import { MainDocumentView } from "./components/MainDocumentView";
 import { slotId } from "./components/SlotView";
+import { DocumentAreaRoot } from "./components/DocumentAreaRoot";
+import { IsolatedDocumentArea } from "./components/IsolatedDocumentArea";
 import {
   createEffect,
   createMemo,
@@ -33,24 +36,7 @@ import {
 } from "solid-js";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import { ensureThreepaneConfig } from "./account/ensureThreepaneConfig";
-// Imported as a string (not a side-effect import) so the stylesheet is only
-// injected when the frame tool actually activates — not when index.js loads.
-import frameStyles from "./styles.css?inline";
-
-function ensureFrameStyles() {
-  const id = "patchwork-frame-styles";
-  if (document.getElementById(id)) return;
-  const el = document.createElement("style");
-  el.id = id;
-  el.textContent = frameStyles;
-  document.head.append(el);
-}
-
-type DraftsState = {
-  drafts: AutomergeUrl[];
-  // `null` represents "main" — i.e. the host doc itself, no draft overlay.
-  selectedDraft: AutomergeUrl | null;
-};
+import { ensureFrameStyles } from "./ensureFrameStyles";
 
 type SelectedView = {
   url: AutomergeUrl;
@@ -69,9 +55,11 @@ const DRAG_THRESHOLD = 3;
 export const PatchworkFrame = ({
   handle,
   repo,
+  ...props
 }: {
   handle: DocHandle<AccountDoc>;
   repo: Repo;
+  isolation?: boolean;
 }) => {
   ensureFrameStyles();
   const accountDocUrl = handle.url;
@@ -101,7 +89,7 @@ export const PatchworkFrame = ({
         `patchwork:open-document` events from anywhere (and the matching
         `patchwork:selected-doc` subscriptions) reach them. The comments and
         focus providers are deliberately *not* here - they live inside the
-        per-draft overlay (see `DraftDocumentArea`) so branch comments resolve
+        per-draft overlay (inside `DocumentAreaRoot`) so branch comments resolve
         against the draft's clone. `patchwork-view` defaults to
         `display: contents`, so these wrappers are layout-neutral.
       */}
@@ -115,7 +103,11 @@ export const PatchworkFrame = ({
           ref={setAccountProviderElement}
         >
           <Show when={areProvidersReady()}>
-            <PatchworkFrameInner handle={handle} repo={repo} />
+            <PatchworkFrameInner
+              handle={handle}
+              repo={repo}
+              isolation={props.isolation}
+            />
           </Show>
         </patchwork-view>
       </patchwork-view>
@@ -126,6 +118,7 @@ export const PatchworkFrame = ({
 function PatchworkFrameInner(props: {
   handle: DocHandle<AccountDoc>;
   repo: Repo;
+  isolation?: boolean;
 }) {
   // Track doc changes via a version counter so accountDoc() recomputes
   // on every change. We avoid useDocument/autoproduce because its store
@@ -191,8 +184,7 @@ function PatchworkFrameInner(props: {
   const doctitleSlots = () => threepaneConfig()?.doctitle?.tools;
   const traySlots = () => threepaneConfig()?.tray?.tools;
   const contextTabSlots = () => threepaneConfig()?.contextbar?.tabs;
-  const contextTabIds = () =>
-    threepaneConfig()?.contextbar?.tabs?.map(slotId);
+  const contextTabIds = () => threepaneConfig()?.contextbar?.tabs?.map(slotId);
   const sidebarWidgets = (): ToolSlot[] =>
     threepaneConfig()?.sidebar?.widgets ?? [];
   const rootFolderUrl = () => accountDoc()?.rootFolderUrl;
@@ -210,12 +202,6 @@ function PatchworkFrameInner(props: {
     autoCloseWidth: AUTO_CLOSE_WIDTH,
     dragThreshold: DRAG_THRESHOLD,
   });
-
-  // Selected context-sidebar tab, lifted here (above the per-document and
-  // per-draft remount boundaries) so the active tab survives document and
-  // branch switches even though the tab's tool content remounts.
-  const [selectedContextToolId, setSelectedContextToolId] =
-    createSignal<string>();
 
   const {
     events: debugEvents,
@@ -241,33 +227,32 @@ function PatchworkFrameInner(props: {
   const selectedDocUrl = () => selectedView()?.url;
   const selectedToolId = () => selectedView()?.toolId ?? undefined;
 
+  // Right-sidebar seeds, read from host localStorage. The host owns this read and
+  // hands the values to whichever document-area path renders (local DocumentAreaRoot
+  // or the isolated root via IsolatedDocumentArea's boot spec) — localStorage is
+  // stubbed inside the iframe, so the isolated path can't read it itself.
+  const initialRightWidth = () =>
+    getStoredNumber(SIDEBAR_KEYS.rightWidth, DEFAULT_SIDEBAR_WIDTH);
+  const initialRightCollapsed = () =>
+    getStoredBoolean(SIDEBAR_KEYS.rightCollapsed);
+
   // Suspend the sidebar widgets until the main document has settled (mounted or
   // failed to mount), so the primary column wins the initial render race. With
   // no document selected there's nothing to wait for, so the widgets show
   // immediately. Latched: once revealed they stay mounted across later doc
   // switches — we only want to win the *first* race, not re-suspend every time.
+  //
+  // Under isolation the main document lives inside the iframe, so the host-side
+  // mount ref can never be set; we reveal the widgets immediately instead of
+  // gating on a mount that will never reach this realm.
   const [mainDocElement, setMainDocElement] = createSignal<HTMLElement>();
   const isMainDocMounted = useMainDocMounted(mainDocElement, selectedDocUrl);
   const [widgetsReady, setWidgetsReady] = createSignal(false);
   createEffect(() => {
     if (widgetsReady()) return;
-    if (!selectedDocUrl() || isMainDocMounted()) setWidgetsReady(true);
+    if (props.isolation || !selectedDocUrl() || isMainDocMounted())
+      setWidgetsReady(true);
   });
-
-  // Per-document draft scope. The provider element persists across navigation:
-  // we feed it a reactive `doc-url` and it re-points in place (it watches the
-  // attribute), rather than remounting the whole draft subtree on every doc
-  // switch. When no doc is selected we still render the sidebars (so the drafts
-  // sidebar can show its "no doc selected" empty state), just without a
-  // draft-root scope.
-  const [draftListProviderHost, setDraftListProviderHost] =
-    createSignal<HTMLElement>();
-  const isDraftListProviderReady = useProviderReady(
-    "patchwork-draft-list-provider",
-    draftListProviderHost
-  );
-  const readyDraftListHost = () =>
-    isDraftListProviderReady() ? draftListProviderHost() : undefined;
 
   return (
     <div ref={element} style={{ display: "contents" }}>
@@ -284,7 +269,6 @@ function PatchworkFrameInner(props: {
         (widgets, account bar) — that's a full-world remount on first click.
       */}
       <FrameLayout
-        accountDoc={accountDoc}
         accountDocUrl={accountDocUrl}
         sidebarState={sidebarState}
         sidebarResize={sidebarResize}
@@ -307,53 +291,53 @@ function PatchworkFrameInner(props: {
           }
         >
           {/*
-            Not keyed: the provider element stays mounted across navigation and
-            re-points itself when `doc-url` changes, so we don't tear down and
-            rebuild the whole draft subtree (and its ephemeral DraftsState doc)
-            on every doc switch. It wraps only the main column (display:
-            contents), not the left sidebar.
+            Document area: isolated (rendered inside a sandboxed iframe) or local
+            (rendered directly). `isolation` is fixed per tool instance. The local
+            path threads `setMainDocElement` (for the host's widgetsReady race) and
+            seeds the right-sidebar state from host localStorage; the isolated path
+            owns that wiring itself (and can't drive the host ref from the iframe).
           */}
-          <patchwork-view
-            component="patchwork-draft-list-provider"
-            doc-url={selectedDocUrl()}
-            ref={setDraftListProviderHost}
+          <Show
+            when={props.isolation}
+            fallback={
+              <DocumentAreaRoot
+                setMainDocElement={setMainDocElement}
+                selectedDocUrl={selectedDocUrl}
+                selectedToolId={selectedToolId}
+                doctitleSlots={doctitleSlots}
+                traySlots={traySlots}
+                contextTabIds={contextTabIds}
+                contextTabSlots={contextTabSlots}
+                isLeftCollapsed={sidebarState.isSidebarCollapsed}
+                initialRightWidth={initialRightWidth}
+                initialRightCollapsed={initialRightCollapsed}
+              />
+            }
           >
-            <Show when={readyDraftListHost()}>
-              {(host) => (
-                <DraftDocumentArea
-                  host={host()}
-                  repo={props.repo}
-                  setMainDocElement={setMainDocElement}
-                  accountDoc={accountDoc}
-                  accountDocUrl={accountDocUrl}
-                  selectedDocUrl={selectedDocUrl}
-                  selectedToolId={selectedToolId}
-                  doctitleSlots={doctitleSlots}
-                  traySlots={traySlots}
-                  contextTabIds={contextTabIds}
-                  contextTabSlots={contextTabSlots}
-                  sidebarState={sidebarState}
-                  sidebarResize={sidebarResize}
-                  selectedContextToolId={selectedContextToolId}
-                  setSelectedContextToolId={setSelectedContextToolId}
-                />
-              )}
-            </Show>
-          </patchwork-view>
+            <IsolatedDocumentArea
+              contactUrl={accountDoc()?.contactUrl}
+              selectedDocUrl={selectedDocUrl}
+              selectedToolId={selectedToolId}
+              doctitleSlots={doctitleSlots}
+              traySlots={traySlots}
+              contextTabIds={contextTabIds}
+              contextTabSlots={contextTabSlots}
+              isLeftCollapsed={sidebarState.isSidebarCollapsed}
+              initialRightWidth={initialRightWidth}
+              initialRightCollapsed={initialRightCollapsed}
+            />
+          </Show>
         </Show>
       </FrameLayout>
     </div>
   );
 }
 
-// Left (account) sidebar plus a slot for the main column. Rendered once and
-// kept mounted across the no-doc → doc transition; only its `children` (the
-// main column) swap. The right (context) sidebar is *not* here: it lives inside
-// the per-draft overlay (see `DraftDocumentArea`) so the comments-view tab
-// resolves the draft's clone. Consequently it only renders when a document is
-// selected.
+// Host-side frame chrome: the left (account) sidebar plus a slot for the main
+// column (`children`). Rendered once and kept mounted across the no-doc → doc
+// transition; only its `children` (the main column) swap. The right (context)
+// sidebar is *not* here — it lives inside the document area (`DocumentAreaRoot`).
 function FrameLayout(props: {
-  accountDoc: Accessor<AccountDoc | undefined>;
   accountDocUrl: AutomergeUrl;
   sidebarState: SidebarState;
   sidebarResize: SidebarResize;
@@ -378,9 +362,7 @@ function FrameLayout(props: {
         title={isCollapsed() ? "Show sidebar" : "Hide sidebar"}
         aria-label={isCollapsed() ? "Show sidebar" : "Hide sidebar"}
         aria-pressed={!isCollapsed()}
-        onClick={() =>
-          props.sidebarState.setIsSidebarCollapsed((v) => !v)
-        }
+        onClick={() => props.sidebarState.setIsSidebarCollapsed((v) => !v)}
       >
         <PanelLeftIcon />
       </button>
@@ -431,144 +413,5 @@ function PanelLeftIcon() {
       <rect width="18" height="18" x="3" y="3" rx="2" />
       <path d="M9 3v18" />
     </svg>
-  );
-}
-
-// Reads the draft list state from the draft-list provider, then renders the
-// main document inside a draft-overlay provider keyed on the selected draft.
-// The overlay provider is always mounted; it becomes a no-op when its `url`
-// is empty (the "main" case), letting document resolution fall through to the
-// host repo.
-//
-// The comments + focus providers and the context (right) sidebar live *inside*
-// the overlay so that, on a draft, comment threads / selection resolve against
-// the draft's clone. They wrap both the editor and the sidebar (which must be a
-// flex sibling of `.main-area`), so the overlay is mounted at the `.frame`
-// level here; `patchwork-view` is `display: contents`, keeping the
-// [left | main-area | right] layout intact. The document toolbar is included in
-// that scope too - it targets the same selected doc as the editor (no extra
-// cloning), and `OverlayHandle.url` still reports the original url so
-// identity-sensitive toolbar tools (e.g. add-to-sidebar) are unaffected.
-function DraftDocumentArea(props: {
-  host: HTMLElement;
-  repo: Repo;
-  setMainDocElement: (el: HTMLElement) => void;
-  accountDoc: Accessor<AccountDoc | undefined>;
-  accountDocUrl: AutomergeUrl;
-  selectedDocUrl: Accessor<AutomergeUrl | undefined>;
-  selectedToolId: Accessor<string | undefined>;
-  doctitleSlots: Accessor<ToolSlot[] | undefined>;
-  traySlots: Accessor<ToolSlot[] | undefined>;
-  contextTabIds: Accessor<string[] | undefined>;
-  contextTabSlots: Accessor<ToolSlot[] | undefined>;
-  sidebarState: SidebarState;
-  sidebarResize: SidebarResize;
-  selectedContextToolId: Accessor<string | undefined>;
-  setSelectedContextToolId: (id: string) => void;
-}) {
-  const [draftsState] = subscribeDoc<DraftsState>(props.host, {
-    type: "draft:list",
-  });
-
-  const draftProviderKey = createMemo<AutomergeUrl | "main">(
-    () => draftsState()?.selectedDraft ?? "main"
-  );
-
-  const [draftOverlayProviderHost, setDraftOverlayProviderHost] =
-    createSignal<HTMLElement>();
-  const isDraftOverlayProviderReady = useProviderReady(
-    "patchwork-draft-overlay-provider",
-    draftOverlayProviderHost
-  );
-
-  const [commentsProviderElement, setCommentsProviderElement] =
-    createSignal<HTMLElement>();
-  const isCommentsProviderReady = useProviderReady(
-    "patchwork-comments-provider",
-    commentsProviderElement
-  );
-
-  const [focusProviderElement, setFocusProviderElement] =
-    createSignal<HTMLElement>();
-  const isFocusProviderReady = useProviderReady(
-    "patchwork-focus-provider",
-    focusProviderElement
-  );
-
-  const areDocProvidersReady = createMemo(
-    () =>
-      isDraftOverlayProviderReady() &&
-      isCommentsProviderReady() &&
-      isFocusProviderReady()
-  );
-
-  return (
-    <Show when={draftProviderKey()} keyed>
-      {(key) => (
-        <patchwork-view
-          component="patchwork-draft-overlay-provider"
-          url={key === "main" ? "" : key}
-          ref={setDraftOverlayProviderHost}
-        >
-          <patchwork-view
-            component="patchwork-comments-provider"
-            ref={setCommentsProviderElement}
-          >
-            <patchwork-view
-              component="patchwork-focus-provider"
-              ref={setFocusProviderElement}
-            >
-              <Show when={areDocProvidersReady()}>
-                <div class="frame__main-column">
-                  <FrameTopBar
-                    repo={props.repo}
-                    docUrl={props.selectedDocUrl}
-                    toolSlots={props.doctitleSlots}
-                    isLeftCollapsed={props.sidebarState.isSidebarCollapsed}
-                    contextToolIds={props.contextTabIds}
-                    selectedContextToolId={props.selectedContextToolId}
-                    setSelectedContextToolId={props.setSelectedContextToolId}
-                    isRightCollapsed={props.sidebarState.isRightSidebarCollapsed}
-                    rightWidth={props.sidebarState.rightSidebarWidth}
-                    onToggleRight={() =>
-                      props.sidebarState.setIsRightSidebarCollapsed((v) => !v)
-                    }
-                  />
-
-                  <div class="frame__content-row">
-                    <div class="main-area">
-                      <MainDocumentView
-                        viewKey={props.selectedDocUrl}
-                        selectedDocUrl={props.selectedDocUrl}
-                        toolId={props.selectedToolId}
-                        ref={props.setMainDocElement}
-                      />
-                    </div>
-
-                    <Show
-                      when={
-                        props.contextTabIds()?.length ||
-                        props.traySlots()?.length
-                      }
-                    >
-                      <ContextSidebar
-                        contextToolIds={props.contextTabIds}
-                        contextToolSlots={props.contextTabSlots}
-                        traySlots={props.traySlots}
-                        selectedToolId={props.selectedContextToolId}
-                        isCollapsed={props.sidebarState.isRightSidebarCollapsed}
-                        width={props.sidebarState.rightSidebarWidth}
-                        onMouseDown={props.sidebarResize.handleMouseDown}
-                        onToggleClick={props.sidebarResize.handleToggleClick}
-                      />
-                    </Show>
-                  </div>
-                </div>
-              </Show>
-            </patchwork-view>
-          </patchwork-view>
-        </patchwork-view>
-      )}
-    </Show>
   );
 }

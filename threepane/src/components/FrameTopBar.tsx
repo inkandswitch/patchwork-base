@@ -1,4 +1,4 @@
-import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
+import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { For, Show, type Accessor } from "solid-js";
 import type { ToolSlot } from "../types";
 import { ContextTabs } from "./ContextTabs";
@@ -6,7 +6,6 @@ import { DocumentTitle } from "./DocumentTitle";
 import { slotId } from "./SlotView";
 
 type FrameTopBarProps = {
-  repo: Repo;
   docUrl: Accessor<AutomergeUrl | undefined>;
   toolSlots: Accessor<ToolSlot[] | undefined>;
 
@@ -42,7 +41,7 @@ export function FrameTopBar(props: FrameTopBarProps) {
           capped at half the bar. */}
       <Show when={props.docUrl()}>
         <div class="threepane__title">
-          <DocumentTitle docUrl={props.docUrl} repo={props.repo} />
+          <DocumentTitle docUrl={props.docUrl} />
         </div>
       </Show>
 

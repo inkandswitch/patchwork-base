@@ -1,5 +1,6 @@
 import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
 import { useDocument } from "@automerge/automerge-repo-solid-primitives";
+import type { RepoProviderElement } from "@inkandswitch/patchwork-providers";
 import {
   getType,
   type HasPatchworkMetadata,
@@ -27,14 +28,38 @@ import {
  * Editable: clicking the title swaps in an input. Saving calls the datatype's
  * `setTitle` and also stamps the new title onto the doc's `@patchwork.title`
  * metadata so the name travels with the doc regardless of datatype shape.
+ *
+ * The repo is resolved from the nearest `<repo-provider>` ancestor rather than
+ * passed in, so it picks up the realm-local repo wherever it renders.
  */
 export function DocumentTitle(props: {
+  docUrl: Accessor<AutomergeUrl | undefined>;
+}) {
+  let anchor!: HTMLSpanElement;
+  const [repo, setRepo] = createSignal<Repo>();
+  onMount(() => {
+    setRepo(anchor.closest<RepoProviderElement>("repo-provider")?.repo);
+  });
+
+  return (
+    <Show
+      when={repo()}
+      fallback={<span class="threepane__title-text" ref={anchor} />}
+    >
+      {(resolvedRepo) => (
+        <DocumentTitleInner docUrl={props.docUrl} repo={resolvedRepo()} />
+      )}
+    </Show>
+  );
+}
+
+function DocumentTitleInner(props: {
   docUrl: Accessor<AutomergeUrl | undefined>;
   repo: Repo;
 }) {
   const [doc, handle] = useDocument<HasPatchworkMetadata>(
     () => props.docUrl(),
-    { repo: props.repo },
+    { repo: props.repo }
   );
   const registry = getRegistry<Datatype>("patchwork:datatype");
 
@@ -72,7 +97,7 @@ export function DocumentTitle(props: {
   });
 
   const canEdit = createMemo(
-    () => !!handle() && typeof datatype()?.module.setTitle === "function",
+    () => !!handle() && typeof datatype()?.module.setTitle === "function"
   );
 
   const [editing, setEditing] = createSignal(false);

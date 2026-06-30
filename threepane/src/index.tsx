@@ -2,11 +2,19 @@ import { Plugin, ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import { render } from "solid-js/web";
 import type { AccountDoc } from "./types";
 
-async function loadFrame(): Promise<ToolImplementation<AccountDoc>> {
+async function loadFrame(
+  isolation?: boolean
+): Promise<ToolImplementation<AccountDoc>> {
   const { PatchworkFrame } = await import("./PatchworkFrame");
   return (handle, element) => {
     return render(
-      () => <PatchworkFrame handle={handle} repo={element.repo} />,
+      () => (
+        <PatchworkFrame
+          handle={handle}
+          repo={element.repo}
+          isolation={isolation}
+        />
+      ),
       element
     );
   };
@@ -43,6 +51,26 @@ export const plugins: Plugin<any>[] = [
     icon: "Window",
     supportedDatatypes: ["account"],
     load: loadFrame,
+  },
+  {
+    type: "patchwork:tool",
+    id: "threepane-isolation",
+    tags: ["frame-tool"],
+    name: "Threepane (isolation mode)",
+    icon: "Window",
+    supportedDatatypes: ["account"],
+    load: () => loadFrame(true),
+  },
+  {
+    // The isolated document-area root mounted inside the iframe by `threepane-isolation`.
+    type: "patchwork:component",
+    id: "threepane-isolation-root",
+    name: "Threepane Isolation Root",
+    async load() {
+      const { mountIsolationRoot } =
+        await import("./components/IsolatedDocumentArea");
+      return mountIsolationRoot;
+    },
   },
   {
     // Back-compat alias: accounts whose frameToolId still points at the old id
