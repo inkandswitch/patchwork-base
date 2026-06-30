@@ -51,6 +51,7 @@ export const plugins = [
     id: "folder-tree-view",
     name: "Folder Tree View",
     icon: "Tree",
+    unlisted: false
   }),
   {
     id: "chee/account-bar",
