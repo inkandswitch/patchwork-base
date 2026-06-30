@@ -8,6 +8,7 @@ import {
 } from "@codemirror/view";
 import { Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { isValidAutomergeUrl } from "@automerge/automerge-repo";
 import { linkTheme } from "../themes/links.ts";
 
 /**
@@ -36,7 +37,20 @@ class LinkWidget extends WidgetType {
 
     link.onclick = (e) => {
       e.preventDefault();
-      window.open(this.url, "_blank noopener noreferrer");
+      if (isValidAutomergeUrl(this.url)) {
+        // Open the document inside Patchwork rather than as a browser URL
+        // (automerge: isn't navigable). bubbles/composed so the event escapes
+        // the editor and any shadow root up to whoever drives selection.
+        link.dispatchEvent(
+          new CustomEvent("patchwork:open-document", {
+            detail: { url: this.url },
+            bubbles: true,
+            composed: true,
+          }),
+        );
+      } else {
+        window.open(this.url, "_blank noopener noreferrer");
+      }
     };
 
     return link;
