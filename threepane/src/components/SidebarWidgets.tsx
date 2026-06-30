@@ -16,6 +16,9 @@ export function SidebarWidgets(props: {
   widgets: Accessor<ToolSlot[]>;
   configHandle: Accessor<DocHandle<ThreepaneConfigDoc> | undefined>;
   rootFolderUrl: Accessor<AutomergeUrl | undefined>;
+  // Suspend rendering until the main document has settled (mounted or failed to
+  // mount), so the primary column wins the initial render race over the widgets.
+  ready: Accessor<boolean>;
 }) {
   const addDocumentList = () => {
     const root = props.rootFolderUrl();
@@ -28,31 +31,33 @@ export function SidebarWidgets(props: {
 
   return (
     <div class="threepane-widgets">
-      <Show
-        when={props.widgets().length}
-        fallback={
-          // While the config/root folder are still loading we can't add a
-          // widget yet — show nothing rather than a disabled button.
-          <Show when={props.rootFolderUrl() && props.configHandle()}>
-            <div class="threepane-widgets__empty">
-              <button
-                type="button"
-                class="threepane-widgets__add"
-                onClick={addDocumentList}
-              >
-                ＋ Add document list
-              </button>
-            </div>
-          </Show>
-        }
-      >
-        <For each={props.widgets()}>
-          {(widget) => (
-            <div class="threepane-widget">
-              <SlotView slot={widget} />
-            </div>
-          )}
-        </For>
+      <Show when={props.ready()}>
+        <Show
+          when={props.widgets().length}
+          fallback={
+            // While the config/root folder are still loading we can't add a
+            // widget yet — show nothing rather than a disabled button.
+            <Show when={props.rootFolderUrl() && props.configHandle()}>
+              <div class="threepane-widgets__empty">
+                <button
+                  type="button"
+                  class="threepane-widgets__add"
+                  onClick={addDocumentList}
+                >
+                  ＋ Add document list
+                </button>
+              </div>
+            </Show>
+          }
+        >
+          <For each={props.widgets()}>
+            {(widget) => (
+              <div class="threepane-widget">
+                <SlotView slot={widget} />
+              </div>
+            )}
+          </For>
+        </Show>
       </Show>
     </div>
   );

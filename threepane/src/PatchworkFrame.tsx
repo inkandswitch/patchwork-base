@@ -11,6 +11,7 @@ import {
   useSidebarState,
   useSidebarResize,
   useProviderReady,
+  useMainDocMounted,
   useDebugRegistryToast,
   DebugRegistryToast,
 } from "./hooks";
@@ -240,6 +241,19 @@ function PatchworkFrameInner(props: {
   const selectedDocUrl = () => selectedView()?.url;
   const selectedToolId = () => selectedView()?.toolId ?? undefined;
 
+  // Suspend the sidebar widgets until the main document has settled (mounted or
+  // failed to mount), so the primary column wins the initial render race. With
+  // no document selected there's nothing to wait for, so the widgets show
+  // immediately. Latched: once revealed they stay mounted across later doc
+  // switches — we only want to win the *first* race, not re-suspend every time.
+  const [mainDocElement, setMainDocElement] = createSignal<HTMLElement>();
+  const isMainDocMounted = useMainDocMounted(mainDocElement, selectedDocUrl);
+  const [widgetsReady, setWidgetsReady] = createSignal(false);
+  createEffect(() => {
+    if (widgetsReady()) return;
+    if (!selectedDocUrl() || isMainDocMounted()) setWidgetsReady(true);
+  });
+
   // Per-document draft scope. The provider element persists across navigation:
   // we feed it a reactive `doc-url` and it re-points in place (it watches the
   // attribute), rather than remounting the whole draft subtree on every doc
@@ -263,53 +277,53 @@ function PatchworkFrameInner(props: {
         onClearAll={clearAll}
       />
 
-      <Show
-        when={selectedDocUrl()}
-        fallback={
-          <FrameLayout
-            accountDoc={accountDoc}
-            accountDocUrl={accountDocUrl}
-            sidebarState={sidebarState}
-            sidebarResize={sidebarResize}
-            sidebarWidgets={sidebarWidgets}
-            configHandle={threepaneConfigHandle}
-            rootFolderUrl={rootFolderUrl}
-          >
+      {/*
+        FrameLayout (the left sidebar + its toggle) is rendered ONCE, outside
+        the doc-selection Show. Selecting the first document only swaps the main
+        column below; it must not tear down and rebuild the entire left sidebar
+        (widgets, account bar) — that's a full-world remount on first click.
+      */}
+      <FrameLayout
+        accountDoc={accountDoc}
+        accountDocUrl={accountDocUrl}
+        sidebarState={sidebarState}
+        sidebarResize={sidebarResize}
+        sidebarWidgets={sidebarWidgets}
+        configHandle={threepaneConfigHandle}
+        rootFolderUrl={rootFolderUrl}
+        widgetsReady={widgetsReady}
+      >
+        <Show
+          when={selectedDocUrl()}
+          fallback={
             <div class="main-area">
               <MainDocumentView
                 viewKey={selectedDocUrl}
                 selectedDocUrl={selectedDocUrl}
                 toolId={selectedToolId}
+                ref={setMainDocElement}
               />
             </div>
-          </FrameLayout>
-        }
-      >
-        {/*
-          Not keyed: the provider element stays mounted across navigation and
-          re-points itself when `doc-url` changes, so we don't tear down and
-          rebuild the whole draft subtree (and its ephemeral DraftsState doc)
-          on every doc switch.
-        */}
-        <patchwork-view
-          component="patchwork-draft-list-provider"
-          doc-url={selectedDocUrl()}
-          ref={setDraftListProviderHost}
+          }
         >
-          <Show when={readyDraftListHost()}>
-            {(host) => (
-              <FrameLayout
-                accountDoc={accountDoc}
-                accountDocUrl={accountDocUrl}
-                sidebarState={sidebarState}
-                sidebarResize={sidebarResize}
-                sidebarWidgets={sidebarWidgets}
-                configHandle={threepaneConfigHandle}
-                rootFolderUrl={rootFolderUrl}
-              >
+          {/*
+            Not keyed: the provider element stays mounted across navigation and
+            re-points itself when `doc-url` changes, so we don't tear down and
+            rebuild the whole draft subtree (and its ephemeral DraftsState doc)
+            on every doc switch. It wraps only the main column (display:
+            contents), not the left sidebar.
+          */}
+          <patchwork-view
+            component="patchwork-draft-list-provider"
+            doc-url={selectedDocUrl()}
+            ref={setDraftListProviderHost}
+          >
+            <Show when={readyDraftListHost()}>
+              {(host) => (
                 <DraftDocumentArea
                   host={host()}
                   repo={props.repo}
+                  setMainDocElement={setMainDocElement}
                   accountDoc={accountDoc}
                   accountDocUrl={accountDocUrl}
                   selectedDocUrl={selectedDocUrl}
@@ -323,20 +337,21 @@ function PatchworkFrameInner(props: {
                   selectedContextToolId={selectedContextToolId}
                   setSelectedContextToolId={setSelectedContextToolId}
                 />
-              </FrameLayout>
-            )}
-          </Show>
-        </patchwork-view>
-      </Show>
+              )}
+            </Show>
+          </patchwork-view>
+        </Show>
+      </FrameLayout>
     </div>
   );
 }
 
-// Left (account) sidebar plus a slot for the main column. Shared by the no-doc
-// fallback and the in-draft layout. The right (context) sidebar is *not* here:
-// it lives inside the per-draft overlay (see `DraftDocumentArea`) so the
-// comments-view tab resolves the draft's clone. Consequently it only renders
-// when a document is selected.
+// Left (account) sidebar plus a slot for the main column. Rendered once and
+// kept mounted across the no-doc → doc transition; only its `children` (the
+// main column) swap. The right (context) sidebar is *not* here: it lives inside
+// the per-draft overlay (see `DraftDocumentArea`) so the comments-view tab
+// resolves the draft's clone. Consequently it only renders when a document is
+// selected.
 function FrameLayout(props: {
   accountDoc: Accessor<AccountDoc | undefined>;
   accountDocUrl: AutomergeUrl;
@@ -345,6 +360,7 @@ function FrameLayout(props: {
   sidebarWidgets: Accessor<ToolSlot[]>;
   configHandle: Accessor<DocHandle<ThreepaneConfigDoc> | undefined>;
   rootFolderUrl: Accessor<AutomergeUrl | undefined>;
+  widgetsReady: Accessor<boolean>;
   children: JSX.Element;
 }) {
   const isCollapsed = props.sidebarState.isSidebarCollapsed;
@@ -381,6 +397,7 @@ function FrameLayout(props: {
             widgets={props.sidebarWidgets}
             configHandle={props.configHandle}
             rootFolderUrl={props.rootFolderUrl}
+            ready={props.widgetsReady}
           />
           {/* account / packages / settings, pinned to the sidebar's bottom */}
           <div class="threepane-sidebar__footer">
@@ -435,6 +452,7 @@ function PanelLeftIcon() {
 function DraftDocumentArea(props: {
   host: HTMLElement;
   repo: Repo;
+  setMainDocElement: (el: HTMLElement) => void;
   accountDoc: Accessor<AccountDoc | undefined>;
   accountDocUrl: AutomergeUrl;
   selectedDocUrl: Accessor<AutomergeUrl | undefined>;
@@ -523,6 +541,7 @@ function DraftDocumentArea(props: {
                         viewKey={props.selectedDocUrl}
                         selectedDocUrl={props.selectedDocUrl}
                         toolId={props.selectedToolId}
+                        ref={props.setMainDocElement}
                       />
                     </div>
 
