@@ -31,6 +31,7 @@ import type {
   DraftMemberDoc,
   HasDrafts,
 } from "./draft-types";
+import { canonicalUrl } from "./clone-policy";
 
 // A blank list to show until the provider sends the real one. (The Main card
 // shows the document's own url, so the placeholder url here is never seen.)
@@ -82,6 +83,21 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     { type: "draft:list" },
     EMPTY_DRAFT_LIST
   );
+
+  // A history row currently being dragged out to spawn a new draft. Holds which
+  // card it came from (its documents and source draft, or null for Main) and the
+  // exact change it was grabbed at. Null when nothing is being dragged.
+  const [pendingDrag, setPendingDrag] = createSignal<{
+    draftUrl: AutomergeUrl | null;
+    members: DraftMemberDoc[];
+    entry: ClickedEntry;
+  } | null>(null);
+  const beginDrag = (
+    draftUrl: AutomergeUrl | null,
+    members: DraftMemberDoc[],
+    entry: ClickedEntry
+  ) => setPendingDrag({ draftUrl, members, entry });
+  const endDrag = () => setPendingDrag(null);
 
   const isMainSelected = createMemo(() => selected() === null);
   // Drafting off a folder isn't supported yet, so creating a draft is disabled
@@ -181,6 +197,41 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     selectDraft(draft.url);
   };
 
+  // You dragged a history row onto the drop zone: spin up a new draft whose
+  // documents are forked at exactly that point in time. The new draft branches
+  // off whichever card the row came from (another draft, or Main).
+  const onDropCreateDraft = async () => {
+    const drag = pendingDrag();
+    setPendingDrag(null);
+    if (!drag) return;
+    const docHandle = hostDocHandle();
+    if (!docHandle) return;
+    const repo = getRepo();
+    if (!repo) {
+      console.warn("[drafts] window.repo is not set");
+      return;
+    }
+    log(
+      `creating a new draft from a history point on ${short(drag.entry.docUrl)} ` +
+        `@ ${formatTime(drag.entry.time)} (forking each doc at that moment)`
+    );
+    const mainDraft = await ensureMainDraft(repo, docHandle);
+    const parentHandle = drag.draftUrl
+      ? await repo.find<DraftDoc>(drag.draftUrl)
+      : mainDraft;
+    const draft = await createDraftFromCheckpoint(
+      repo,
+      parentHandle,
+      drag.members,
+      drag.entry
+    );
+    log(
+      `created draft ${short(draft.url)} forked at the selected point ` +
+        `(${Object.keys(draft.doc()?.clones ?? {}).length} doc(s)); switching to it`
+    );
+    selectDraft(draft.url);
+  };
+
   // Get this document's main draft, creating it (and linking the document to it)
   // the first time. The main draft does no editing — it just holds the list of
   // drafts and a record of the document's own documents.
@@ -241,6 +292,10 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             onSelectEntry={(entry) =>
               onSelectEntry(null, list().main.members, entry)
             }
+            onEntryDragStart={(entry) =>
+              beginDrag(null, list().main.members, entry)
+            }
+            onEntryDragEnd={endDrag}
             activeAnchor={() => (isMainSelected() ? selectedEntry() : null)}
           />
           <For each={list().drafts}>
@@ -255,6 +310,10 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 onSelectEntry={(entry) =>
                   onSelectEntry(summary.url, summary.members, entry)
                 }
+                onEntryDragStart={(entry) =>
+                  beginDrag(summary.url, summary.members, entry)
+                }
+                onEntryDragEnd={endDrag}
                 activeAnchor={() =>
                   selected() === summary.url ? selectedEntry() : null
                 }
@@ -262,6 +321,21 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             )}
           </For>
         </div>
+        <Show when={pendingDrag()}>
+          <div
+            class="drafts-dropzone"
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              void onDropCreateDraft();
+            }}
+          >
+            Drop here to start a new draft from this point
+          </div>
+        </Show>
         <div class="drafts-actions">
           <Show when={checkedOut()?.at}>
             <button
@@ -343,6 +417,8 @@ function MainCard(props: {
   members: Accessor<DraftMemberDoc[]>;
   onSelect: () => void;
   onSelectEntry: (entry: ClickedEntry) => void;
+  onEntryDragStart: (entry: ClickedEntry) => void;
+  onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
 }) {
   return (
@@ -365,6 +441,8 @@ function MainCard(props: {
         members={props.members}
         mainDocUrl={props.hostDocUrl}
         onSelectEntry={props.onSelectEntry}
+        onEntryDragStart={props.onEntryDragStart}
+        onEntryDragEnd={props.onEntryDragEnd}
         activeAnchor={props.activeAnchor}
       />
     </div>
@@ -379,6 +457,8 @@ function DraftCard(props: {
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
   onSelectEntry: (entry: ClickedEntry) => void;
+  onEntryDragStart: (entry: ClickedEntry) => void;
+  onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
 }) {
   return (
@@ -404,6 +484,8 @@ function DraftCard(props: {
         members={() => props.members}
         mainDocUrl={props.mainDocUrl}
         onSelectEntry={props.onSelectEntry}
+        onEntryDragStart={props.onEntryDragStart}
+        onEntryDragEnd={props.onEntryDragEnd}
         activeAnchor={props.activeAnchor}
       />
     </div>
@@ -453,6 +535,8 @@ function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   mainDocUrl: AutomergeUrl | undefined;
   onSelectEntry: (entry: ClickedEntry) => void;
+  onEntryDragStart: (entry: ClickedEntry) => void;
+  onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
 }) {
   const [changes, setChanges] = createSignal<DraftChange[]>([]);
@@ -516,8 +600,26 @@ function DraftChangesList(props: {
               <button
                 type="button"
                 class="draft-change-row"
+                draggable={true}
                 data-selected={isActive() ? "" : undefined}
-                title="View the draft at this point"
+                title="Click to view this point · drag out to start a new draft from here"
+                onDragStart={(e) => {
+                  if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = "copy";
+                    // A payload is required to begin a drag in some browsers; the
+                    // real data is carried in the sidebar's pendingDrag signal.
+                    e.dataTransfer.setData(
+                      "text/plain",
+                      encodeHeads([change.hash])[0]
+                    );
+                  }
+                  props.onEntryDragStart({
+                    docUrl: change.docUrl,
+                    hash: change.hash,
+                    time: change.time,
+                  });
+                }}
+                onDragEnd={() => props.onEntryDragEnd()}
                 onClick={() => {
                   log(
                     `history row clicked: "${change.title}" @ ${formatTime(change.time)} ` +
@@ -550,6 +652,56 @@ function DraftChangesList(props: {
       </Show>
     </div>
   );
+}
+
+// Create a brand-new draft seeded from a point in history. For every document
+// that existed at that moment, fork a private copy frozen at exactly that
+// version (via the same checkpoint logic used for time-travel viewing) and
+// record it as the draft's starting clone — so the new draft opens as an
+// editable continuation of that past state. Documents that didn't exist yet are
+// simply left out; they'll fork lazily from their live version on first edit.
+// The new draft is appended to `parentHandle`'s list of children.
+async function createDraftFromCheckpoint(
+  repo: Repo,
+  parentHandle: DocHandle<DraftDoc>,
+  members: DraftMemberDoc[],
+  entry: ClickedEntry
+): Promise<DocHandle<DraftDoc>> {
+  const checkpoint = await computeCheckpoint(repo, members, entry);
+  const clones: Record<AutomergeUrl, CloneEntry> = {};
+  for (const member of members) {
+    const to = checkpoint[member.url]?.to;
+    if (!to) continue;
+    try {
+      // Read from the member's current backing doc (the source card's clone if
+      // it has one, otherwise the real doc), then fork it at the pinned version.
+      const sourceHandle = await repo.find<unknown>(
+        member.cloneUrl ?? member.url
+      );
+      const viewHandle = sourceHandle.view(to);
+      const cloneHandle = repo.clone(viewHandle);
+      clones[member.url] = {
+        cloneUrl: canonicalUrl(cloneHandle.url),
+        clonedAt: to,
+      };
+    } catch (err) {
+      console.warn(
+        "[drafts] failed to fork member at checkpoint:",
+        member,
+        err
+      );
+    }
+  }
+  const draft = repo.create<DraftDoc>({
+    "@patchwork": { type: "draft" },
+    parent: parentHandle.url,
+    drafts: [],
+    clones,
+  });
+  parentHandle.change((d) => {
+    d.drafts.push(draft.url);
+  });
+  return draft;
 }
 
 // Build the "this is how everything looked back then" snapshot for the row you
