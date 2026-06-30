@@ -56,7 +56,12 @@ export function DocumentListPanel(props: {
   // need to be open for the selected docs to be visible, and publish that set.
   // Each Folder reads it to auto-expand itself; expansion cascades down as each
   // level mounts, so even a deeply nested selection gets revealed.
+  //
+  // Gated on folderReady: the walk recursively finds folder docs across the
+  // tree, so kicking it off before the root has loaded would flood the repo and
+  // keep the whole widget blank. Let the top level paint first, then reveal.
   createEffect(() => {
+    if (!folderReady()) return;
     const selected = selectedDocUrls();
     if (!selected.length) {
       setAutoExpandedFolders(new Set());
