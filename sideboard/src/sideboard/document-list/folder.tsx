@@ -16,11 +16,16 @@ import {
   createEffect,
   createSignal,
   onCleanup,
-  onMount,
   Show,
   Suspense,
 } from "solid-js";
-import { filter, filterMatches, setRenaming, setPendingNewDoc } from "../state.ts";
+import {
+  filter,
+  filterMatches,
+  setRenaming,
+  setPendingNewDoc,
+  autoExpandedFolders,
+} from "../state.ts";
 import { DocumentList } from "./document-list.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
@@ -57,7 +62,6 @@ export default function Folder(props: {
   parentFolderHandle?: DocHandle<FolderDoc>;
   itemIndex?: number;
 }) {
-  const [ref, setRef] = createSignal<HTMLElement>();
   const [expanded, setExpanded] = createSignal(false);
 
   const [folder, handle] = useDocument<FolderDoc>(() => props.url, props);
@@ -77,14 +81,12 @@ export default function Folder(props: {
     return filter();
   });
 
-  // lol @ this huge hack
-  onMount(() => {
-    setTimeout(() => {
-      const has = !!ref()?.querySelector(
-        ".document-list-item[aria-selected='true']"
-      );
-      setExpanded((open) => open || has);
-    }, 500);
+  // Auto-expand when this folder lies on the path to a selected doc. The set is
+  // computed from folder data by the panel (see auto-expand.ts), so it reveals
+  // deeply nested selections without us having to eagerly mount the subtree:
+  // as each ancestor expands it mounts the next level, which re-reads the set.
+  createEffect(() => {
+    if (autoExpandedFolders().has(props.url)) setExpanded(true);
   });
 
   // Auto-expand/collapse folders during drag hover.
@@ -291,26 +293,32 @@ export default function Folder(props: {
       </Item>
 
       <div
-        ref={(el) => setRef(el)}
         class="document-list-folder__contents"
         classList={{ "document-list-folder__contents--hidden": !expanded() && !filter() }}
         data-depth={depth()}
         style={depthStyle()}
       >
-        <Suspense fallback={<LoadingRow depth={depth() + 1} />}>
-          <DocumentList
-            docs={folder()?.docs}
-            repo={props.repo}
-            depth={depth() + 1}
-            handle={handle.latest!}
-            open={props.open}
-            hive={props.hive}
-            selectedDocUrls={props.selectedDocUrls}
-            visitedFolders={nextVisitedFolders}
-            element={props.element}
-            rootFolderHandle={props.rootFolderHandle}
-          />
-        </Suspense>
+        {/* Only mount (and thus load) children when the folder is open or a
+            filter is active. Otherwise a collapsed folder would recursively
+            find() its entire subtree on mount, loading the whole tree at once
+            and making the folder appear to suspend on its descendants rather
+            than just its own handle. */}
+        <Show when={expanded() || !!filter()}>
+          <Suspense fallback={<LoadingRow depth={depth() + 1} />}>
+            <DocumentList
+              docs={folder()?.docs}
+              repo={props.repo}
+              depth={depth() + 1}
+              handle={handle.latest!}
+              open={props.open}
+              hive={props.hive}
+              selectedDocUrls={props.selectedDocUrls}
+              visitedFolders={nextVisitedFolders}
+              element={props.element}
+              rootFolderHandle={props.rootFolderHandle}
+            />
+          </Suspense>
+        </Show>
       </div>
     </div>
   );

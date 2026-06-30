@@ -3,9 +3,15 @@ import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
 import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
-import { createSignal, Suspense } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show, Suspense } from "solid-js";
 
-import { filter, setFilter, setPendingNewDoc } from "./state.ts";
+import {
+  filter,
+  setFilter,
+  setPendingNewDoc,
+  setAutoExpandedFolders,
+} from "./state.ts";
+import { collectExpandedFolders } from "./document-list/auto-expand.ts";
 import CreateNew from "./create-new.tsx";
 import { createOpenEvent } from "./events.ts";
 import { SearchIcon } from "./icons.tsx";
@@ -31,11 +37,46 @@ export function DocumentListPanel(props: {
     repo: props.repo,
   });
 
+  // Optimistic loading: show the skeleton from the moment the panel mounts and
+  // keep it up until the root folder handle has actually resolved. Reading the
+  // resource's `.state` (rather than `folder()`) never suspends, so the box +
+  // toolbar paint immediately and the skeleton is guaranteed a beat of screen
+  // time instead of relying on Suspense — which is skipped entirely when the
+  // handle happens to resolve synchronously.
+  const folderReady = () =>
+    folderHandle.state === "ready" || folderHandle.state === "refreshing";
+
   const selectedDocUrls = subscribe<AutomergeUrl[]>(
     props.element,
     { type: "patchwork:selected-doc" },
     []
   );
+
+  // Whenever the selection changes, walk the folder tree to find which folders
+  // need to be open for the selected docs to be visible, and publish that set.
+  // Each Folder reads it to auto-expand itself; expansion cascades down as each
+  // level mounts, so even a deeply nested selection gets revealed.
+  createEffect(() => {
+    const selected = selectedDocUrls();
+    if (!selected.length) {
+      setAutoExpandedFolders(new Set());
+      return;
+    }
+    let cancelled = false;
+    const result = new Set<AutomergeUrl>();
+    collectExpandedFolders(
+      props.repo,
+      props.folderUrl,
+      new Set(selected),
+      result,
+      new Set()
+    ).then(() => {
+      if (!cancelled) setAutoExpandedFolders(result);
+    });
+    onCleanup(() => {
+      cancelled = true;
+    });
+  });
 
   function open(detail: OpenDocumentEventDetail) {
     props.element.dispatchEvent(createOpenEvent(detail));
@@ -147,19 +188,21 @@ export function DocumentListPanel(props: {
             />
           </div>
         </div>
-        <Suspense fallback={<LoadingRows depth={0} />}>
-          <DocumentList
-            depth={0}
-            repo={props.repo}
-            docs={folder()?.docs}
-            handle={folderHandle.latest!}
-            open={open}
-            hive={props.element.hive}
-            selectedDocUrls={selectedDocUrls()}
-            element={props.element}
-            rootFolderHandle={folderHandle.latest!}
-          />
-        </Suspense>
+        <Show when={folderReady()} fallback={<LoadingRows depth={0} />}>
+          <Suspense fallback={<LoadingRows depth={0} />}>
+            <DocumentList
+              depth={0}
+              repo={props.repo}
+              docs={folder()?.docs}
+              handle={folderHandle.latest!}
+              open={open}
+              hive={props.element.hive}
+              selectedDocUrls={selectedDocUrls()}
+              element={props.element}
+              rootFolderHandle={folderHandle.latest!}
+            />
+          </Suspense>
+        </Show>
       </nav>
     </aside>
   );
