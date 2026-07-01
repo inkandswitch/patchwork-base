@@ -246,7 +246,7 @@ export function CommentsView(props: { element: HTMLElement }) {
               <patchwork-view
                 doc-url={threadUrl}
                 tool-id="comment-thread"
-                data-thread-state={threadState(threadUrl)}
+                attr:data-thread-state={threadState(threadUrl)}
               />
             </div>
           )}

@@ -37,6 +37,25 @@ import {
   type DiffStatus,
   type DiffStatusAtom,
 } from "./DiffShapeWrapper.tsx";
+import {
+  PatchworkDocShapeUtil,
+  PATCHWORK_DOC_SHAPE_TYPE,
+  getDefaultToolId,
+  makeShapeId,
+} from "./PatchworkDocShape.tsx";
+import {
+  NewDocShapeTool,
+  NewDocToolbar,
+  newDocUiOverrides,
+  setNewDocToolContext,
+} from "./NewDocTool.tsx";
+import { isPatchworkDrag, parseDroppedDocs } from "./dnd.ts";
+
+// Custom shapes / tools that let a tldraw canvas embed other Patchwork
+// documents. These must be registered both on the Automerge-backed store (so
+// the shape type persists) and on the <Tldraw> component (so it renders).
+const customShapeUtils = [PatchworkDocShapeUtil];
+const customTools = [NewDocShapeTool];
 
 // Diff baseline (fork-point heads) served by the draft overlay
 // (`draft:baseline`). `heads` is `null` when there is no baseline and no
@@ -101,7 +120,11 @@ export function TldrawTool({
 }) {
   const handle = useDocHandle<TLDrawDoc>(docUrl, { suspense: true });
   const contactInfo = useContactInfo();
-  const store = useAutomergeStore({ handle, userId: contactInfo.userId });
+  const store = useAutomergeStore({
+    handle,
+    userId: contactInfo.userId,
+    shapeUtils: customShapeUtils,
+  });
 
   useAutomergePresence({
     handle: handle as DocHandle<any>,
@@ -131,14 +154,22 @@ export function TldrawTool({
   useDeletedGhosts(store, handle, diff);
 
   const components = useMemo<TLComponents>(
-    () => ({ ShapeWrapper: DiffShapeWrapper }),
+    () => ({ ShapeWrapper: DiffShapeWrapper, Toolbar: NewDocToolbar }),
     []
   );
 
   return (
     <DiffStatusContext.Provider value={statusAtom}>
-      <Tldraw inferDarkMode autoFocus store={store} components={components}>
-        <TldrawInner docUrl={docUrl} />
+      <Tldraw
+        inferDarkMode
+        autoFocus
+        store={store}
+        shapeUtils={customShapeUtils}
+        tools={customTools}
+        overrides={newDocUiOverrides}
+        components={components}
+      >
+        <TldrawInner docUrl={docUrl} element={element} />
       </Tldraw>
     </DiffStatusContext.Provider>
   );
@@ -249,11 +280,13 @@ function useDeletedGhosts(
   }, [store, handle, diff]);
 }
 
-function TldrawInner(props: { docUrl: AutomergeUrl }) {
+function TldrawInner(props: { docUrl: AutomergeUrl; element: HTMLElement }) {
   const key = useMemo(() => `${props.docUrl}-camera`, [props.docUrl]);
 
   const editor = useEditor();
   const repo = useRepo();
+
+  usePatchworkDrop(props.element);
 
   const onChange = useCallback(() => {
     if (!editor) return;
@@ -266,6 +299,9 @@ function TldrawInner(props: { docUrl: AutomergeUrl }) {
 
   useEffect(() => {
     if (!editor) return;
+
+    // Give the NewDocTool the repo it needs to create embedded documents.
+    setNewDocToolContext(repo, editor);
 
     // Handle pasted/dropped files (images, videos) by storing them as
     // UnixFileEntry automerge docs and referencing them via service-worker URLs.
@@ -355,6 +391,109 @@ function TldrawInner(props: { docUrl: AutomergeUrl }) {
     return () => void editor.off("change", onChange);
   }, [editor]);
   return null;
+}
+
+// Accept documents dragged in from the folder-tree-view / sideboard and other
+// Patchwork tools, embedding each as a `patchwork-doc` shape at the drop point.
+function usePatchworkDrop(element: HTMLElement) {
+  const editor = useEditor();
+  const repo = useRepo();
+
+  useEffect(() => {
+    if (!editor || !element) return;
+
+    // If the drop lands inside an already-embedded <patchwork-view>, let that
+    // inner tool handle it instead of creating a nested embed. The outer
+    // <patchwork-view> hosting this canvas appears at/after `element` in the
+    // path, so we stop the walk once we reach `element`.
+    const isInsideEmbeddedPatchworkView = (e: DragEvent) => {
+      for (const el of e.composedPath()) {
+        if (el === element) break;
+        if ((el as Element).tagName?.toLowerCase() === "patchwork-view") return true;
+      }
+      return false;
+    };
+
+    const allowDrop = (e: DragEvent) => {
+      if (e.dataTransfer && isPatchworkDrag(e.dataTransfer.types)) e.preventDefault();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      if (!e.dataTransfer || !isPatchworkDrag(e.dataTransfer.types)) return;
+      e.preventDefault();
+      if (isInsideEmbeddedPatchworkView(e)) return;
+      e.stopImmediatePropagation();
+
+      const docs = parseDroppedDocs(e.dataTransfer);
+      if (docs.length === 0) return;
+
+      const dropPoint = editor.screenToPage({ x: e.clientX, y: e.clientY });
+      const STAGGER = 24;
+
+      docs.forEach((item, i) => {
+        const shapeId = makeShapeId(item.url);
+
+        // Already embedded: select it rather than creating a duplicate.
+        if (editor.getShape(shapeId)) {
+          editor.select(shapeId);
+          return;
+        }
+
+        const knownType = item.type ?? "";
+        editor.createShape({
+          id: shapeId,
+          type: PATCHWORK_DOC_SHAPE_TYPE,
+          x: dropPoint.x + i * STAGGER,
+          y: dropPoint.y + i * STAGGER,
+          rotation: 0,
+          parentId: editor.getCurrentPageId(),
+          props: {
+            w: 640,
+            h: 480,
+            docUrl: item.url,
+            docName: item.name ?? "Loading\u2026",
+            docType: knownType,
+            toolId: getDefaultToolId(knownType),
+          },
+        });
+
+        // Resolve datatype/name from the doc when the drag payload didn't
+        // include them (e.g. bare-URL drags).
+        if (!item.type || !item.name) {
+          void (async () => {
+            try {
+              const handle = await repo.find<{ "@patchwork"?: { type?: string } }>(item.url);
+              const doc = handle.doc();
+              const datatypeId = doc?.["@patchwork"]?.type ?? knownType;
+              if (!editor.getShape(shapeId)) return;
+              editor.updateShape({
+                id: shapeId,
+                type: PATCHWORK_DOC_SHAPE_TYPE,
+                props: {
+                  docName: item.name ?? datatypeId ?? item.url,
+                  docType: datatypeId,
+                  toolId: getDefaultToolId(datatypeId),
+                },
+              });
+            } catch (err) {
+              console.error("[tldraw4] failed to resolve dropped doc", err);
+            }
+          })();
+        }
+      });
+
+      editor.setSelectedShapes(docs.map((d) => makeShapeId(d.url)));
+    };
+
+    element.addEventListener("dragenter", allowDrop, { capture: true });
+    element.addEventListener("dragover", allowDrop, { capture: true });
+    element.addEventListener("drop", handleDrop, { capture: true });
+    return () => {
+      element.removeEventListener("dragenter", allowDrop, { capture: true });
+      element.removeEventListener("dragover", allowDrop, { capture: true });
+      element.removeEventListener("drop", handleDrop, { capture: true });
+    };
+  }, [editor, repo, element]);
 }
 
 export function render(handle: any, element: any) {

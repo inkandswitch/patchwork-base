@@ -75,6 +75,16 @@ export function CommentThreadView(props: {
     );
   });
 
+  // The sidebar hides resolved threads, but an embedded thread renders
+  // whatever it's pointed at — so it needs to show a resolved thread as such
+  // (still readable) and offer a way to reopen it.
+  const isResolved = () => thread()?.isResolved ?? false;
+
+  const cardClass = () =>
+    `comments-thread-card ${stateClass()}${
+      isResolved() ? " comments-thread-card--resolved" : ""
+    }`;
+
   // `thread().comments` is a fresh Automerge proxy every change; returning
   // the previous array when the id sequence is unchanged keeps <For> from
   // tearing down focused draft textareas on each keystroke.
@@ -111,6 +121,12 @@ export function CommentThreadView(props: {
   const onResolveThread = () => {
     props.handle.change((t) => {
       t.isResolved = true;
+    });
+  };
+
+  const onReopenThread = () => {
+    props.handle.change((t) => {
+      t.isResolved = false;
     });
   };
 
@@ -152,8 +168,11 @@ export function CommentThreadView(props: {
 
   return (
     <Show when={thread()}>
-      <div class={`comments-thread-card ${stateClass()}`}>
+      <div class={cardClass()}>
         <div class="comments-thread-card-body">
+          <Show when={isResolved()}>
+            <span class="comments-thread-resolved-label">Resolved</span>
+          </Show>
           <Show when={isDocLevel()}>
             <span class="comments-thread-doc-level">On this document</span>
           </Show>
@@ -180,27 +199,40 @@ export function CommentThreadView(props: {
           </For>
         </div>
       </div>
-      <Show when={draftComment() || isPrimary()}>
+      <Show when={draftComment() || isResolved() || isPrimary()}>
         <div class="comments-thread-actions">
           <Show
             when={draftComment()}
             fallback={
-              <>
+              <Show
+                when={isResolved()}
+                fallback={
+                  <>
+                    <button
+                      class="comment-btn"
+                      onClick={onResolveThread}
+                      title="Resolve comment"
+                    >
+                      Resolve
+                    </button>
+                    <button
+                      class="comment-btn"
+                      onClick={onReplyToComment}
+                      title="Reply to comment"
+                    >
+                      Reply
+                    </button>
+                  </>
+                }
+              >
                 <button
                   class="comment-btn"
-                  onClick={onResolveThread}
-                  title="Resolve comment"
+                  onClick={onReopenThread}
+                  title="Reopen comment"
                 >
-                  Resolve
+                  Reopen
                 </button>
-                <button
-                  class="comment-btn"
-                  onClick={onReplyToComment}
-                  title="Reply to comment"
-                >
-                  Reply
-                </button>
-              </>
+              </Show>
             }
           >
             <button class="comment-btn" onClick={onCancelDraft}>

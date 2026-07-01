@@ -101,6 +101,27 @@
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
+/* Resolved threads are hidden in the sidebar but shown when embedded. Keep
+   them clearly readable, just visibly "settled": muted fill, dashed border,
+   and slightly dimmed so they read as archived rather than active. */
+.comments-thread-card--resolved {
+  background: var(--comments-hover-bg);
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.comments-thread-resolved-label {
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.625rem;
+  color: var(--comments-muted-fg);
+  border: 1px solid var(--comments-border);
+}
+
 .comments-thread-card-body {
   display: flex;
   flex-direction: column;
