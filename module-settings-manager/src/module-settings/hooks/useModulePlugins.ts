@@ -223,20 +223,22 @@ export function useModulePlugins(params: UseModulePluginsParams) {
     const plugins = allPlugins();
     const order = sortOrder();
     return [...plugins].sort((a, b) => {
+      const aName = a.name || "";
+      const bName = b.name || "";
       if (order === "type-asc" || order === "type-desc") {
-        const typeCompare = a.type.localeCompare(b.type);
+        const typeCompare = (a.type || "").localeCompare(b.type || "");
         if (typeCompare !== 0)
           return order === "type-asc" ? typeCompare : -typeCompare;
-        return a.name.localeCompare(b.name);
+        return aName.localeCompare(bName);
       }
       if (order === "id-asc" || order === "id-desc") {
         const aId = a.id || "";
         const bId = b.id || "";
         const idCompare = aId.localeCompare(bId);
         if (idCompare !== 0) return order === "id-asc" ? idCompare : -idCompare;
-        return a.name.localeCompare(b.name);
+        return aName.localeCompare(bName);
       }
-      const nameCompare = a.name.localeCompare(b.name);
+      const nameCompare = aName.localeCompare(bName);
       return order === "name-asc" ? nameCompare : -nameCompare;
     });
   });
