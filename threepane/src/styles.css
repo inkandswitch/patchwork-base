@@ -488,7 +488,7 @@
   color: var(--threepane-fg);
   border-top: 1px solid var(--threepane-sidebar-divider);
   padding-block: var(--threepane-space-md);
-  padding-bottom: calc(var(--threepane-space-2xs) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--threepane-space-md) + env(safe-area-inset-bottom));
   padding-left: calc(env(safe-area-inset-left) + var(--threepane-space-md));
   padding-right: calc(env(safe-area-inset-right) + var(--threepane-space-md));
   justify-content: space-between;
