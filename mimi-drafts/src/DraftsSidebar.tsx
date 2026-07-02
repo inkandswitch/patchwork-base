@@ -41,7 +41,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.8";
+const DRAFTS_VERSION = "0.0.10";
 
 // Changes closer together in time than this fall in the same outer group ("made
 // around the same time"). 15 min matches the history-view default window.
@@ -774,14 +774,31 @@ function DraftChangesList(props: {
       >
         <For each={timeGroups()}>
           {(group) => (
-            <TimeGroupRow
-              group={group}
-              onSelectEntry={props.onSelectEntry}
-              onEntryDragStart={props.onEntryDragStart}
-              onEntryDragEnd={props.onEntryDragEnd}
-              activeAnchor={props.activeAnchor}
-              isHighlighting={props.isHighlighting}
-            />
+            // A time group with a single area group (one author, one part of a
+            // doc) is just that area group — skip the redundant outer level and
+            // render it directly.
+            <Show
+              when={group.areaGroups.length > 1}
+              fallback={
+                <AreaGroupRow
+                  group={group.areaGroups[0]}
+                  onSelectEntry={props.onSelectEntry}
+                  onEntryDragStart={props.onEntryDragStart}
+                  onEntryDragEnd={props.onEntryDragEnd}
+                  activeAnchor={props.activeAnchor}
+                  isHighlighting={props.isHighlighting}
+                />
+              }
+            >
+              <TimeGroupRow
+                group={group}
+                onSelectEntry={props.onSelectEntry}
+                onEntryDragStart={props.onEntryDragStart}
+                onEntryDragEnd={props.onEntryDragEnd}
+                activeAnchor={props.activeAnchor}
+                isHighlighting={props.isHighlighting}
+              />
+            </Show>
           )}
         </For>
       </Show>
@@ -809,6 +826,60 @@ function anchorMatches(
   return (
     !!anchor && anchor.docUrl === change.docUrl && anchor.hash === change.hash
   );
+}
+
+// An eye glyph shown next to a change/group title. It only reveals itself on
+// hover of the surrounding row (via CSS), unless it's the currently-highlighted
+// anchor, in which case it stays lit.
+function EyeIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+// The "highlight changes since this moment" toggle, rendered as an eye button
+// next to a title. Used at every level of the history: individual changes and
+// both group rows. `active` reflects whether this entry is the pinned anchor in
+// highlight mode. Clicking toggles highlight for this entry; stopPropagation
+// keeps a group row from also expanding/collapsing.
+function HighlightEye(props: {
+  entry: ClickedEntry;
+  active: boolean;
+  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
+}) {
+  return (
+    <span
+      class="draft-highlight-eye"
+      classList={{ "draft-highlight-eye--active": props.active }}
+      role="button"
+      tabindex={0}
+      title="Highlight what changed between now and this moment"
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onSelectEntry(props.entry, !props.active);
+      }}
+    >
+      <EyeIcon />
+    </span>
+  );
+}
+
+// The newest (latest) change in a set — the representative anchor for a group.
+function newestChange(changes: DraftChange[]): DraftChange {
+  return changes.reduce((a, b) => (b.time > a.time ? b : a));
 }
 
 // A stack of author avatars (deduped), newest-contributor first.
@@ -839,69 +910,6 @@ function AuthorAvatars(props: { actors: string[] }) {
   );
 }
 
-// A little highlighter-marker glyph for the "Highlight changes" affordance.
-function HighlighterIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="13"
-      height="13"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.4"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M9.5 2.5l4 4-6 6H4.5l-1-1v-2z" />
-      <path d="M2.5 14.5h5" />
-    </svg>
-  );
-}
-
-// The "Highlight changes" toggle shown on any history item. It pins the moment
-// this item represents and, when on, diffs the live doc against that moment so
-// the changes since then are highlighted. Only visible on hover of its row
-// (see CSS) unless it's the active one. `entry` is the moment to pin (a group's
-// newest change, or an individual change).
-function HighlightToggle(props: {
-  entry: ClickedEntry;
-  active: boolean;
-  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      class="draft-highlight-toggle"
-      data-active={props.active ? "" : undefined}
-      title="Highlight what changed between now and this moment"
-      aria-label="Highlight changes"
-      aria-pressed={props.active}
-      onClick={(e) => {
-        e.stopPropagation();
-        props.onSelectEntry(props.entry, !props.active);
-      }}
-    >
-      <HighlighterIcon />
-    </button>
-  );
-}
-
-// The moment a whole time group represents: its most recent change.
-function timeGroupNewest(group: TimeGroup): DraftChange {
-  let best: DraftChange | null = null;
-  for (const ag of group.areaGroups) {
-    const c = ag.changes[ag.changes.length - 1];
-    if (!best || c.time > best.time) best = c;
-  }
-  return best!;
-}
-
-// Turn a change into the {docUrl, hash, time} moment used for pinning.
-function toEntry(change: DraftChange): ClickedEntry {
-  return { docUrl: change.docUrl, hash: change.hash, time: change.time };
-}
-
 // The +N / -N edit-size bars shared by both group levels.
 function EditCounts(props: { additions: number; deletions: number }) {
   return (
@@ -919,53 +927,51 @@ function EditCounts(props: { additions: number; deletions: number }) {
 // One outer group: "changes made around the same time". Expands to reveal its
 // per-(author, area) inner groups.
 function TimeGroupRow(props: { group: TimeGroup } & HistoryRowActions) {
-  const newest = () => timeGroupNewest(props.group);
   const containsActive = () =>
     props.group.areaGroups.some((ag) =>
       ag.changes.some((c) => anchorMatches(props.activeAnchor(), c))
     );
-  // The group's highlight toggle is "on" when its newest change is the pinned
-  // one and we're in highlight mode.
-  const highlightActive = () =>
-    anchorMatches(props.activeAnchor(), newest()) && props.isHighlighting();
   const [open, setOpen] = createSignal(false);
   // Auto-open the group that holds the pinned change so it's never hidden.
   createEffect(() => {
     if (containsActive()) setOpen(true);
   });
 
+  // The group's representative anchor: its newest change (matches the entry a
+  // drag-out forks from).
+  const anchor = () =>
+    newestChange(props.group.areaGroups.flatMap((ag) => ag.changes));
+  const groupEntry = (): ClickedEntry => ({
+    docUrl: anchor().docUrl,
+    hash: anchor().hash,
+    time: anchor().time,
+  });
+  const highlightActive = () =>
+    anchorMatches(props.activeAnchor(), anchor()) && props.isHighlighting();
+
   return (
     <div class="draft-timegroup">
-      {/* A div (not a button) so the highlight toggle button can nest inside
-          without invalid button-in-button markup. */}
-      <div
+      <button
+        type="button"
         class="draft-group-row"
-        role="button"
-        tabindex="0"
         data-open={open() ? "" : undefined}
         onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setOpen((v) => !v);
-          }
-        }}
         title={open() ? "Collapse" : "Expand"}
       >
         <span class="draft-caret">{open() ? "▾" : "▸"}</span>
         <AuthorAvatars actors={props.group.actors} />
         <span class="draft-group-time">{formatTime(props.group.endTime)}</span>
+        <HighlightEye
+          entry={groupEntry()}
+          active={highlightActive()}
+          onSelectEntry={props.onSelectEntry}
+        />
         <span class="draft-group-spacer" />
         <EditCounts
           additions={props.group.additions}
           deletions={props.group.deletions}
         />
-        <HighlightToggle
-          entry={toEntry(newest())}
-          active={highlightActive()}
-          onSelectEntry={props.onSelectEntry}
-        />
-      </div>
+      </button>
       <Show when={open()}>
         <div class="draft-areagroups">
           <For each={props.group.areaGroups}>
@@ -992,20 +998,22 @@ function AreaGroupRow(props: { group: AreaGroup } & HistoryRowActions) {
   const newest = () => props.group.changes[props.group.changes.length - 1];
   const containsActive = () =>
     props.group.changes.some((c) => anchorMatches(props.activeAnchor(), c));
-  const highlightActive = () =>
-    anchorMatches(props.activeAnchor(), newest()) && props.isHighlighting();
   const [open, setOpen] = createSignal(false);
   createEffect(() => {
     if (containsActive()) setOpen(true);
   });
 
+  const dragEntry = (change: DraftChange): ClickedEntry => ({
+    docUrl: change.docUrl,
+    hash: change.hash,
+    time: change.time,
+  });
+
   return (
     <div class="draft-areagroup">
-      {/* A div (not a button) so the highlight toggle button can nest inside. */}
-      <div
+      <button
+        type="button"
         class="draft-area-row"
-        role="button"
-        tabindex="0"
         draggable={true}
         data-open={open() ? "" : undefined}
         data-selected={containsActive() ? "" : undefined}
@@ -1018,16 +1026,10 @@ function AreaGroupRow(props: { group: AreaGroup } & HistoryRowActions) {
               encodeHeads([newest().hash])[0]
             );
           }
-          props.onEntryDragStart(toEntry(newest()));
+          props.onEntryDragStart(dragEntry(newest()));
         }}
         onDragEnd={() => props.onEntryDragEnd()}
         onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setOpen((v) => !v);
-          }
-        }}
       >
         <span class="draft-caret">{open() ? "▾" : "▸"}</span>
         <div
@@ -1038,18 +1040,25 @@ function AreaGroupRow(props: { group: AreaGroup } & HistoryRowActions) {
           {getInitials(props.group.actor)}
         </div>
         <span class="draft-area-doc">{props.group.title}</span>
+        <HighlightEye
+          entry={{
+            docUrl: newest().docUrl,
+            hash: newest().hash,
+            time: newest().time,
+          }}
+          active={
+            anchorMatches(props.activeAnchor(), newest()) &&
+            props.isHighlighting()
+          }
+          onSelectEntry={props.onSelectEntry}
+        />
         <span class="draft-area-label">{props.group.areaLabel}</span>
         <span class="draft-group-spacer" />
         <EditCounts
           additions={props.group.additions}
           deletions={props.group.deletions}
         />
-        <HighlightToggle
-          entry={toEntry(newest())}
-          active={highlightActive()}
-          onSelectEntry={props.onSelectEntry}
-        />
-      </div>
+      </button>
       <Show when={open()}>
         <div class="draft-changelist">
           {/* Newest change first, to match the rest of the history. */}
@@ -1076,8 +1085,15 @@ function AreaGroupRow(props: { group: AreaGroup } & HistoryRowActions) {
 // the live doc diffed against this moment, so the changes since then show up.
 function ChangeRow(props: { change: DraftChange } & HistoryRowActions) {
   const isActive = () => anchorMatches(props.activeAnchor(), props.change);
-  const highlightActive = () => isActive() && props.isHighlighting();
-  const entry = () => toEntry(props.change);
+  // The eye is lit when this row is the pinned one *and* we're in highlight
+  // mode.
+  const isHighlighting = () => isActive() && props.isHighlighting();
+
+  const entry = (): ClickedEntry => ({
+    docUrl: props.change.docUrl,
+    hash: props.change.hash,
+    time: props.change.time,
+  });
 
   return (
     <div class="draft-change-item" data-selected={isActive() ? "" : undefined}>
@@ -1102,9 +1118,9 @@ function ChangeRow(props: { change: DraftChange } & HistoryRowActions) {
         <span class="draft-change-time">{formatTime(props.change.time)}</span>
         <span class="draft-change-desc">{props.change.description}</span>
       </button>
-      <HighlightToggle
+      <HighlightEye
         entry={entry()}
-        active={highlightActive()}
+        active={isHighlighting()}
         onSelectEntry={props.onSelectEntry}
       />
     </div>

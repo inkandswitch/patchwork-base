@@ -494,47 +494,37 @@
   white-space: nowrap;
 }
 
-/* The "Highlight changes" toggle shown on every history item. It's hidden until
-   you hover the item (or it's the active highlight), keeping the list clean. */
-.draft-highlight-toggle {
+/* The "highlight changes since this moment" eye toggle, shown next to a
+   change/group title. Hidden until you hover the surrounding row (or it's the
+   active anchor), then it fades in. */
+.draft-highlight-eye {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: none;
-  width: 1.125rem;
-  height: 1.125rem;
-  padding: 0;
-  border: none;
+  padding: 2px;
   border-radius: var(--drafts-radius-sm);
-  background: transparent;
   color: var(--drafts-muted-fg);
   cursor: pointer;
   opacity: 0;
-  transition:
-    opacity 0.12s ease,
-    color 0.12s ease,
-    background 0.12s ease;
+  transition: opacity 0.1s ease;
 }
 
-/* Reveal the toggle when hovering the surrounding history row. */
-.draft-group-row:hover .draft-highlight-toggle,
-.draft-area-row:hover .draft-highlight-toggle,
-.draft-change-item:hover .draft-highlight-toggle,
-.draft-highlight-toggle:focus-visible {
-  opacity: 0.65;
+/* Reveal on hover of the enclosing history row, or when it's the live anchor. */
+.draft-group-row:hover .draft-highlight-eye,
+.draft-area-row:hover .draft-highlight-eye,
+.draft-change-item:hover .draft-highlight-eye,
+.draft-highlight-eye--active {
+  opacity: 1;
 }
 
-.draft-highlight-toggle:hover {
-  opacity: 1 !important;
-  color: var(--drafts-fg);
+.draft-highlight-eye:hover {
   background: var(--drafts-hover-bg);
+  color: var(--drafts-fg);
 }
 
-/* When highlighting is active for this item, keep it lit in the accent color. */
-.draft-highlight-toggle[data-active] {
-  opacity: 1 !important;
+.draft-highlight-eye--active {
   color: var(--drafts-primary);
-  background: var(--drafts-selected-bg);
 }
 
 .drafts-version {
