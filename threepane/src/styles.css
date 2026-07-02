@@ -123,9 +123,21 @@
   overflow: hidden;
 }
 
-/* The main column (right of the left sidebar): full-width top bar over a row of
-   [document | right sidebar]. */
+/* The main column (right of the left sidebar): a row of
+   [document column | right sidebar], so the right sidebar spans the full frame
+   height and its resize divider runs top-to-bottom exactly like the left one. */
 .frame__main-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The document column: the top bar over the main document view. Sits left of the
+   full-height context sidebar. */
+.frame__doc-column {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -164,13 +176,6 @@
   padding-left: var(--threepane-space-2xl);
 }
 
-.frame__content-row {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  overflow: hidden;
-}
-
 /* The left sidebar toggle, pinned to the frame's top-left corner so it keeps the
    same spot whether the sidebar is open or closed. Square, filling the top strip;
    sits over the sidebar's reserved (empty) top area when open. */
@@ -200,19 +205,6 @@
 
 .frame__sidebar-toggle:hover {
   color: var(--threepane-fg);
-}
-
-/* The right end of the top bar: context tabs + the right toggle. Its width
-   tracks the right sidebar so the tabs sit directly above it. */
-.frame__topbar-right {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-.frame__topbar-right--collapsed {
-  width: auto;
 }
 
 /* The document title, rendered intrinsically: shrinks to the title's width but
@@ -291,11 +283,13 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  /* Side dividers only (left + right), square corners. The top line is the top
-     bar's border-bottom (continuous across the whole bar) and the bottom is
-     open to the frame edge. When the left sidebar is collapsed the left divider
-     is dropped (see the :has rule below) so nothing rides the frame edge. */
-  border-inline: 1px solid var(--threepane-toolbar-border);
+  /* Left divider only, square corners. The top line is the top bar's
+     border-bottom and the bottom is open to the frame edge. The right divider
+     (to the context sidebar) is the sidebar's own full-height border-left, so
+     it runs the whole frame height rather than just the document view. When the
+     left sidebar is collapsed the left divider is dropped (see the :has rule
+     below) so nothing rides the frame edge. */
+  border-left: 1px solid var(--threepane-toolbar-border);
 }
 
 /* Left sidebar collapsed to 0: drop the document-view's left divider so there's
@@ -341,6 +335,11 @@
   font-family: var(--context-sidebar-family);
   color: var(--context-sidebar-fg);
   background: var(--context-sidebar-bg);
+  /* The full-height divider between the document column and the sidebar. Lives
+     here (not on the document view) so it runs the whole frame height — top bar
+     level included — and the resize handle straddling this edge is grabbable end
+     to end, matching the left sidebar. */
+  border-left: 1px solid var(--context-sidebar-border);
 }
 
 /* The right sidebar persists its content while collapsed so the system tray's
@@ -351,13 +350,16 @@
   display: none;
 }
 
-/* Tab bar: the row holding the tab list and the close button. */
+/* Tab bar: the row holding the tab list and the collapse button. Its height +
+   top safe-area inset match the document column's top bar so the two header
+   strips line up and their bottom hairlines read as one continuous line across
+   the divider. */
 .context-sidebar__tabs {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
   box-sizing: border-box;
-  min-height: calc(var(--threepane-space-2xl) + 1px);
+  min-height: var(--threepane-space-2xl);
+  padding-top: env(safe-area-inset-top, 0px);
   background: var(--context-sidebar-header-bg);
   border-bottom: 1px solid var(--context-sidebar-border);
 }
@@ -455,16 +457,6 @@
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* Context tabs hosted in the top bar (rather than a sidebar header). Pull the
-   list 1px left so the active tab's left edge lines up with the divider of the
-   panel below it. We keep the base clip-compensation (padding-bottom + negative
-   margin-bottom) so the active tab's -1px pull isn't clipped by the list's
-   overflow and its fill extends down over the bar's bottom hairline, connecting
-   it to its panel. */
-.frame__topbar-right .context-sidebar__tablist {
-  margin-left: -1px;
 }
 
 /* Left sidebar body: a stack of widgets with the account footer pinned below. */
@@ -870,17 +862,4 @@
 }
 body[data-sidebar-resizing] .sidebar {
   transition: none;
-}
-
-/* Carry the right sidebar's divider glow up through the top bar, both on hover
-   and while actively resizing: `.frame__topbar-right` sits directly above the
-   right sidebar and is set to the same width, so its left edge aligns with the
-   resize handle. This makes the right resize line span the full frame height,
-   matching the left handle (which already runs the full height of the left
-   sidebar). The drag case needs its own selector because the fixed drag overlay
-   steals :hover off the handle for the duration of the drag. */
-.frame:has(.sidebar[data-side="right"] .sidebar-toggle:hover) .frame__topbar-right,
-.frame:has(.sidebar[data-side="right"] .sidebar-toggle:active) .frame__topbar-right,
-body[data-sidebar-resizing="right"] .frame__topbar-right {
-  box-shadow: inset 1px 0 0 0 var(--threepane-resize-glow);
 }

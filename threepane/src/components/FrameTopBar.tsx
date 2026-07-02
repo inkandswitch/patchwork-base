@@ -1,8 +1,8 @@
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { For, Show, type Accessor } from "solid-js";
 import type { ToolSlot } from "../types";
-import { ContextTabs } from "./ContextTabs";
 import { DocumentTitle } from "./DocumentTitle";
+import { PanelRightIcon } from "./ContextSidebar";
 import { slotId } from "./SlotView";
 
 type FrameTopBarProps = {
@@ -11,23 +11,22 @@ type FrameTopBarProps = {
 
   isLeftCollapsed: Accessor<boolean>;
 
-  contextToolIds: Accessor<string[] | undefined>;
-  selectedContextToolId: Accessor<string | undefined>;
-  setSelectedContextToolId: (id: string) => void;
+  /** Whether a context sidebar exists at all (tabs or tray) — gates the reopen
+   *  toggle so we only offer it when there's something to reopen. */
+  hasContext: Accessor<boolean>;
   isRightCollapsed: Accessor<boolean>;
-  rightWidth: Accessor<number>;
   onToggleRight: () => void;
 };
 
 /**
- * The full-width top toolbar: the document title and tool views, and — above the
- * right sidebar — the context tabs with a right sidebar toggle. Spans the main
- * column; the left sidebar toggle is pinned separately to the frame's top-left
+ * The document column's top toolbar: the document title and tool views. Spans
+ * the document column (left of the context sidebar, which carries its own tab
+ * header); the left sidebar toggle is pinned separately to the frame's top-left
  * corner. When the left sidebar is collapsed the bar reserves a matching slot at
- * its start so the title slides up against (not under) that toggle.
+ * its start so the title slides up against (not under) that toggle. When the
+ * context sidebar is collapsed a reopen toggle appears at the bar's right end.
  */
 export function FrameTopBar(props: FrameTopBarProps) {
-  const hasRight = () => !!props.contextToolIds()?.length;
   // Title + spacer are intrinsic to the bar and never in the config (the
   // migration drops them), so the configured doctitle tools render as-is.
   const docToolSlots = () => props.toolSlots() ?? [];
@@ -63,63 +62,21 @@ export function FrameTopBar(props: FrameTopBarProps) {
         </div>
       </Show>
 
-      <Show when={hasRight()}>
-        <div
-          class="frame__topbar-right"
-          classList={{ "frame__topbar-right--collapsed": props.isRightCollapsed() }}
-          style={
-            props.isRightCollapsed()
-              ? undefined
-              : { width: `${props.rightWidth()}px` }
-          }
+      {/* When the context sidebar is collapsed its own tab header is hidden, so
+          the reopen affordance lives here at the bar's right end. When expanded
+          the sidebar carries its own collapse button in its tab header. */}
+      <Show when={props.hasContext() && props.isRightCollapsed()}>
+        <button
+          type="button"
+          class="frame__sidebar-toggle"
+          title="Show context sidebar"
+          aria-label="Show context sidebar"
+          aria-pressed={false}
+          onClick={() => props.onToggleRight()}
         >
-          <Show when={!props.isRightCollapsed()}>
-            <ContextTabs
-              contextToolIds={props.contextToolIds}
-              selectedToolId={props.selectedContextToolId}
-              setSelectedToolId={props.setSelectedContextToolId}
-            />
-          </Show>
-          <button
-            type="button"
-            class="frame__sidebar-toggle"
-            title={
-              props.isRightCollapsed()
-                ? "Show context sidebar"
-                : "Hide context sidebar"
-            }
-            aria-label={
-              props.isRightCollapsed()
-                ? "Show context sidebar"
-                : "Hide context sidebar"
-            }
-            aria-pressed={!props.isRightCollapsed()}
-            onClick={() => props.onToggleRight()}
-          >
-            <PanelRightIcon />
-          </button>
-        </div>
+          <PanelRightIcon />
+        </button>
       </Show>
     </div>
-  );
-}
-
-// lucide `panel-right`
-function PanelRightIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.75"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M15 3v18" />
-    </svg>
   );
 }

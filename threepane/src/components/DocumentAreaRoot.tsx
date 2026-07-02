@@ -276,21 +276,23 @@ function DraftDocumentArea(props: {
             >
               <Show when={areDocProvidersReady()}>
                 <div class="frame__main-column">
-                  <FrameTopBar
-                    docUrl={props.selectedDocUrl}
-                    toolSlots={props.doctitleSlots}
-                    isLeftCollapsed={props.isLeftCollapsed}
-                    contextToolIds={props.contextTabIds}
-                    selectedContextToolId={props.selectedContextToolId}
-                    setSelectedContextToolId={props.setSelectedContextToolId}
-                    isRightCollapsed={props.isRightSidebarCollapsed}
-                    rightWidth={props.rightSidebarWidth}
-                    onToggleRight={() =>
-                      props.setIsRightSidebarCollapsed((v) => !v)
-                    }
-                  />
+                  <div class="frame__doc-column">
+                    <FrameTopBar
+                      docUrl={props.selectedDocUrl}
+                      toolSlots={props.doctitleSlots}
+                      isLeftCollapsed={props.isLeftCollapsed}
+                      hasContext={() =>
+                        !!(
+                          props.contextTabIds()?.length ||
+                          props.traySlots()?.length
+                        )
+                      }
+                      isRightCollapsed={props.isRightSidebarCollapsed}
+                      onToggleRight={() =>
+                        props.setIsRightSidebarCollapsed((v) => !v)
+                      }
+                    />
 
-                  <div class="frame__content-row">
                     <div class="main-area">
                       <MainDocumentView
                         viewKey={props.selectedDocUrl}
@@ -304,25 +306,29 @@ function DraftDocumentArea(props: {
                         ref={(el) => props.setMainDocElement?.(el)}
                       />
                     </div>
-
-                    <Show
-                      when={
-                        props.contextTabIds()?.length ||
-                        props.traySlots()?.length
-                      }
-                    >
-                      <ContextSidebar
-                        contextToolIds={props.contextTabIds}
-                        contextToolSlots={props.contextTabSlots}
-                        traySlots={props.traySlots}
-                        selectedToolId={props.selectedContextToolId}
-                        isCollapsed={props.isRightSidebarCollapsed}
-                        width={props.rightSidebarWidth}
-                        onMouseDown={props.handleMouseDown}
-                        onToggleClick={props.handleToggleClick}
-                      />
-                    </Show>
                   </div>
+
+                  <Show
+                    when={
+                      props.contextTabIds()?.length ||
+                      props.traySlots()?.length
+                    }
+                  >
+                    <ContextSidebar
+                      contextToolIds={props.contextTabIds}
+                      contextToolSlots={props.contextTabSlots}
+                      traySlots={props.traySlots}
+                      selectedToolId={props.selectedContextToolId}
+                      setSelectedToolId={props.setSelectedContextToolId}
+                      isCollapsed={props.isRightSidebarCollapsed}
+                      width={props.rightSidebarWidth}
+                      onMouseDown={props.handleMouseDown}
+                      onToggleClick={props.handleToggleClick}
+                      onCollapse={() =>
+                        props.setIsRightSidebarCollapsed(true)
+                      }
+                    />
+                  </Show>
                 </div>
               </Show>
             </patchwork-view>
