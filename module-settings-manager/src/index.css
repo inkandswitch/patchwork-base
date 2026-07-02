@@ -470,6 +470,21 @@
   gap: 0.5rem;
 }
 
+.msm-card__plugins-overflow {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 40%);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.msm-card__plugins-overflow:hover {
+  color: var(--module-settings-manager-widget-line);
+}
+
 .msm-card__plugins {
   list-style: none;
   margin: 0;

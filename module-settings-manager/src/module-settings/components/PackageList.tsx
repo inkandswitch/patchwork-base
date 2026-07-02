@@ -1,4 +1,4 @@
-import { ErrorBoundary, For, Show, createMemo } from "solid-js";
+import { ErrorBoundary, For, Show, createMemo, createSignal } from "solid-js";
 import {
   isValidAutomergeUrl,
   type AutomergeUrl,
@@ -187,13 +187,7 @@ function PackageCard(props: PackageCardProps) {
 
       <Show when={props.plugins.length > 0}>
         <div class="msm-card__contributes">
-          <ul class="msm-card__plugins">
-            <For each={props.plugins}>
-              {(plugin) => (
-                <PluginItem plugin={plugin} sourceUrl={folderUrl() ?? url()} />
-              )}
-            </For>
-          </ul>
+          <PluginList plugins={props.plugins} sourceUrl={folderUrl() ?? url()} />
         </div>
       </Show>
 
@@ -262,6 +256,45 @@ function formatError(error: unknown): string | undefined {
   if (!error) return undefined;
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+/** Cards show at most this many plugins before collapsing the rest. */
+const PLUGIN_OVERFLOW_LIMIT = 4;
+
+function PluginList(props: {
+  plugins: EnrichedPlugin[];
+  sourceUrl: string | undefined;
+}) {
+  const [expanded, setExpanded] = createSignal(false);
+  const visible = createMemo(() =>
+    expanded() ? props.plugins : props.plugins.slice(0, PLUGIN_OVERFLOW_LIMIT)
+  );
+  const overflowCount = () =>
+    Math.max(0, props.plugins.length - PLUGIN_OVERFLOW_LIMIT);
+
+  return (
+    <>
+      <ul class="msm-card__plugins">
+        <For each={visible()}>
+          {(plugin) => (
+            <PluginItem plugin={plugin} sourceUrl={props.sourceUrl} />
+          )}
+        </For>
+      </ul>
+      <Show when={overflowCount() > 0}>
+        <button
+          class="msm-card__plugins-overflow"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded()
+            ? "Show fewer"
+            : `Show ${overflowCount()} more plugin${
+                overflowCount() === 1 ? "" : "s"
+              }`}
+        </button>
+      </Show>
+    </>
+  );
 }
 
 function PluginItem(props: {
