@@ -486,11 +486,12 @@
   background: var(--threepane-sidebar-fill);
   color: var(--threepane-fg);
   border-top: 1px solid var(--threepane-sidebar-divider);
-  padding-block: var(--threepane-space-2xs);
+  padding-block: var(--threepane-space-md);
   padding-bottom: calc(var(--threepane-space-2xs) + env(safe-area-inset-bottom));
-  padding-left: calc(env(safe-area-inset-left) + var(--threepane-space-sm));
-  padding-right: calc(env(safe-area-inset-right) + var(--threepane-space-sm));
+  padding-left: calc(env(safe-area-inset-left) + var(--threepane-space-md));
+  padding-right: calc(env(safe-area-inset-right) + var(--threepane-space-md));
   justify-content: space-between;
+  overflow: hidden;
 }
 
 .threepane-account-bar__button {
@@ -531,6 +532,7 @@
   width: 100%;
   min-height: 0;
   padding-top: var(--threepane-header-height);
+  gap: 1rem;
 }
 
 .threepane-widget {
