@@ -303,6 +303,240 @@
   white-space: nowrap;
 }
 
+/* ---- Nested history: time groups → area groups → scrubber ---- */
+
+.draft-timegroup {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Outer (time-window) header row and inner (author+area) header row share a
+   layout: caret, avatar(s), label, flexible spacer, then +/- counts. */
+.draft-group-row,
+.draft-area-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.25rem 0.375rem;
+  border: none;
+  border-radius: var(--drafts-radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.draft-group-row:hover,
+.draft-area-row:hover {
+  background: var(--drafts-hover-bg);
+}
+
+.draft-area-row {
+  cursor: grab;
+}
+
+.draft-area-row[data-selected] {
+  background: var(--drafts-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--drafts-primary);
+}
+
+.draft-caret {
+  flex: none;
+  width: 0.75rem;
+  color: var(--drafts-faint-fg);
+  font-size: 0.625rem;
+}
+
+.draft-group-spacer {
+  flex: 1 1 auto;
+}
+
+.draft-group-time {
+  color: var(--drafts-muted-fg);
+  white-space: nowrap;
+}
+
+.draft-area-doc {
+  font-weight: 600;
+  color: var(--drafts-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45%;
+}
+
+.draft-area-label {
+  color: var(--drafts-muted-fg);
+  font-family: var(--drafts-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Author avatars */
+.draft-avatars {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.draft-avatar {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 300;
+  color: white;
+  user-select: none;
+}
+
+.draft-avatar--extra {
+  margin-left: -4px;
+  font-size: 7px;
+  background: var(--drafts-faint-fg);
+}
+
+/* Edit-size counts */
+.draft-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: none;
+}
+
+.draft-count {
+  font-size: 0.6875rem;
+  font-weight: 300;
+}
+
+.draft-count--add {
+  color: var(--studio-success, #16a34a);
+}
+
+.draft-count--del {
+  color: var(--studio-danger, #dc2626);
+}
+
+/* Inner groups are indented under their time group; the scrubber under those. */
+.draft-areagroups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  margin-left: 0.75rem;
+  border-left: 1px solid var(--drafts-border);
+  padding-left: 0.25rem;
+}
+
+.draft-areagroup {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The finest level: individual changes, listed under an area group. */
+.draft-changelist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  margin-left: 1.5rem;
+  padding: 0.125rem 0.25rem 0.25rem;
+}
+
+.draft-change-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--drafts-radius-sm);
+}
+
+.draft-change-item[data-selected] {
+  background: var(--drafts-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--drafts-primary);
+}
+
+/* Click target that pins the doc at this change (plain time-travel). */
+.draft-change-pin {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.1875rem 0.375rem;
+  border: none;
+  border-radius: var(--drafts-radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  color: inherit;
+  cursor: grab;
+}
+
+.draft-change-pin:hover {
+  background: var(--drafts-hover-bg);
+}
+
+.draft-change-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--drafts-mono);
+  color: var(--drafts-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The "Highlight changes" toggle shown on every history item. It's hidden until
+   you hover the item (or it's the active highlight), keeping the list clean. */
+.draft-highlight-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--drafts-radius-sm);
+  background: transparent;
+  color: var(--drafts-muted-fg);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+/* Reveal the toggle when hovering the surrounding history row. */
+.draft-group-row:hover .draft-highlight-toggle,
+.draft-area-row:hover .draft-highlight-toggle,
+.draft-change-item:hover .draft-highlight-toggle,
+.draft-highlight-toggle:focus-visible {
+  opacity: 0.65;
+}
+
+.draft-highlight-toggle:hover {
+  opacity: 1 !important;
+  color: var(--drafts-fg);
+  background: var(--drafts-hover-bg);
+}
+
+/* When highlighting is active for this item, keep it lit in the accent color. */
+.draft-highlight-toggle[data-active] {
+  opacity: 1 !important;
+  color: var(--drafts-primary);
+  background: var(--drafts-selected-bg);
+}
+
 .drafts-version {
   padding: 0.25rem 0.5rem;
   font-family: var(--drafts-mono);

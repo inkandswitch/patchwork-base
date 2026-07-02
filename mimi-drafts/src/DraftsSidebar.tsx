@@ -41,7 +41,18 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.5";
+const DRAFTS_VERSION = "0.0.8";
+
+// Changes closer together in time than this fall in the same outer group ("made
+// around the same time"). 15 min matches the history-view default window.
+const TIME_WINDOW = 15 * 60 * 1000;
+
+// How we decide two edits are in "the same area" of a document. An edit's
+// location is read from its Automerge patch paths (see computeChangeArea);
+// numeric path elements (character offsets, array indices) are bucketed by this
+// size so nearby edits share an area while distant ones split apart. Bigger =
+// coarser areas. Units are whatever the path index counts (characters for text).
+const POSITION_BUCKET = 200;
 
 // Console-logging helpers. Messages are prefixed `[drafts:ui]` — the sidebar,
 // where user actions (create / select / merge a draft, pin a history entry)
@@ -75,6 +86,11 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   // sticks around).
   const [selectedEntry, setSelectedEntry] =
     createSignal<HighlightEntry | null>(null);
+
+  // Whether the current pin is in "Highlight changes" mode: instead of freezing
+  // the doc at the pinned moment, we leave it live and diff it against that
+  // moment so the changes since then are highlighted. Just visual/session state.
+  const [highlighting, setHighlighting] = createSignal(false);
 
   // The list to draw — Main plus each draft and its documents — kept up to date
   // by the provider.
@@ -115,6 +131,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
         : `checking out "main" (no overlay; you see the real docs)`
     );
     setSelectedEntry(null);
+    setHighlighting(false);
     handle.change((d) => {
       d.checkedOut = url;
       // Switching drafts (or to main) returns to the live latest heads.
@@ -131,19 +148,25 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   const onSelectEntry = (
     draftUrl: AutomergeUrl | null,
     members: DraftMemberDoc[],
-    entry: ClickedEntry
+    entry: ClickedEntry,
+    highlight: boolean
   ) => {
     const handle = checkedOutHandle();
     const repo = getRepo();
     if (!handle || !repo) return;
     // Highlight the clicked row immediately, independent of the async checkpoint.
     setSelectedEntry({ docUrl: entry.docUrl, hash: entry.hash });
+    setHighlighting(highlight);
     log(
       `pinning ${draftUrl ? `draft ${short(draftUrl)}` : "main"} to a history ` +
-        `entry on ${short(entry.docUrl)} — computing a frozen checkpoint across all members`
+        `entry on ${short(entry.docUrl)} — ${
+          highlight
+            ? "highlighting changes since then (live doc, diffed against that moment)"
+            : "freezing every member at that moment"
+        }`
     );
     void (async () => {
-      const checkpoint = await computeCheckpoint(repo, members, entry);
+      const checkpoint = await computeCheckpoint(repo, members, entry, highlight);
       log(
         `checkpoint computed for ${Object.keys(checkpoint).length} member doc(s)`,
         checkpoint
@@ -162,6 +185,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     if (!handle) return;
     log(`clearing the history pin — returning to the live latest heads`);
     setSelectedEntry(null);
+    setHighlighting(false);
     handle.change((d) => {
       d.at = null;
     });
@@ -349,14 +373,15 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             isSelected={isMainSelected()}
             members={() => list().main.members}
             onSelect={() => selectDraft(null)}
-            onSelectEntry={(entry) =>
-              onSelectEntry(null, list().main.members, entry)
+            onSelectEntry={(entry, highlight) =>
+              onSelectEntry(null, list().main.members, entry, highlight)
             }
             onEntryDragStart={(entry) =>
               beginDrag(null, list().main.members, entry)
             }
             onEntryDragEnd={endDrag}
             activeAnchor={() => (isMainSelected() ? selectedEntry() : null)}
+            isHighlighting={() => (isMainSelected() ? highlighting() : false)}
           />
           <For each={list().drafts}>
             {(summary) => (
@@ -369,8 +394,8 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 isSelected={selected() === summary.url}
                 onSelect={selectDraft}
                 onRename={(name) => onRenameDraft(summary.url, name)}
-                onSelectEntry={(entry) =>
-                  onSelectEntry(summary.url, summary.members, entry)
+                onSelectEntry={(entry, highlight) =>
+                  onSelectEntry(summary.url, summary.members, entry, highlight)
                 }
                 onEntryDragStart={(entry) =>
                   beginDrag(summary.url, summary.members, entry)
@@ -378,6 +403,9 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 onEntryDragEnd={endDrag}
                 activeAnchor={() =>
                   selected() === summary.url ? selectedEntry() : null
+                }
+                isHighlighting={() =>
+                  selected() === summary.url ? highlighting() : false
                 }
               />
             )}
@@ -439,10 +467,11 @@ function MainCard(props: {
   isSelected: boolean;
   members: Accessor<DraftMemberDoc[]>;
   onSelect: () => void;
-  onSelectEntry: (entry: ClickedEntry) => void;
+  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
   onEntryDragStart: (entry: ClickedEntry) => void;
   onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
+  isHighlighting: Accessor<boolean>;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -467,6 +496,7 @@ function MainCard(props: {
         onEntryDragStart={props.onEntryDragStart}
         onEntryDragEnd={props.onEntryDragEnd}
         activeAnchor={props.activeAnchor}
+        isHighlighting={props.isHighlighting}
       />
     </div>
   );
@@ -502,10 +532,11 @@ function DraftCard(props: {
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
   onRename: (name: string) => void;
-  onSelectEntry: (entry: ClickedEntry) => void;
+  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
   onEntryDragStart: (entry: ClickedEntry) => void;
   onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
+  isHighlighting: Accessor<boolean>;
 }) {
   // Inline rename state. `draftName` holds the in-progress edit; it's seeded
   // from the current name each time editing starts.
@@ -600,6 +631,7 @@ function DraftCard(props: {
         onEntryDragStart={props.onEntryDragStart}
         onEntryDragEnd={props.onEntryDragEnd}
         activeAnchor={props.activeAnchor}
+        isHighlighting={props.isHighlighting}
       />
     </div>
   );
@@ -615,6 +647,14 @@ function DraftCard(props: {
 //   - message: an optional note attached to the change.
 //   - seq:     where this change falls in its document's own order. Only used to
 //              keep ordering sensible when two changes share the same second.
+//   - area:    a datatype-agnostic key for "which part of the doc" this change
+//              touched, derived from its Automerge patch paths (see
+//              computeChangeArea). Changes to the same area by the same person
+//              group together.
+//   - areaLabel: a short human label for that area (e.g. "content", a shape id).
+//   - additions/deletions: rough edit magnitude, used for the +/- bars.
+//   - description: a compact summary of the actual edit, e.g. `+"e"` or `-"d"`,
+//              shown on the individual-change rows.
 type DraftChange = {
   docUrl: AutomergeUrl;
   title: string;
@@ -623,6 +663,37 @@ type DraftChange = {
   actor: string;
   message: string | null;
   seq: number;
+  area: string;
+  areaLabel: string;
+  additions: number;
+  deletions: number;
+  description: string;
+};
+
+// An inner history group: consecutive-in-a-window changes made by the same
+// person to the same area of one document. `changes` is kept oldest→newest so
+// the drill-in scrubber can step through them in order.
+type AreaGroup = {
+  id: string;
+  docUrl: AutomergeUrl;
+  title: string;
+  actor: string;
+  areaLabel: string;
+  additions: number;
+  deletions: number;
+  changes: DraftChange[];
+};
+
+// An outer history group: everything that happened around the same time,
+// regardless of author, split inside into per-(author, area) AreaGroups.
+type TimeGroup = {
+  id: string;
+  startTime: number;
+  endTime: number;
+  actors: string[];
+  additions: number;
+  deletions: number;
+  areaGroups: AreaGroup[];
 };
 
 // The history row you clicked. Its `time` is used to line up the other
@@ -647,10 +718,11 @@ type HighlightEntry = {
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   mainDocUrl: AutomergeUrl | undefined;
-  onSelectEntry: (entry: ClickedEntry) => void;
+  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
   onEntryDragStart: (entry: ClickedEntry) => void;
   onEntryDragEnd: () => void;
   activeAnchor: Accessor<HighlightEntry | null>;
+  isHighlighting: Accessor<boolean>;
 }) {
   const [changes, setChanges] = createSignal<DraftChange[]>([]);
 
@@ -691,75 +763,350 @@ function DraftChangesList(props: {
     });
   });
 
+  // The flat, newest-first history folded into the two-level tree the UI draws.
+  const timeGroups = createMemo(() => groupChanges(changes()));
+
   return (
     <div class="draft-card-changes">
       <Show
-        when={changes().length > 0}
+        when={timeGroups().length > 0}
         fallback={<div class="draft-changes-empty">No changes yet.</div>}
       >
-        <For each={changes()}>
-          {(change) => {
-            // Highlight only the row you actually clicked, even though the
-            // snapshot behind it freezes every document.
-            const isActive = () => {
-              const anchor = props.activeAnchor();
-              return (
-                !!anchor &&
-                anchor.docUrl === change.docUrl &&
-                anchor.hash === change.hash
-              );
-            };
-            return (
-              <button
-                type="button"
-                class="draft-change-row"
-                draggable={true}
-                data-selected={isActive() ? "" : undefined}
-                title="Click to view this point · drag out to start a new draft from here"
-                onDragStart={(e) => {
-                  if (e.dataTransfer) {
-                    e.dataTransfer.effectAllowed = "copy";
-                    // A payload is required to begin a drag in some browsers; the
-                    // real data is carried in the sidebar's pendingDrag signal.
-                    e.dataTransfer.setData(
-                      "text/plain",
-                      encodeHeads([change.hash])[0]
-                    );
-                  }
-                  props.onEntryDragStart({
-                    docUrl: change.docUrl,
-                    hash: change.hash,
-                    time: change.time,
-                  });
-                }}
-                onDragEnd={() => props.onEntryDragEnd()}
-                onClick={() => {
-                  log(
-                    `history row clicked: "${change.title}" @ ${formatTime(change.time)} ` +
-                      `on ${short(change.docUrl)}`,
-                    change
-                  );
-                  props.onSelectEntry({
-                    docUrl: change.docUrl,
-                    hash: change.hash,
-                    time: change.time,
-                  });
-                }}
-              >
-                <div class="draft-change-line">
-                  <span class="draft-change-time">
-                    {formatTime(change.time)}
-                  </span>
-                  <span class="draft-change-doc">{change.title}</span>
-                  <Show when={change.message}>
-                    <span class="draft-change-msg">{change.message}</span>
-                  </Show>
-                </div>
-              </button>
-            );
-          }}
+        <For each={timeGroups()}>
+          {(group) => (
+            <TimeGroupRow
+              group={group}
+              onSelectEntry={props.onSelectEntry}
+              onEntryDragStart={props.onEntryDragStart}
+              onEntryDragEnd={props.onEntryDragEnd}
+              activeAnchor={props.activeAnchor}
+              isHighlighting={props.isHighlighting}
+            />
+          )}
         </For>
       </Show>
+    </div>
+  );
+}
+
+// Shared props threaded down to every level of the nested history so a click or
+// drag anywhere resolves to the same pin/fork actions on the sidebar.
+type HistoryRowActions = {
+  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
+  onEntryDragStart: (entry: ClickedEntry) => void;
+  onEntryDragEnd: () => void;
+  activeAnchor: Accessor<HighlightEntry | null>;
+  // Whether the currently-pinned entry is in "Highlight changes" mode. Used to
+  // reflect each row's checkbox state.
+  isHighlighting: Accessor<boolean>;
+};
+
+// Is this change the one currently highlighted?
+function anchorMatches(
+  anchor: HighlightEntry | null,
+  change: DraftChange
+): boolean {
+  return (
+    !!anchor && anchor.docUrl === change.docUrl && anchor.hash === change.hash
+  );
+}
+
+// A stack of author avatars (deduped), newest-contributor first.
+function AuthorAvatars(props: { actors: string[] }) {
+  const visible = () => props.actors.slice(0, 3);
+  const extra = () => Math.max(0, props.actors.length - 3);
+  return (
+    <div class="draft-avatars">
+      <For each={visible()}>
+        {(actor, i) => (
+          <div
+            class="draft-avatar"
+            title={actor}
+            style={{
+              background: authorColor(actor),
+              "margin-left": i() === 0 ? "0" : "-4px",
+              "z-index": String(visible().length - i()),
+            }}
+          >
+            {getInitials(actor)}
+          </div>
+        )}
+      </For>
+      <Show when={extra() > 0}>
+        <div class="draft-avatar draft-avatar--extra">+{extra()}</div>
+      </Show>
+    </div>
+  );
+}
+
+// A little highlighter-marker glyph for the "Highlight changes" affordance.
+function HighlighterIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9.5 2.5l4 4-6 6H4.5l-1-1v-2z" />
+      <path d="M2.5 14.5h5" />
+    </svg>
+  );
+}
+
+// The "Highlight changes" toggle shown on any history item. It pins the moment
+// this item represents and, when on, diffs the live doc against that moment so
+// the changes since then are highlighted. Only visible on hover of its row
+// (see CSS) unless it's the active one. `entry` is the moment to pin (a group's
+// newest change, or an individual change).
+function HighlightToggle(props: {
+  entry: ClickedEntry;
+  active: boolean;
+  onSelectEntry: (entry: ClickedEntry, highlight: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      class="draft-highlight-toggle"
+      data-active={props.active ? "" : undefined}
+      title="Highlight what changed between now and this moment"
+      aria-label="Highlight changes"
+      aria-pressed={props.active}
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onSelectEntry(props.entry, !props.active);
+      }}
+    >
+      <HighlighterIcon />
+    </button>
+  );
+}
+
+// The moment a whole time group represents: its most recent change.
+function timeGroupNewest(group: TimeGroup): DraftChange {
+  let best: DraftChange | null = null;
+  for (const ag of group.areaGroups) {
+    const c = ag.changes[ag.changes.length - 1];
+    if (!best || c.time > best.time) best = c;
+  }
+  return best!;
+}
+
+// Turn a change into the {docUrl, hash, time} moment used for pinning.
+function toEntry(change: DraftChange): ClickedEntry {
+  return { docUrl: change.docUrl, hash: change.hash, time: change.time };
+}
+
+// The +N / -N edit-size bars shared by both group levels.
+function EditCounts(props: { additions: number; deletions: number }) {
+  return (
+    <span class="draft-counts">
+      <Show when={props.additions > 0}>
+        <span class="draft-count draft-count--add">+{props.additions}</span>
+      </Show>
+      <Show when={props.deletions > 0}>
+        <span class="draft-count draft-count--del">-{props.deletions}</span>
+      </Show>
+    </span>
+  );
+}
+
+// One outer group: "changes made around the same time". Expands to reveal its
+// per-(author, area) inner groups.
+function TimeGroupRow(props: { group: TimeGroup } & HistoryRowActions) {
+  const newest = () => timeGroupNewest(props.group);
+  const containsActive = () =>
+    props.group.areaGroups.some((ag) =>
+      ag.changes.some((c) => anchorMatches(props.activeAnchor(), c))
+    );
+  // The group's highlight toggle is "on" when its newest change is the pinned
+  // one and we're in highlight mode.
+  const highlightActive = () =>
+    anchorMatches(props.activeAnchor(), newest()) && props.isHighlighting();
+  const [open, setOpen] = createSignal(false);
+  // Auto-open the group that holds the pinned change so it's never hidden.
+  createEffect(() => {
+    if (containsActive()) setOpen(true);
+  });
+
+  return (
+    <div class="draft-timegroup">
+      {/* A div (not a button) so the highlight toggle button can nest inside
+          without invalid button-in-button markup. */}
+      <div
+        class="draft-group-row"
+        role="button"
+        tabindex="0"
+        data-open={open() ? "" : undefined}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+        title={open() ? "Collapse" : "Expand"}
+      >
+        <span class="draft-caret">{open() ? "▾" : "▸"}</span>
+        <AuthorAvatars actors={props.group.actors} />
+        <span class="draft-group-time">{formatTime(props.group.endTime)}</span>
+        <span class="draft-group-spacer" />
+        <EditCounts
+          additions={props.group.additions}
+          deletions={props.group.deletions}
+        />
+        <HighlightToggle
+          entry={toEntry(newest())}
+          active={highlightActive()}
+          onSelectEntry={props.onSelectEntry}
+        />
+      </div>
+      <Show when={open()}>
+        <div class="draft-areagroups">
+          <For each={props.group.areaGroups}>
+            {(areaGroup) => (
+              <AreaGroupRow
+                group={areaGroup}
+                onSelectEntry={props.onSelectEntry}
+                onEntryDragStart={props.onEntryDragStart}
+                onEntryDragEnd={props.onEntryDragEnd}
+                activeAnchor={props.activeAnchor}
+                isHighlighting={props.isHighlighting}
+              />
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+// One inner group: the same person's edits to the same area. Clicking expands
+// it to reveal the individual changes underneath.
+function AreaGroupRow(props: { group: AreaGroup } & HistoryRowActions) {
+  const newest = () => props.group.changes[props.group.changes.length - 1];
+  const containsActive = () =>
+    props.group.changes.some((c) => anchorMatches(props.activeAnchor(), c));
+  const highlightActive = () =>
+    anchorMatches(props.activeAnchor(), newest()) && props.isHighlighting();
+  const [open, setOpen] = createSignal(false);
+  createEffect(() => {
+    if (containsActive()) setOpen(true);
+  });
+
+  return (
+    <div class="draft-areagroup">
+      {/* A div (not a button) so the highlight toggle button can nest inside. */}
+      <div
+        class="draft-area-row"
+        role="button"
+        tabindex="0"
+        draggable={true}
+        data-open={open() ? "" : undefined}
+        data-selected={containsActive() ? "" : undefined}
+        title="Click to expand · drag out to start a new draft from here"
+        onDragStart={(e) => {
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "copy";
+            e.dataTransfer.setData(
+              "text/plain",
+              encodeHeads([newest().hash])[0]
+            );
+          }
+          props.onEntryDragStart(toEntry(newest()));
+        }}
+        onDragEnd={() => props.onEntryDragEnd()}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+      >
+        <span class="draft-caret">{open() ? "▾" : "▸"}</span>
+        <div
+          class="draft-avatar"
+          title={props.group.actor}
+          style={{ background: authorColor(props.group.actor) }}
+        >
+          {getInitials(props.group.actor)}
+        </div>
+        <span class="draft-area-doc">{props.group.title}</span>
+        <span class="draft-area-label">{props.group.areaLabel}</span>
+        <span class="draft-group-spacer" />
+        <EditCounts
+          additions={props.group.additions}
+          deletions={props.group.deletions}
+        />
+        <HighlightToggle
+          entry={toEntry(newest())}
+          active={highlightActive()}
+          onSelectEntry={props.onSelectEntry}
+        />
+      </div>
+      <Show when={open()}>
+        <div class="draft-changelist">
+          {/* Newest change first, to match the rest of the history. */}
+          <For each={[...props.group.changes].reverse()}>
+            {(change) => (
+              <ChangeRow
+                change={change}
+                onSelectEntry={props.onSelectEntry}
+                onEntryDragStart={props.onEntryDragStart}
+                onEntryDragEnd={props.onEntryDragEnd}
+                activeAnchor={props.activeAnchor}
+                isHighlighting={props.isHighlighting}
+              />
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+// One individual change — the finest grain. Clicking pins the doc *at* this
+// change (time-travel, no diff). The "Highlight changes" checkbox instead pins
+// the live doc diffed against this moment, so the changes since then show up.
+function ChangeRow(props: { change: DraftChange } & HistoryRowActions) {
+  const isActive = () => anchorMatches(props.activeAnchor(), props.change);
+  const highlightActive = () => isActive() && props.isHighlighting();
+  const entry = () => toEntry(props.change);
+
+  return (
+    <div class="draft-change-item" data-selected={isActive() ? "" : undefined}>
+      <button
+        type="button"
+        class="draft-change-pin"
+        draggable={true}
+        title="Click to view the doc at this change · drag out to start a new draft from here"
+        onDragStart={(e) => {
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "copy";
+            e.dataTransfer.setData(
+              "text/plain",
+              encodeHeads([props.change.hash])[0]
+            );
+          }
+          props.onEntryDragStart(entry());
+        }}
+        onDragEnd={() => props.onEntryDragEnd()}
+        onClick={() => props.onSelectEntry(entry(), false)}
+      >
+        <span class="draft-change-time">{formatTime(props.change.time)}</span>
+        <span class="draft-change-desc">{props.change.description}</span>
+      </button>
+      <HighlightToggle
+        entry={entry()}
+        active={highlightActive()}
+        onSelectEntry={props.onSelectEntry}
+      />
     </div>
   );
 }
@@ -777,7 +1124,8 @@ async function createDraftFromCheckpoint(
   members: DraftMemberDoc[],
   entry: ClickedEntry
 ): Promise<DocHandle<DraftDoc>> {
-  const checkpoint = await computeCheckpoint(repo, members, entry);
+  // Plain mode: we need each member's `to` heads to fork the new draft from.
+  const checkpoint = await computeCheckpoint(repo, members, entry, false);
   const clones: Record<AutomergeUrl, CloneEntry> = {};
   for (const member of members) {
     const to = checkpoint[member.url]?.to;
@@ -814,17 +1162,24 @@ async function createDraftFromCheckpoint(
   return draft;
 }
 
-// Build the "this is how everything looked back then" snapshot for the row you
-// clicked. The document you clicked is frozen to exactly that change; every
-// other document is frozen to its latest change from around that same time
-// (close enough). For each, we also note the change just before it, so we can
-// highlight what that one change added — and if it's the document's very first
-// change, there's nothing before it, so the whole doc shows as new. Documents
-// that didn't exist yet at that time are left out and just show live.
+// Build the snapshot for the moment you clicked, in one of two modes:
+//
+//   - Plain (highlight = false): freeze every document *at* that moment
+//     (checkpoint `to`). The doc you clicked freezes at exactly that change;
+//     every other doc freezes at its most recent change from around that time.
+//     No `from`, so nothing is diff-highlighted — you just see the past state.
+//
+//   - Highlight (highlight = true): leave every document live (no `to`) and set
+//     `from` to that moment, so the editor diffs the current doc against then
+//     and highlights everything that changed since. This is the "diff between
+//     now and this moment" view.
+//
+// Documents that didn't exist yet at that time are left out and just show live.
 async function computeCheckpoint(
   repo: Repo,
   members: DraftMemberDoc[],
-  entry: ClickedEntry
+  entry: ClickedEntry,
+  highlight: boolean
 ): Promise<DraftCheckpoint> {
   const checkpoint: DraftCheckpoint = {};
   for (const member of members) {
@@ -837,17 +1192,14 @@ async function computeCheckpoint(
       const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
       const metas = Automerge.getChangesMetaSince(doc, since);
 
-      // Pick which change to freeze this document at: the exact one you clicked
-      // (for that document), or otherwise its most recent change at or before
-      // the clicked time.
-      let pinnedIndex = -1;
-      let to: UrlHeads;
+      // Pick which change represents this moment for this document: the exact
+      // one you clicked (for that document), or otherwise its most recent change
+      // at or before the clicked time.
+      let momentHeads: UrlHeads;
       if (member.url === entry.docUrl) {
-        pinnedIndex = metas.findIndex((m) => m.hash === entry.hash);
-        // Freeze the clicked document at exactly that change, even if it's not
-        // in the list we just gathered (just to be safe).
-        to = encodeHeads([entry.hash]);
+        momentHeads = encodeHeads([entry.hash]);
       } else {
+        let pinnedIndex = -1;
         let bestTime = -Infinity;
         metas.forEach((m, i) => {
           if (m.time <= entry.time && m.time >= bestTime) {
@@ -856,14 +1208,14 @@ async function computeCheckpoint(
           }
         });
         if (pinnedIndex < 0) continue;
-        to = encodeHeads([metas[pinnedIndex].hash]);
+        momentHeads = encodeHeads([metas[pinnedIndex].hash]);
       }
 
-      // The change right before the frozen one becomes the comparison point,
-      // so we can show what the frozen change added.
-      const prev = pinnedIndex >= 0 ? metas[pinnedIndex - 1] : undefined;
-      const from = encodeHeads(prev ? [prev.hash] : []);
-      checkpoint[member.url] = { from, to };
+      checkpoint[member.url] = highlight
+        ? // Live doc, diffed against the moment → highlight changes since then.
+          { from: momentHeads }
+        : // Frozen at the moment, no baseline → plain time-travel, no diff.
+          { to: momentHeads };
     } catch (err) {
       console.warn(
         "[drafts] failed to compute checkpoint for member:",
@@ -917,6 +1269,11 @@ async function collectInterleavedChanges(
         if (createdAt !== undefined && meta.time && meta.time < createdAt) {
           return;
         }
+        // Work out which part of the doc this change touched (and how big it
+        // was) from its patches, so we can group by area, show +/- bars, and
+        // describe the individual edit (e.g. `+"e"`).
+        const { area, areaLabel, additions, deletions, description } =
+          computeChangeInfo(doc, meta.hash, meta.deps, member.url);
         rows.push({
           docUrl: member.url,
           // `Automerge.view` is a cheap, copy-free immutable snapshot; reading
@@ -927,6 +1284,11 @@ async function collectInterleavedChanges(
           actor: meta.actor,
           message: meta.message,
           seq,
+          area,
+          areaLabel,
+          additions,
+          deletions,
+          description,
         });
       });
     } catch (err) {
@@ -1026,6 +1388,281 @@ function shortUrl(url: AutomergeUrl): string {
   const id = url.replace(/^automerge:/, "");
   if (id.length <= 10) return id;
   return `${id.slice(0, 6)}…${id.slice(-4)}`;
+}
+
+// Work out which part of a document one change touched, plus a rough size, by
+// diffing the change against its parents and reading the patch paths. This is
+// deliberately datatype-agnostic: every Automerge patch carries a `path` (e.g.
+// ["content", 45] for text, ["store", "shape:abc", "x"] for a drawing), so we
+// build an "area token" from that path and let the caller group edits sharing a
+// token. Numeric path elements (character offsets, list indices) are bucketed by
+// POSITION_BUCKET so nearby edits collapse into one area while distant ones
+// split. `@patchwork` metadata paths are ignored. The primary area is the token
+// hit by the most patches; area is prefixed with the doc url so the same path in
+// two different docs stays distinct.
+function computeChangeInfo(
+  doc: Automerge.Doc<unknown>,
+  hash: string,
+  deps: string[],
+  memberUrl: AutomergeUrl
+): {
+  area: string;
+  areaLabel: string;
+  additions: number;
+  deletions: number;
+  description: string;
+} {
+  let additions = 0;
+  let deletions = 0;
+  const tokenCounts = new Map<string, number>();
+  const tokenLabels = new Map<string, string>();
+
+  // Collected for the human-readable description, e.g. `+"e"` / `-"d"`.
+  let insertedText = "";
+  let deletedText = "";
+  let deletedCount = 0;
+  let otherTouches = 0;
+  // A view of the doc *before* this change, taken lazily so we can recover the
+  // text a deletion removed (patches carry a length, not the removed content).
+  let beforeView: Automerge.Doc<unknown> | null = null;
+
+  try {
+    const patches = Automerge.diff(
+      doc,
+      deps as unknown as Automerge.Heads,
+      [hash] as unknown as Automerge.Heads
+    );
+    for (const patch of patches) {
+      const path = patch.path;
+      if (path[0] === "@patchwork") continue;
+
+      if (patch.action === "splice") {
+        const value = patch.value as string;
+        additions += value.length;
+        insertedText += value;
+      } else if (patch.action === "insert") {
+        additions += Array.isArray((patch as { values?: unknown[] }).values)
+          ? (patch as { values: unknown[] }).values.length
+          : 1;
+        otherTouches += 1;
+      } else if (patch.action === "del") {
+        const len = (patch as { length?: number }).length ?? 1;
+        deletions += len;
+        deletedCount += len;
+        // Try to recover what was removed by reading the pre-change value at
+        // this path. Works for text (a string container + index); anything
+        // else just falls back to the count.
+        try {
+          if (!beforeView) {
+            beforeView = Automerge.view(
+              doc,
+              deps as unknown as Automerge.Heads
+            );
+          }
+          const container = valueAtPath(beforeView, path.slice(0, -1));
+          const idx = path[path.length - 1];
+          if (typeof container === "string" && typeof idx === "number") {
+            deletedText += container.slice(idx, idx + len);
+          }
+        } catch {
+          /* fall back to the count */
+        }
+      } else {
+        // put / inc / mark / etc. — count as a single touch.
+        additions += 1;
+        otherTouches += 1;
+      }
+
+      const token = path
+        .map((el) =>
+          typeof el === "number" ? `~${Math.floor(el / POSITION_BUCKET)}` : el
+        )
+        .join("/");
+      tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
+      if (!tokenLabels.has(token)) {
+        const lastString = [...path]
+          .reverse()
+          .find((el) => typeof el === "string") as string | undefined;
+        tokenLabels.set(token, lastString ?? token);
+      }
+    }
+  } catch (err) {
+    console.warn("[drafts] failed to diff change for area:", hash, err);
+  }
+
+  // Primary area = the token touched by the most patches (Map preserves
+  // first-appearance order, which breaks ties toward the earliest patch).
+  let primary = "";
+  let best = -1;
+  for (const [token, count] of tokenCounts) {
+    if (count > best) {
+      best = count;
+      primary = token;
+    }
+  }
+  if (!primary) {
+    // Metadata-only or empty change: bucket everything together.
+    primary = "other";
+    tokenLabels.set("other", "other");
+  }
+
+  // Assemble the compact edit description.
+  const parts: string[] = [];
+  if (insertedText) parts.push(`+${quoteSnippet(insertedText)}`);
+  if (deletedText) parts.push(`-${quoteSnippet(deletedText)}`);
+  else if (deletedCount) parts.push(`-${deletedCount}`);
+  if (parts.length === 0 && otherTouches > 0) {
+    parts.push(otherTouches === 1 ? "edit" : `${otherTouches} edits`);
+  }
+  const description = parts.join(" ") || "edit";
+
+  return {
+    area: `${memberUrl}::${primary}`,
+    areaLabel: shortenAreaLabel(tokenLabels.get(primary) ?? primary),
+    additions,
+    deletions,
+    description,
+  };
+}
+
+// Follow a patch path (a sequence of keys/indices) into a doc/view and return
+// whatever value sits there. Used to read the text a deletion removed.
+function valueAtPath(root: unknown, path: (string | number)[]): unknown {
+  let cur: unknown = root;
+  for (const key of path) {
+    if (cur == null || typeof cur !== "object") return undefined;
+    cur = (cur as Record<string | number, unknown>)[key];
+  }
+  return cur;
+}
+
+// Render a bit of edited text for a change description: collapse whitespace,
+// truncate, and wrap in quotes — e.g. `"the quick brown…"`.
+function quoteSnippet(text: string): string {
+  const oneLine = text.replace(/\s+/g, " ");
+  const trimmed =
+    oneLine.length > 24 ? `${oneLine.slice(0, 24)}…` : oneLine;
+  return `"${trimmed}"`;
+}
+
+// Trim long, id-like area labels (e.g. "shape:abcdef123456") to something that
+// fits a row, keeping the meaningful prefix.
+function shortenAreaLabel(label: string): string {
+  if (label.length > 16 && label.includes(":")) {
+    const idx = label.indexOf(":");
+    return `${label.slice(0, idx)}:${label.slice(idx + 1, idx + 5)}…`;
+  }
+  return label;
+}
+
+// Fold a flat, newest-first list of changes into the two-level history:
+// outer groups by time window (any author), each split into inner groups by
+// (author + area). Inner-group changes are ordered oldest→newest for scrubbing.
+function groupChanges(changes: DraftChange[]): TimeGroup[] {
+  const timeGroups: TimeGroup[] = [];
+  let window: DraftChange[] = [];
+  let prevTimeMs: number | null = null;
+
+  const flush = () => {
+    if (window.length > 0) {
+      timeGroups.push(buildTimeGroup(window));
+      window = [];
+    }
+  };
+
+  for (const change of changes) {
+    const timeMs = change.time * 1000;
+    if (prevTimeMs !== null && Math.abs(prevTimeMs - timeMs) > TIME_WINDOW) {
+      flush();
+    }
+    window.push(change);
+    prevTimeMs = timeMs;
+  }
+  flush();
+
+  return timeGroups;
+}
+
+// Build one outer group from a window of newest-first changes: bucket them by
+// (author, area) into inner groups and aggregate stats.
+function buildTimeGroup(windowNewestFirst: DraftChange[]): TimeGroup {
+  const buckets = new Map<string, DraftChange[]>();
+  for (const c of windowNewestFirst) {
+    const key = `${c.actor}|${c.area}`;
+    const arr = buckets.get(key);
+    if (arr) arr.push(c);
+    else buckets.set(key, [c]);
+  }
+
+  const actors: string[] = [];
+  const areaGroups: AreaGroup[] = [];
+  let additions = 0;
+  let deletions = 0;
+
+  for (const [key, bucketNewestFirst] of buckets) {
+    const actor = bucketNewestFirst[0].actor;
+    if (!actors.includes(actor)) actors.push(actor);
+    // Oldest→newest so the scrubber reads left (earliest) to right (latest).
+    const chrono = [...bucketNewestFirst].reverse();
+    let add = 0;
+    let del = 0;
+    for (const c of chrono) {
+      add += c.additions;
+      del += c.deletions;
+    }
+    additions += add;
+    deletions += del;
+    const newest = chrono[chrono.length - 1];
+    areaGroups.push({
+      id: `${key}|${newest.hash}`,
+      docUrl: newest.docUrl,
+      title: newest.title,
+      actor,
+      areaLabel: newest.areaLabel,
+      additions: add,
+      deletions: del,
+      changes: chrono,
+    });
+  }
+
+  const times = windowNewestFirst.map((c) => c.time);
+  const startTime = Math.min(...times);
+  const endTime = Math.max(...times);
+  return {
+    id: `tg-${startTime}-${endTime}-${windowNewestFirst[0].hash}`,
+    startTime,
+    endTime,
+    actors,
+    additions,
+    deletions,
+    areaGroups,
+  };
+}
+
+// A stable-ish color for an author, so the same person reads the same across
+// rows. Actors are Automerge actor ids (per device/session), the best "who"
+// signal available in a draft's raw change history.
+function authorColor(authorId: string): string {
+  let hash = 0;
+  for (let i = 0; i < authorId.length; i++) {
+    hash = authorId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 45%, 63%)`;
+}
+
+// Two short characters to stand in for an author on their avatar.
+function getInitials(authorId: string): string {
+  return authorId.slice(0, 2).toUpperCase();
+}
+
+// A friendly magnitude label from edit counts, e.g. "Minor addition".
+function magnitudeLabel(additions: number, deletions: number): string {
+  const total = additions + deletions;
+  if (total === 0) return "No change";
+  const kind = additions >= deletions ? "addition" : "deletion";
+  const size = total < 50 ? "Minor" : total < 500 ? "Medium" : "Large";
+  return `${size} ${kind}`;
 }
 
 // Format an Automerge change time (Unix SECONDS) as a short local timestamp.
