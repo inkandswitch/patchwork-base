@@ -1,23 +1,20 @@
-import { For, Show, type Accessor } from "solid-js";
-import type { ToolSlot } from "../types";
-import { SlotView } from "./SlotView";
+import { For, Show } from "solid-js";
+import { useTaggedComponents } from "../hooks";
 
 /**
- * A horizontal row of configured tools, pinned to the bottom of the right
- * context sidebar. Like the doctitle, its entries come from the threepane
- * config doc: a `[toolId, docId]` tuple renders that tool against the document
- * the tuple names, while a bare string renders a `patchwork:component`.
+ * A horizontal row of every `patchwork:component` tagged `"system-tray"`,
+ * pinned to the bottom of the right context sidebar. Registry-driven — no
+ * per-account configuration — so a component just declares the tag and shows
+ * up here.
  */
-export function Tray(props: {
-  slots: Accessor<ToolSlot[] | undefined>;
-}) {
-  const slots = () => props.slots() ?? [];
+export function Tray() {
+  const items = useTaggedComponents("system-tray");
 
   return (
-    <Show when={slots().length}>
+    <Show when={items().length}>
       <div class="frame-tray">
-        <For each={slots()}>
-          {(slot) => <SlotView slot={slot} />}
+        <For each={items()}>
+          {(item) => <patchwork-view component={item.id} />}
         </For>
       </div>
     </Show>

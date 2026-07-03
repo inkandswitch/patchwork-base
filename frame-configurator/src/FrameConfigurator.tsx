@@ -249,9 +249,6 @@ function ToolbarStrip(props: {
   setValues: (next: string[]) => void;
   allOptions: ModuleOption[];
   docUrl: string;
-  /** How each entry id is previewed/added: a `patchwork:tool` (default, against
-   *  `docUrl`) or a `patchwork:component`. */
-  previewKind?: "tool" | "component";
 }) {
   const [showAdd, setShowAdd] = createSignal(false);
   const [dragIndex, setDragIndex] = createSignal<number | null>(null);
@@ -321,21 +318,11 @@ function ToolbarStrip(props: {
               onDragEnd={() => handleDragEnd()}
             >
               <div class="toolbar-box-preview">
-                <Show
-                  when={props.previewKind === "component"}
-                  fallback={
-                    <patchwork-view
-                      doc-url={props.docUrl}
-                      tool-id={id}
-                      style="pointer-events:none;width:100%;height:100%"
-                    />
-                  }
-                >
-                  <patchwork-view
-                    component={id}
-                    style="pointer-events:none;width:100%;height:100%"
-                  />
-                </Show>
+                <patchwork-view
+                  doc-url={props.docUrl}
+                  tool-id={id}
+                  style="pointer-events:none;width:100%;height:100%"
+                />
               </div>
               <div class="toolbar-box-label">{nameOf(id)}</div>
               <button
@@ -364,117 +351,6 @@ function ToolbarStrip(props: {
               available={available()}
               onAdd={add}
               onClose={() => setShowAdd(false)}
-              customPlaceholder={
-                props.previewKind === "component" ? "component-id" : "tool-id"
-              }
-            />
-          </Show>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Context Tabs ── */
-
-function ContextTabs(props: {
-  label: string;
-  values: string[] | undefined;
-  setValues: (next: string[]) => void;
-  allOptions: ModuleOption[];
-}) {
-  const [showAdd, setShowAdd] = createSignal(false);
-  const [dragIndex, setDragIndex] = createSignal<number | null>(null);
-  const [dropIndex, setDropIndex] = createSignal<number | null>(null);
-  let lastDropIndex: number | null = null;
-
-  const currentIds = createMemo(() => new Set(props.values ?? []));
-  const available = createMemo(() =>
-    props.allOptions.filter((o) => !currentIds().has(o.id))
-  );
-  const nameOf = (id: string) =>
-    props.allOptions.find((o) => o.id === id)?.name ?? id;
-
-  const removeAt = (index: number) => {
-    const vals = props.values;
-    if (!vals) return;
-    props.setValues(vals.filter((_, i) => i !== index));
-  };
-
-  const add = (id: string) => {
-    props.setValues([...(props.values ?? []), id]);
-  };
-
-  const updateDropIndex = (i: number) => {
-    lastDropIndex = i;
-    setDropIndex(i);
-  };
-
-  const handleDragEnd = () => {
-    const from = dragIndex();
-    const to = lastDropIndex;
-    setDragIndex(null);
-    setDropIndex(null);
-    lastDropIndex = null;
-    if (from == null || to == null || from === to) return;
-    const arr = [...(props.values ?? [])];
-    const [moved] = arr.splice(from, 1);
-    arr.splice(to, 0, moved);
-    props.setValues(arr);
-  };
-
-  return (
-    <div class="config-section">
-      <div class="section-label">{props.label}</div>
-      <div
-        class={`context-tabs${dragIndex() !== null ? " is-dragging" : ""}`}
-      >
-        <For each={props.values ?? []}>
-          {(id, index) => (
-            <div
-              class={`context-tab${itemDragClass(index(), dragIndex(), dropIndex())}`}
-              draggable={true}
-              onDragStart={(e) => {
-                e.dataTransfer!.effectAllowed = "move";
-                const idx = index();
-                requestAnimationFrame(() => {
-                  setDragIndex(idx);
-                  updateDropIndex(idx);
-                });
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer!.dropEffect = "move";
-                updateDropIndex(index());
-              }}
-              onDragEnd={() => handleDragEnd()}
-            >
-              <span>{nameOf(id)}</span>
-              <button
-                class="context-tab-remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeAt(index());
-                }}
-                aria-label={`Remove ${nameOf(id)}`}
-              >
-                <CloseIcon size={8} />
-              </button>
-            </div>
-          )}
-        </For>
-        <div class="add-popover-anchor">
-          <button
-            class="context-tab-add"
-            onClick={() => setShowAdd(!showAdd())}
-          >
-            <PlusIcon /> Add
-          </button>
-          <Show when={showAdd()}>
-            <AddPopover
-              available={available()}
-              onAdd={add}
-              onClose={() => setShowAdd(false)}
             />
           </Show>
         </div>
@@ -492,15 +368,17 @@ function FrameConfiguratorUI(props: {
     () => props.handle.url
   );
 
-  // The doctitle + contextbar config now live in the threepane config doc; we
-  // edit it here. Entries are [toolId, docId] pairs — the docid is the account
-  // doc (a placeholder; the frame feeds doctitle the selected doc).
+  // The doctitle config lives in the threepane config doc; we edit it here.
+  // Entries are [toolId, docId] pairs — the docid is the account doc (a
+  // placeholder; the frame feeds doctitle the selected doc). The context
+  // sidebar and system tray are registry-driven now (every
+  // `patchwork:component` tagged `"context-tool"` / `"system-tray"`), so
+  // there's nothing left here to configure for them.
   const [threepaneDoc, threepaneHandle] = useDocument<ThreepaneConfigDoc>(
     () => accountDoc()?.tools?.["threepane"]
   );
 
   const allTools = useDescriptions("patchwork:tool");
-  const allComponents = useDescriptions("patchwork:component");
 
   const frameOptions = createMemo(() =>
     filterToolsByTag([...allTools], "frame-tool")
@@ -508,35 +386,14 @@ function FrameConfiguratorUI(props: {
   const documentToolbarOptions = createMemo(() =>
     filterToolsByTag([...allTools], "titlebar-tool")
   );
-  // Context tabs accept both: tools (tagged "context-tool", rendered against a
-  // doc) and components (same tag, rendered doc-less). The add list unions them;
-  // the setter stores tools as [id, docId] tuples and components as bare ids.
-  const contextToolOptions = createMemo(() =>
-    filterToolsByTag([...allTools], "context-tool")
-  );
-  const contextComponentOptions = createMemo(() =>
-    filterToolsByTag([...allComponents], "context-tool")
-  );
-  const contextOptions = createMemo(() =>
-    [...contextToolOptions(), ...contextComponentOptions()].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    )
-  );
-  // The system tray hosts patchwork:components (not tools), so its options come
-  // from the component registry and its entries are stored as bare ids.
-  const systemTrayOptions = createMemo(() =>
-    filterToolsByTag([...allComponents], "system-tray")
-  );
 
   const docUrl = props.handle.url;
 
   // Lane entries may be bare component ids (strings) as well as [toolId, docId]
-  // tuples; the strip/tab UIs work in ids either way.
+  // tuples; the strip UI works in ids either way.
   const slotId = (slot: ToolSlot) => (typeof slot === "string" ? slot : slot[0]);
 
   const doctitleIds = () => threepaneDoc()?.doctitle?.tools?.map(slotId);
-  const trayIds = () => threepaneDoc()?.tray?.tools?.map(slotId);
-  const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map(slotId);
 
   // Rebuild the lane from the strip's id list, preserving any entry that was a
   // bare component id (so reordering/removing doesn't turn a component into a
@@ -551,27 +408,6 @@ function FrameConfiguratorUI(props: {
   const setDoctitle = (next: string[]) =>
     threepaneHandle()?.change((doc) => {
       doc.doctitle.tools = toSlots(next, doc.doctitle.tools);
-    });
-  // Tray entries are component ids, stored bare (SlotView renders a string slot
-  // as a patchwork:component).
-  const setTray = (next: string[]) =>
-    threepaneHandle()?.change((doc) => {
-      if (!doc.tray) doc.tray = { tools: [] };
-      doc.tray.tools = [...next];
-    });
-  // Context tabs accept tools and components: an id is stored bare when it's a
-  // registered context component (or was already bare), otherwise as a tuple.
-  const setContext = (next: string[]) =>
-    threepaneHandle()?.change((doc) => {
-      const components = new Set([
-        ...contextComponentOptions().map((o) => o.id),
-        ...(doc.contextbar.tabs ?? []).filter(
-          (s): s is string => typeof s === "string"
-        ),
-      ]);
-      doc.contextbar.tabs = next.map((id) =>
-        components.has(id) ? id : [id, docUrl]
-      );
     });
 
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(
@@ -612,22 +448,6 @@ function FrameConfiguratorUI(props: {
             setValues={setDoctitle}
             allOptions={documentToolbarOptions()}
             docUrl={docUrl}
-          />
-
-          <ContextTabs
-            label="Context Tools"
-            values={contextIds()}
-            setValues={setContext}
-            allOptions={contextOptions()}
-          />
-
-          <ToolbarStrip
-            label="System Tray"
-            values={trayIds()}
-            setValues={setTray}
-            allOptions={systemTrayOptions()}
-            docUrl={docUrl}
-            previewKind="component"
           />
         </Show>
 

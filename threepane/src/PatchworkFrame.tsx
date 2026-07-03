@@ -25,7 +25,6 @@ import {
 import { Sidebar } from "./components/Sidebar";
 import { SidebarWidgets } from "./components/SidebarWidgets";
 import { MainDocumentView } from "./components/MainDocumentView";
-import { slotId } from "./components/SlotView";
 import { DocumentAreaRoot } from "./components/DocumentAreaRoot";
 import { IsolatedDocumentArea } from "./components/IsolatedDocumentArea";
 import {
@@ -210,14 +209,12 @@ function PatchworkFrameInner(props: {
   // seeds it from the legacy account fields (dropping the intrinsic title +
   // spacer); older builds read those fields directly, so branch-flipping stays
   // safe without a fallback here.
-  // doctitle / tray / contextbar lanes keep their full slots (a [toolId, docId]
-  // tuple or a bare component-id string); SlotView decides how to render each.
-  // The context tab bar + selection work in ids, so contextbar also exposes a
-  // flattened id list.
+  // doctitle keeps its full slots (a [toolId, docId] tuple or a bare
+  // component-id string); SlotView decides how to render each. The context
+  // sidebar and system tray are no longer configured here at all — they're
+  // registry-driven (every `patchwork:component` tagged `"context-tool"` /
+  // `"system-tray"`), resolved directly by `DocumentAreaRoot`.
   const doctitleSlots = () => threepaneConfig()?.doctitle?.tools;
-  const traySlots = () => threepaneConfig()?.tray?.tools;
-  const contextTabSlots = () => threepaneConfig()?.contextbar?.tabs;
-  const contextTabIds = () => threepaneConfig()?.contextbar?.tabs?.map(slotId);
   const sidebarWidgets = (): ToolSlot[] =>
     threepaneConfig()?.sidebar?.widgets ?? [];
   const rootFolderUrl = () => accountDoc()?.rootFolderUrl;
@@ -352,9 +349,6 @@ function PatchworkFrameInner(props: {
                 selectedDocUrl={selectedDocUrl}
                 selectedToolId={selectedToolId}
                 doctitleSlots={doctitleSlots}
-                traySlots={traySlots}
-                contextTabIds={contextTabIds}
-                contextTabSlots={contextTabSlots}
                 isLeftCollapsed={sidebarState.isSidebarCollapsed}
                 initialRightWidth={initialRightWidth}
                 initialRightCollapsed={initialRightCollapsed}
@@ -366,9 +360,6 @@ function PatchworkFrameInner(props: {
               selectedDocUrl={selectedDocUrl}
               selectedToolId={selectedToolId}
               doctitleSlots={doctitleSlots}
-              traySlots={traySlots}
-              contextTabIds={contextTabIds}
-              contextTabSlots={contextTabSlots}
               isLeftCollapsed={sidebarState.isSidebarCollapsed}
               initialRightWidth={initialRightWidth}
               initialRightCollapsed={initialRightCollapsed}

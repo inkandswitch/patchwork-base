@@ -17,15 +17,18 @@ function defaultSidebarWidgets(rootFolderUrl?: AutomergeUrl): ToolRef[] {
 
 /**
  * Lazily create the threepane layout config doc and point `account.tools.threepane`
- * at it, migrating the legacy `account.*` arrays into its lanes.
+ * at it, migrating the legacy `account.documentToolbarToolIds` into its
+ * `doctitle` lane. The context sidebar and system tray are registry-driven
+ * (every `patchwork:component` tagged `"context-tool"` / `"system-tray"`), so
+ * there's nothing to migrate or backfill for them.
  *
  * Seeds the sidebar with a default document-list widget (pinned to the account's
  * root folder), so the left pane is never empty. Expects `rootFolderUrl` to be
  * populated already — call after `ensureAccountSubdocs`.
  *
- * Non-destructive: the old `documentToolbarToolIds` / `contextToolIds` /
- * `accountSidebarToolId` fields are left untouched so older builds keep working
- * and you can switch branches freely during the PR. Run the (separate, opt-in)
+ * Non-destructive: the old `documentToolbarToolIds` / `accountSidebarToolId`
+ * fields are left untouched so older builds keep working and you can switch
+ * branches freely during the PR. Run the (separate, opt-in)
  * cleanupLegacyAccountFields script to remove them later.
  */
 export async function ensureThreepaneConfig(
@@ -35,13 +38,11 @@ export async function ensureThreepaneConfig(
   const rootFolderUrl = accountHandle.doc()?.rootFolderUrl;
   const existingConfigUrl = accountHandle.doc()?.tools?.["threepane"];
 
-  // Already migrated. Backfill lanes added by later builds of this branch:
-  // the `tray` lane (absent in the first cut) and the default document-list
-  // widget (some early builds seeded an empty sidebar).
+  // Already migrated. Backfill the default document-list widget for early
+  // builds of this branch that seeded an empty sidebar.
   if (existingConfigUrl) {
     const configHandle = await repo.find<ThreepaneConfigDoc>(existingConfigUrl);
     configHandle.change((doc) => {
-      if (!doc.tray) doc.tray = { tools: [] };
       if (rootFolderUrl && !doc.sidebar?.widgets?.length) {
         doc.sidebar.widgets = defaultSidebarWidgets(rootFolderUrl);
       }
@@ -61,19 +62,12 @@ export async function ensureThreepaneConfig(
   if (accountHandle.doc()?.tools?.["threepane"]) return;
 
   const account = accountHandle.doc();
-  const accountDocUrl = accountHandle.url;
 
-  // contextbar migrates with the account doc as a placeholder docid (the frame
-  // still feeds it the account doc). doctitle tools migrate as bare ids: the
-  // frame always points them at the selected main-view doc, so a slot tuple's
-  // docid would be ignored — keep them as plain strings. The sidebar is seeded
-  // with the default document-list widget.
+  // doctitle tools migrate as bare ids: the frame always points them at the
+  // selected main-view doc, so a slot tuple's docid would be ignored — keep
+  // them as plain strings.
   const doctitleTools: ToolSlot[] = (account?.documentToolbarToolIds ?? [])
     .filter((id) => !INTRINSIC_DOCTITLE_TOOLS.has(id));
-  const contextTabs: ToolRef[] = (account?.contextToolIds ?? []).map((id) => [
-    id,
-    accountDocUrl,
-  ]);
 
   const configHandle = await createDocOfDatatype2<ThreepaneConfigDoc>(
     datatype,
@@ -81,7 +75,6 @@ export async function ensureThreepaneConfig(
   );
   configHandle.change((doc) => {
     doc.doctitle.tools = doctitleTools;
-    doc.contextbar.tabs = contextTabs;
     doc.sidebar.widgets = defaultSidebarWidgets(account?.rootFolderUrl);
   });
 

@@ -12,8 +12,6 @@ export type AccountDoc = {
   frameToolId: string;
   /** @deprecated no longer defaulted; the left pane is now sidebar.widgets */
   accountSidebarToolId?: string;
-  /** @deprecated seeds migration into the threepane config doc's contextbar.tabs */
-  contextToolIds?: string[];
   /** @deprecated seeds migration into the threepane config doc's doctitle.tools */
   documentToolbarToolIds?: string[];
 
@@ -23,7 +21,7 @@ export type AccountDoc = {
 
   /**
    * Per-tool config doc urls, keyed by tool id. `tools["threepane"]` points at
-   * a ThreepaneConfigDoc holding the sidebar/contextbar/doctitle layout.
+   * a ThreepaneConfigDoc holding the sidebar/doctitle layout.
    */
   tools?: Record<string, AutomergeUrl>;
 };
@@ -39,20 +37,19 @@ export type TinyPatchworkConfigDoc = AccountDoc;
 export type ToolRef = [toolId: string, docId: AutomergeUrl];
 
 /**
- * One entry in a tool lane (sidebar / doctitle / tray / contextbar). Either a
- * `[toolId, docId]` tuple rendered as a `patchwork:tool` against the doc the
- * tuple names, or a bare component id rendered as a `patchwork:component` (with
- * no document).
+ * One entry in a tool lane (sidebar / doctitle). Either a `[toolId, docId]`
+ * tuple rendered as a `patchwork:tool` against the doc the tuple names, or a
+ * bare component id rendered as a `patchwork:component` (with no document).
  */
 export type ToolSlot = ToolRef | string;
 
 /**
  * The threepane layout config (its own document, referenced from
- * `AccountDoc.tools["threepane"]`).
+ * `AccountDoc.tools["threepane"]`). The context sidebar and system tray are
+ * no longer configured here — they're registry-driven (every
+ * `patchwork:component` tagged `"context-tool"` / `"system-tray"`).
  */
 export type ThreepaneConfigDoc = {
   sidebar: { widgets: ToolSlot[] };
-  contextbar: { tabs: ToolSlot[] };
   doctitle: { tools: ToolSlot[] };
-  tray: { tools: ToolSlot[] };
 };

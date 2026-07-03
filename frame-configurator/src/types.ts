@@ -15,12 +15,10 @@ export type TinyPatchworkLayoutDoc = {
 
 export type ToolRef = [toolId: string, docId: AutomergeUrl];
 
-/** A doctitle/tray/contextbar entry: a `[toolId, docId]` tool tuple or a bare component id. */
+/** A doctitle entry: a `[toolId, docId]` tool tuple or a bare component id. */
 export type ToolSlot = ToolRef | string;
 
 export type ThreepaneConfigDoc = {
   sidebar: { widgets: ToolRef[] };
-  contextbar: { tabs: ToolSlot[] };
   doctitle: { tools: ToolSlot[] };
-  tray: { tools: ToolSlot[] };
 };

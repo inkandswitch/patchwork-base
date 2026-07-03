@@ -1,17 +1,11 @@
 import { Show } from "solid-js";
 import type { Accessor } from "solid-js";
-import type { ToolSlot } from "../types";
+import { useTaggedComponents } from "../hooks";
 import { Sidebar } from "./Sidebar";
 import { ContextTabs } from "./ContextTabs";
-import { SlotView, slotId } from "./SlotView";
 import { Tray } from "./Tray";
 
 type ContextSidebarProps = {
-  contextToolIds: Accessor<string[] | undefined>;
-  /** Full slots for the context tabs; the active one is rendered via SlotView
-   *  (a tool tuple against the doc it names, or a bare component id). */
-  contextToolSlots: Accessor<ToolSlot[] | undefined>;
-  traySlots: Accessor<ToolSlot[] | undefined>;
   /**
    * Selected tab, owned by the frame *above* the branch-switch boundary so it
    * survives document and branch switches.
@@ -32,22 +26,20 @@ type ContextSidebarProps = {
  * context tool's content, and the bottom tray. Living inside the sidebar — not
  * up in the top bar — lets the resize divider on its left edge run the whole
  * frame height and be draggable end to end, exactly like the left sidebar.
+ *
+ * The tab list is every `patchwork:component` tagged `"context-tool"` —
+ * registry-driven, not configured — so it's always rendered as a bare
+ * component with no document.
  */
 export function ContextSidebar(props: ContextSidebarProps) {
-  const toolIds = () => props.contextToolIds() ?? [];
+  const items = useTaggedComponents("context-tool");
 
   // The selection may name a tool that isn't in the current list (or be unset);
   // fall back to the first tab so there's always a valid active tool.
   const activeToolId = () => {
-    const ids = toolIds();
+    const ids = items().map((item) => item.id);
     const selected = props.selectedToolId();
     return selected && ids.includes(selected) ? selected : ids[0];
-  };
-
-  // The slot backing the active tab, used to render it as a tool or component.
-  const activeSlot = (): ToolSlot | undefined => {
-    const id = activeToolId();
-    return props.contextToolSlots()?.find((slot) => slotId(slot) === id);
   };
 
   return (
@@ -66,10 +58,10 @@ export function ContextSidebar(props: ContextSidebarProps) {
         {/* Tab header: selects the active tool, with a collapse button at the
             end. Only when there are tabs — a tray-only sidebar has no header
             and is collapsed via the resize handle. */}
-        <Show when={toolIds().length}>
+        <Show when={items().length}>
           <div class="context-sidebar__tabs">
             <ContextTabs
-              contextToolIds={props.contextToolIds}
+              items={items}
               selectedToolId={props.selectedToolId}
               setSelectedToolId={props.setSelectedToolId}
             />
@@ -87,15 +79,11 @@ export function ContextSidebar(props: ContextSidebarProps) {
         <Show when={!props.isCollapsed()}>
           <div class="context-sidebar__content">
             <Show when={activeToolId()} keyed>
-              {() => (
-                <Show when={activeSlot()}>
-                  {(slot) => <SlotView slot={slot()} />}
-                </Show>
-              )}
+              {(id) => <patchwork-view component={id} />}
             </Show>
           </div>
         </Show>
-        <Tray slots={props.traySlots} />
+        <Tray />
       </div>
     </Sidebar>
   );

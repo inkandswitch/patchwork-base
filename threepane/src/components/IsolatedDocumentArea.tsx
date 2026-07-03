@@ -27,27 +27,16 @@ export interface IsolatedDocumentAreaProps extends DocumentAreaInputs {
   contactUrl: AutomergeUrl | undefined;
 }
 
-// Extract the document URL pinned by a tool-slot tuple (`[toolId, docId]`). Bare
-// string slots name a component with no document, so they contribute no root.
-function slotDocUrl(slot: ToolSlot): AutomergeUrl | undefined {
-  return Array.isArray(slot) ? slot[1] : undefined;
-}
-
 export function IsolatedDocumentArea(props: IsolatedDocumentAreaProps) {
-  // rootUrls: the docs the iframe is allowed to sync.
+  // rootUrls: the docs the iframe is allowed to sync. The context-tool/tray
+  // lanes contribute nothing here — they're always bare `patchwork:component`s
+  // (registry-driven, no configured doc), resolved independently inside the
+  // iframe's own registry.
   const rootUrls = createMemo<AutomergeUrl[]>(() => {
     const urls = new Set<AutomergeUrl>();
     const selected = props.selectedDocUrl();
     if (selected) urls.add(selected);
     if (props.contactUrl) urls.add(props.contactUrl);
-    for (const slot of props.traySlots() ?? []) {
-      const u = slotDocUrl(slot);
-      if (u) urls.add(u);
-    }
-    for (const slot of props.contextTabSlots() ?? []) {
-      const u = slotDocUrl(slot);
-      if (u) urls.add(u);
-    }
     return [...urls];
   });
 
@@ -59,9 +48,6 @@ export function IsolatedDocumentArea(props: IsolatedDocumentAreaProps) {
       selectedDocUrl: props.selectedDocUrl(),
       selectedToolId: props.selectedToolId(),
       doctitleSlots: props.doctitleSlots(),
-      traySlots: props.traySlots(),
-      contextTabIds: props.contextTabIds(),
-      contextTabSlots: props.contextTabSlots(),
       isLeftCollapsed: props.isLeftCollapsed(),
       initialRightWidth: props.initialRightWidth(),
       initialRightCollapsed: props.initialRightCollapsed(),
@@ -95,9 +81,6 @@ interface IsolationRootProps {
   selectedDocUrl?: AutomergeUrl;
   selectedToolId?: string;
   doctitleSlots?: ToolSlot[];
-  traySlots?: ToolSlot[];
-  contextTabIds?: string[];
-  contextTabSlots?: ToolSlot[];
   isLeftCollapsed?: boolean;
   initialRightWidth?: number;
   initialRightCollapsed?: boolean;
@@ -153,6 +136,10 @@ export function mountIsolationRoot(element: HTMLElement): () => void {
   // rules are authored nested under `.frame {`, so the document-area markup only
   // picks them up inside a `.frame` ancestor. The props <script> sibling is left
   // untouched. `render` mounts alongside it and its disposer tears the tree down.
+  // Context-tool/tray content resolves against THIS realm's own registry (the
+  // iframe registers the same plugin set as the host — see registry.start in
+  // isolation/src/boot/iframe/main.ts) — nothing about those lanes travels
+  // through these isolation props at all.
   const dispose = render(
     () => (
       <div class="frame">
@@ -160,9 +147,6 @@ export function mountIsolationRoot(element: HTMLElement): () => void {
           selectedDocUrl={() => p.selectedDocUrl}
           selectedToolId={() => p.selectedToolId}
           doctitleSlots={() => p.doctitleSlots}
-          traySlots={() => p.traySlots}
-          contextTabIds={() => p.contextTabIds}
-          contextTabSlots={() => p.contextTabSlots}
           isLeftCollapsed={() => p.isLeftCollapsed ?? false}
           initialRightWidth={() => p.initialRightWidth ?? DEFAULT_SIDEBAR_WIDTH}
           initialRightCollapsed={() => p.initialRightCollapsed ?? false}

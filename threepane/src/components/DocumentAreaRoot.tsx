@@ -26,7 +26,7 @@ import {
   type Accessor,
 } from "solid-js";
 import type { ToolSlot } from "../types";
-import { useProviderReady, SIDEBAR_KEYS } from "../hooks";
+import { useProviderReady, useTaggedComponents, SIDEBAR_KEYS } from "../hooks";
 import { useSidebarResize } from "../hooks/useSidebarResize";
 import { FrameTopBar } from "./FrameTopBar";
 import { ContextSidebar } from "./ContextSidebar";
@@ -55,9 +55,6 @@ export interface DocumentAreaInputs {
   selectedDocUrl: Accessor<AutomergeUrl | undefined>;
   selectedToolId: Accessor<string | undefined>;
   doctitleSlots: Accessor<ToolSlot[] | undefined>;
-  traySlots: Accessor<ToolSlot[] | undefined>;
-  contextTabIds: Accessor<string[] | undefined>;
-  contextTabSlots: Accessor<ToolSlot[] | undefined>;
   /** The host-side left sidebar's collapsed state, for top-bar layout only. */
   isLeftCollapsed: Accessor<boolean>;
   /** Seed values for the document-area-local right-sidebar state. */
@@ -174,9 +171,6 @@ export function DocumentAreaRoot(props: DocumentAreaRootProps) {
             selectedDocUrl={props.selectedDocUrl}
             selectedToolId={props.selectedToolId}
             doctitleSlots={props.doctitleSlots}
-            traySlots={props.traySlots}
-            contextTabIds={props.contextTabIds}
-            contextTabSlots={props.contextTabSlots}
             isLeftCollapsed={props.isLeftCollapsed}
             isRightSidebarCollapsed={isRightSidebarCollapsed}
             setIsRightSidebarCollapsed={setIsRightSidebarCollapsed}
@@ -208,9 +202,6 @@ function DraftDocumentArea(props: {
   selectedDocUrl: Accessor<AutomergeUrl | undefined>;
   selectedToolId: Accessor<string | undefined>;
   doctitleSlots: Accessor<ToolSlot[] | undefined>;
-  traySlots: Accessor<ToolSlot[] | undefined>;
-  contextTabIds: Accessor<string[] | undefined>;
-  contextTabSlots: Accessor<ToolSlot[] | undefined>;
   isLeftCollapsed: Accessor<boolean>;
   isRightSidebarCollapsed: Accessor<boolean>;
   setIsRightSidebarCollapsed: (
@@ -222,6 +213,14 @@ function DraftDocumentArea(props: {
   selectedContextToolId: Accessor<string | undefined>;
   setSelectedContextToolId: (id: string) => void;
 }) {
+  // Registry-driven: whether the right sidebar exists at all (tabs or tray)
+  // no longer depends on any per-account config — just on whether anything is
+  // currently tagged for either lane.
+  const contextItems = useTaggedComponents("context-tool");
+  const trayItems = useTaggedComponents("system-tray");
+  const hasContextOrTray = () =>
+    contextItems().length > 0 || trayItems().length > 0;
+
   const [draftsState] = subscribeDoc<DraftsState>(props.host, {
     type: "draft:list",
   });
@@ -281,12 +280,7 @@ function DraftDocumentArea(props: {
                       docUrl={props.selectedDocUrl}
                       toolSlots={props.doctitleSlots}
                       isLeftCollapsed={props.isLeftCollapsed}
-                      hasContext={() =>
-                        !!(
-                          props.contextTabIds()?.length ||
-                          props.traySlots()?.length
-                        )
-                      }
+                      hasContext={hasContextOrTray}
                       isRightCollapsed={props.isRightSidebarCollapsed}
                       onToggleRight={() =>
                         props.setIsRightSidebarCollapsed((v) => !v)
@@ -308,16 +302,8 @@ function DraftDocumentArea(props: {
                     </div>
                   </div>
 
-                  <Show
-                    when={
-                      props.contextTabIds()?.length ||
-                      props.traySlots()?.length
-                    }
-                  >
+                  <Show when={hasContextOrTray()}>
                     <ContextSidebar
-                      contextToolIds={props.contextTabIds}
-                      contextToolSlots={props.contextTabSlots}
-                      traySlots={props.traySlots}
                       selectedToolId={props.selectedContextToolId}
                       setSelectedToolId={props.setSelectedContextToolId}
                       isCollapsed={props.isRightSidebarCollapsed}
