@@ -1,9 +1,5 @@
 import { render } from "solid-js/web";
-import {
-  Plugin,
-  type ToolElement,
-  type ToolImplementation,
-} from "@inkandswitch/patchwork-plugins";
+import { Plugin, type ToolElement } from "@inkandswitch/patchwork-plugins";
 import { HistoryGroupingsDoc } from "./types";
 
 export const plugins: Plugin<any>[] = [
@@ -33,26 +29,8 @@ export const plugins: Plugin<any>[] = [
       };
     },
   },
-  {
-    type: "patchwork:tool",
-    id: "history-view",
-    tags: ["context-tool"],
-    name: "History",
-    icon: "History",
-    supportedDatatypes: ["account"],
-    async load(): Promise<ToolImplementation<any>> {
-      const { HistoryTimeline } = await import("./history/HistoryTimeline");
-      return function (_handle, element) {
-        return render(
-          () => <HistoryTimeline repo={element.repo} element={element} />,
-          element
-        );
-      };
-    },
-  },
-  // Same timeline, but as a `patchwork:component` that takes no document: the
-  // view reads everything off `element`, so it can be slotted in without an
-  // account doc.
+  // A `patchwork:component` that takes no document: the view reads everything
+  // off `element`, so it can be slotted in without an account doc.
   {
     type: "patchwork:component",
     id: "history-view",
