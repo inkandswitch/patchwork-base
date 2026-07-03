@@ -10,7 +10,7 @@ export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
     doc.frameToolId = "threepane";
     // The left pane is now a widget list (migrated into the threepane config
     // doc); no default account sidebar tool. These seed the migration.
-    doc.contextToolIds = ["comments-view", "history-view", "context-view"];
+    doc.contextToolIds = ["comments-view", "history-view"];
     // Title + spacer are rendered intrinsically by the frame's top bar; only the
     // right-hand doctitle tools are configured here.
     doc.documentToolbarToolIds = [
