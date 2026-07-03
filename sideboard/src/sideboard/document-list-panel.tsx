@@ -22,7 +22,6 @@ import { handleFilesDrop } from "./document-list/file-drop.ts";
 import { copyMode, isNewDocDrag } from "./dnd/dnd.ts";
 import { executeDrop } from "./dnd/operations.ts";
 import { getDndPayload, hasDocumentDrag } from "./dnd/payload.ts";
-import { VERSION } from "./version.ts";
 
 /**
  * The document-list panel: a sticky toolbar (new-doc button + filter) over a
@@ -210,7 +209,6 @@ export function DocumentListPanel(props: {
           </Suspense>
         </Show>
       </nav>
-      <span class="document-list__version">{VERSION}</span>
     </aside>
   );
 }

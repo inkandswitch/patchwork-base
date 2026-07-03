@@ -900,25 +900,6 @@ button {
   border-color: var(--document-list-divider);
 }
 
-.account-bar__version,
-.document-list__version {
-  font-size: 0.7rem;
-  color: var(--document-list-muted);
-  user-select: none;
-}
-
-/* pin the panel's version label under the doclist, out of the way */
-.document-list__version {
-  flex-shrink: 0;
-  align-self: flex-end;
-  padding-inline: 0.25rem;
-}
-
-/* in the combined sideboard the account bar already shows the version */
-.sideboard .document-list__version {
-  display: none;
-}
-
 .account-bar__avatar patchwork-view {
   display: block;
   width: 100%;
