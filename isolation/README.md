@@ -95,6 +95,29 @@ props tweak (collapse toggle, tool reorder) updates in place.
 versions must match what the host serves (i.e. the other base modules'
 versions). Keep `package.json` in step with `threepane/package.json`.
 
+**Requires the automerge authors release** (`@automerge/automerge-repo ≥
+2.7.0-authors`, `@automerge/automerge ≥ 3.4.0-rev-frag-hex`) for the author-id
+feature below — `RepoConfig.authorId` + `ChangeMetadata.author`. The host import
+map (patchwork-next catalog) must serve these too.
+
+## Iframe-authored documents auto-allowlist
+
+The iframe's `Repo` is configured with a per-isolation-context **author id**
+(generated host-side in `bootIsolation`, passed into the iframe at boot, used as
+both `peerId` and the repo's `authorId`). So every change the iframe's tools make
+is attributed to that id.
+
+The access gate (`handleAccessRequest`) uses this to skip the permission prompt
+for a document the tool **just created**: when the iframe requests an
+unknown-but-not-denylisted document, the gate reads its change metadata and
+**auto-allowlists it iff *every* change is authored by the iframe's own id**.
+Any other unknown document (or one with a foreign/absent-author change) still
+prompts via `window.confirm()`. The all-changes check is deliberately
+conservative — one foreign change and it prompts — so a tool can't gain access to
+someone else's document by appending an own-authored change. Reading the author
+materializes the doc only in the trusted host repo; a doc becomes iframe-syncable
+only once added to the allowlist, so the check itself grants nothing.
+
 ## Registration
 
 Like every patchwork module, this is published/registered independently (not a

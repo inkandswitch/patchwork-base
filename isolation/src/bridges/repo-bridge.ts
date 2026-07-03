@@ -16,8 +16,10 @@ import {
   type AutomergeUrl,
   type PeerId,
   type DocumentId,
+  type DocHandle,
   parseAutomergeUrl,
 } from "@automerge/automerge-repo";
+import { getChangesMetaSince } from "@automerge/automerge";
 import { MessageChannelNetworkAdapter } from "@automerge/automerge-repo-network-messagechannel";
 import { log } from "../log.js";
 
@@ -94,15 +96,23 @@ export class SyncDenylist extends SyncDocumentSet {
 }
 
 export interface IntermediaryRepoOptions {
-  /** The allowlist controlling which documents can sync to the iframe. */
+  /** The allowlist controlling which documents can sync to the host. */
   allowlist: SyncAllowlist;
   /** The host Repo to sync allowed documents from. */
   hostRepo: Repo;
   /** Optional denylist — denylisted documents are blocked regardless of allowlist. */
   denylist?: SyncDenylist;
   /**
-   * Called when the iframe requests a document that's not on the allowlist
-   * or denylist. If it returns true, the document is added to the allowlist.
+   * The iframe repo's Automerge author id (generated host-side). A document
+   * arriving from the iframe whose changes are *all* authored by this id was
+   * created by the iframe itself and is auto-allowlisted (no prompt).
+   */
+  iframeAuthorId: string;
+  /**
+   * Called (out of band, never from the sync gate) for a document the iframe
+   * requests that isn't allowlisted and wasn't created by the iframe — i.e. a
+   * foreign document that did not arrive over the open iframe channel. If it
+   * returns true, the document is added to the allowlist.
    */
   onAccessRequest?: (documentId: DocumentId) => Promise<boolean>;
 }
@@ -122,14 +132,27 @@ export interface IntermediaryRepo {
  *  1. hostChannel — connects intermediary ↔ host repo
  *  2. iframeChannel — connects intermediary ↔ iframe repo
  *
- * The intermediary's `shareConfig` gates document sync:
- *  - Only allowlisted documents are accepted from any peer (including the host)
- *  - Only allowlisted documents are announced to the iframe peer
+ * The intermediary's `shareConfig` gates sync ASYMMETRICALLY by channel:
+ *  - Host channel: denylist THEN allowlist — a doc crosses only if it is not
+ *    denylisted AND is allowlisted. This is the security boundary; nothing
+ *    denylisted or un-allowlisted enters/leaves the host graph.
+ *  - Iframe channel: fully open — all docs sync both ways. Safe because the
+ *    intermediary is ephemeral and its only other peer (the host) is gated, so
+ *    it can only ever hold allowlisted docs + docs the iframe itself pushed. A
+ *    denylisted doc can never enter the intermediary to reach the iframe.
+ *
+ * A document the iframe references that isn't yet allowlisted is DENIED by the
+ * gate immediately and resolved out of band (see `resolveAccess` below): if the
+ * iframe created it (it is resident and authored solely by the iframe) it is
+ * auto-allowlisted; otherwise the user is prompted. Once decided, the gate is
+ * re-run via `repo.shareConfigChanged()`. The gate itself never blocks on a
+ * fetch or a prompt — doing so would stall the sync (see `hostChannelAllows`).
  */
 export function createIntermediaryRepo(
   options: IntermediaryRepoOptions
 ): IntermediaryRepo {
-  const { allowlist, hostRepo, denylist, onAccessRequest } = options;
+  const { allowlist, hostRepo, denylist, iframeAuthorId, onAccessRequest } =
+    options;
 
   const hostRepoPeerId = hostRepo.peerId;
 
@@ -155,14 +178,47 @@ export function createIntermediaryRepo(
   //    repo exists, so on the normal path this never fires.
   //  - "denylisted": the document is in the protected set.
   // The host peer is never gated here; only iframe-bound sync is.
-  const denylistBlock = (
+  //
+  // Whether a document may cross the HOST channel: it must NOT be denylisted and
+  // MUST be allowlisted. This gate is a *fast, synchronous-return policy check*
+  // over in-memory sets — it never awaits a document fetch or a user prompt.
+  // automerge-repo holds a peer at sharePolicyState "loading" for as long as
+  // `access` is unresolved, which would stall the sync (no doc-unavailable, no
+  // content) — so any slow or interactive decision must happen out of band. An
+  // undecided document is DENIED now; `resolveAccess` decides it in the
+  // background and, once decided, calls `repo.shareConfigChanged()` to re-run
+  // this gate and re-engage the waiting iframe peer (see the automerge team's
+  // "immediately deny, prompt, then fire shareConfigChanged" guidance).
+  //
+  // While the denylist is still populating we fail closed (allow nothing to/from
+  // the host) — the boot path awaits denylist readiness before this repo exists,
+  // so this is defense in depth. This is the single security boundary; the
+  // iframe channel is open.
+  const hostChannelAllows = (documentId: DocumentId): boolean => {
+    if (denylist && !denylist.isReady) return false;
+    if (denylist?.has(documentId)) return false;
+    if (allowlist.has(documentId)) return true;
+    // Already decided-no, or a decision is already in flight: deny without
+    // re-prompting / re-resolving (this gate is called repeatedly per re-eval).
+    if (denied.has(documentId)) return false;
+    if (pending.has(documentId)) return false;
+
+    // Undecided: kick off out-of-band resolution and deny for now.
+    pending.add(documentId);
+    void resolveAccess(documentId);
+    return false;
+  };
+
+  // Per-channel gate. The iframe channel is fully open (all docs sync both
+  // ways); the host channel enforces denylist-then-allowlist. Both `access`
+  // (bidirectional gate) and `announce` (proactive push) use the same rule.
+  const shareGate = async (
     peerId: PeerId,
-    documentId: DocumentId
-  ): "not-ready" | "denylisted" | null => {
-    if (peerId === hostRepoPeerId) return null;
-    if (denylist && !denylist.isReady) return "not-ready";
-    if (denylist?.has(documentId)) return "denylisted";
-    return null;
+    documentId?: DocumentId
+  ): Promise<boolean> => {
+    if (!documentId) return peerId !== hostRepoPeerId;
+    if (peerId !== hostRepoPeerId) return true; // iframe channel: open
+    return hostChannelAllows(documentId); // host channel: denylist then allowlist
   };
 
   const repo = new Repo({
@@ -170,45 +226,8 @@ export function createIntermediaryRepo(
     network: [hostAdapter, iframeAdapter],
     isEphemeral: true,
     shareConfig: {
-      announce: async (peerId: PeerId, documentId?: DocumentId) => {
-        if (!documentId) return true;
-        if (denylistBlock(peerId, documentId)) return false;
-        return allowlist.has(documentId);
-      },
-      access: async (peerId: PeerId, documentId?: DocumentId) => {
-        if (!documentId) return false;
-        const blocked = denylistBlock(peerId, documentId);
-        if (blocked === "not-ready") {
-          log(`access ${documentId} BLOCKED (denylist not ready)`);
-          return false;
-        }
-        if (blocked === "denylisted") {
-          log(`access ${documentId} DENIED`);
-          return false;
-        }
-        if (allowlist.has(documentId)) return true;
-
-        // Not allowlisted, not denylisted — prompt the user if this
-        // is an iframe request and we have a callback
-        if (peerId !== hostRepoPeerId && onAccessRequest) {
-          log(`access ${documentId} prompting user`);
-          const approved = await onAccessRequest(documentId);
-          if (approved) {
-            log(`access ${documentId} APPROVED by user`);
-            // Re-evaluate share config so previously-denied peers
-            // pick up the new allowlist entry
-            repo.shareConfigChanged();
-            return true;
-          }
-          log(`access ${documentId} REJECTED by user`);
-          return false;
-        }
-
-        if (peerId !== hostRepoPeerId) {
-          log(`access ${documentId} BLOCKED`);
-        }
-        return false;
-      },
+      announce: shareGate,
+      access: shareGate,
     },
   });
 
@@ -220,6 +239,117 @@ export function createIntermediaryRepo(
     }
   );
   hostRepo.networkSubsystem.addNetworkAdapter(isolationHostAdapter);
+
+  // ── Out-of-band access resolution ────────────────────────────
+  // The gate (hostChannelAllows) denies any undecided document immediately and
+  // enqueues it here. `pending` dedupes in-flight resolutions (the gate is
+  // called repeatedly as the sync layer re-evaluates); `denied` remembers a
+  // user's "no" so we never re-prompt for the same document.
+  const pending = new Set<DocumentId>();
+  const denied = new Set<DocumentId>();
+
+  // Whether every change in a *resident* document was authored by the iframe.
+  // Reads the already-ready handle directly — it must never trigger a fetch (a
+  // fetch would re-enter the host-channel gate and deadlock), so the caller is
+  // responsible for only passing a handle that is already `ready`. The
+  // length > 0 guard is conservative on purpose: an empty doc doesn't
+  // auto-allow, it falls through to the prompt.
+  const isAuthoredSolelyByIframe = (handle: DocHandle<unknown>): boolean => {
+    try {
+      const doc = handle.doc();
+      if (!doc) return false;
+      const metas = getChangesMetaSince(doc, []);
+      return (
+        metas.length > 0 && metas.every((m) => m.author === iframeAuthorId)
+      );
+    } catch (err) {
+      log(`author check for ${handle.documentId} threw`, err);
+      return false;
+    }
+  };
+
+  // Decide an undecided document without blocking the gate, then re-run the gate
+  // via shareConfigChanged().
+  //
+  // Classification is deterministic and event-driven (no timeout): because the
+  // gate currently denies the host peer for this document, the host source
+  // cannot supply it during this window. So we watch the intermediary's own
+  // query for this document —
+  //  - it reaches `ready` ⇒ the content came from the IFRAME (the open channel)
+  //    ⇒ the iframe created it ⇒ auto-allowlist iff every change is iframe-
+  //    authored (else fall through to the prompt);
+  //  - it settles `unavailable` ⇒ neither the iframe nor the (gated) host has it
+  //    ⇒ it is a FOREIGN document the iframe is requesting ⇒ prompt the user.
+  const resolveAccess = async (documentId: DocumentId): Promise<void> => {
+    const finish = (allow: boolean, reason: string) => {
+      if (allow) {
+        allowlist.addDocumentId(documentId);
+        log(`access ${documentId} allowed (${reason})`);
+      } else {
+        denied.add(documentId);
+        log(`access ${documentId} denied (${reason})`);
+      }
+      pending.delete(documentId);
+      // Re-run the (now-decided) gate for every doc and re-engage the iframe
+      // peer, which was marked hasRequested when the first denial sent it
+      // doc-unavailable.
+      repo.shareConfigChanged();
+    };
+
+    // Prompt for a foreign document, then finish.
+    const prompt = async () => {
+      if (!onAccessRequest) {
+        finish(false, "no onAccessRequest handler");
+        return;
+      }
+      log(`access ${documentId} not allowlisted; prompting user`);
+      let approved = false;
+      try {
+        approved = await onAccessRequest(documentId);
+      } catch (err) {
+        log(`onAccessRequest for ${documentId} threw`, err);
+      }
+      finish(approved, approved ? "user approved" : "user denied");
+    };
+
+    const progress = repo.findWithProgress(documentId);
+
+    // Act exactly once, on the first terminal state. `settled` guards against
+    // both a synchronous subscribe callback (before `unsubscribe` is assigned)
+    // and any later transition after we've already decided.
+    let settled = false;
+    const decide = (state: ReturnType<typeof progress.peek>): boolean => {
+      if (settled) return true;
+      if (state.state === "ready") {
+        settled = true;
+        if (isAuthoredSolelyByIframe(state.handle)) {
+          finish(true, "authored by iframe");
+        } else {
+          // Resident but not iframe-authored — treat as foreign and prompt.
+          void prompt();
+        }
+        return true;
+      }
+      if (state.state === "unavailable") {
+        settled = true;
+        void prompt();
+        return true;
+      }
+      if (state.state === "failed") {
+        settled = true;
+        finish(false, `query failed: ${state.error}`);
+        return true;
+      }
+      return false; // still loading
+    };
+
+    // Act on the current state if already terminal, otherwise on the first
+    // terminal transition.
+    if (decide(progress.peek())) return;
+    const unsubscribe = progress.subscribe((state) => {
+      if (decide(state)) unsubscribe();
+    });
+  };
 
   return {
     iframePort: iframeChannel.port2,

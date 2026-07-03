@@ -93,6 +93,16 @@ export function bootIsolation(host: HTMLElement): IsolationHandle {
   const rootComponentId = readRootComponentId(host);
   const rootUrls = readAllowlistUrls(host);
 
+  // The isolation context's identity, generated host-side so the access gate can
+  // compare against the same value the iframe repo authors with (no round-trip).
+  //  - `authorId`: a hex id (UUID prefix — all hex chars) used as the iframe
+  //    repo's Automerge author, so changes it makes are attributed to it. The
+  //    gate auto-allowlists an unknown doc iff *every* change is by this author.
+  //  - `peerId`: the same id, human-readable, for the iframe repo's peer id +
+  //    logging.
+  const authorId = crypto.randomUUID().slice(0, 8);
+  const isolationPeerId = `isolation-${authorId}`;
+
   // State wired up during the boot, torn down together. All start empty, so
   // teardown() before/during boot is a safe no-op over them.
   const cleanups: Array<() => void> = [];
@@ -101,7 +111,10 @@ export function bootIsolation(host: HTMLElement): IsolationHandle {
   let iframe: HTMLIFrameElement | null = null;
 
   async function run() {
-    log(`init root "${rootComponentId}" with ${rootUrls.length} root URLs`);
+    log(
+      `init root "${rootComponentId}" with ${rootUrls.length} root URLs, ` +
+        `authorId=${authorId}`
+    );
 
     const repo = getRepo(host);
     if (!repo) return;
@@ -134,6 +147,9 @@ export function bootIsolation(host: HTMLElement): IsolationHandle {
       allowlist,
       hostRepo: repo,
       denylist,
+      // The iframe repo authors its changes with this id (see the boot message);
+      // the intermediary auto-allowlists docs solely authored by it.
+      iframeAuthorId: authorId,
       onAccessRequest: (documentId) =>
         handleAccessRequest(repo, rootUrls, allowlist, denylist, documentId),
     });
@@ -226,6 +242,11 @@ export function bootIsolation(host: HTMLElement): IsolationHandle {
           // change between boot start and this async send is reflected in the
           // initial boot rather than lost, since a pre-port push no-ops.
           rootComponentData: readRootComponentData(host),
+          // The iframe repo's identity, generated host-side (see bootIsolation).
+          // `authorId` attributes the iframe's changes so the access gate can
+          // recognize docs it created; `peerId` is the readable form.
+          authorId,
+          peerId: isolationPeerId,
           registryEntries,
           esmsSource: assets.esmsSource,
           hostStyles: assets.hostStyles,
