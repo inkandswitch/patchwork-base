@@ -88,6 +88,13 @@ export const PatchworkFrame = ({
     accountProviderElement
   );
 
+  const [toolStorageProviderElement, setToolStorageProviderElement] =
+    createSignal<HTMLElement>();
+  const isToolStorageProviderReady = useProviderReady(
+    "patchwork-tool-storage-provider",
+    toolStorageProviderElement
+  );
+
   const [selectedDocProviderElement, setSelectedDocProviderElement] =
     createSignal<HTMLElement>();
   const isSelectedDocProviderReady = useProviderReady(
@@ -96,7 +103,10 @@ export const PatchworkFrame = ({
   );
 
   const areProvidersReady = createMemo(
-    () => isSelectedDocProviderReady() && isAccountProviderReady()
+    () =>
+      isSelectedDocProviderReady() &&
+      isAccountProviderReady() &&
+      isToolStorageProviderReady()
   );
 
   return (
@@ -119,13 +129,19 @@ export const PatchworkFrame = ({
           doc-url={accountDocUrl}
           ref={setAccountProviderElement}
         >
-          <Show when={areProvidersReady()}>
-            <PatchworkFrameInner
-              handle={handle}
-              repo={repo}
-              isolation={props.isolation}
-            />
-          </Show>
+          <patchwork-view
+            component="patchwork-tool-storage-provider"
+            doc-url={accountDocUrl}
+            ref={setToolStorageProviderElement}
+          >
+            <Show when={areProvidersReady()}>
+              <PatchworkFrameInner
+                handle={handle}
+                repo={repo}
+                isolation={props.isolation}
+              />
+            </Show>
+          </patchwork-view>
         </patchwork-view>
       </patchwork-view>
     </div>

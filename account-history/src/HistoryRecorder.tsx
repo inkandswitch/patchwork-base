@@ -1,16 +1,5 @@
-import {
-  onMount,
-  onCleanup,
-  createMemo,
-  createEffect,
-  createSignal,
-} from "solid-js";
-import {
-  Repo,
-  type AutomergeUrl,
-  type DocHandle,
-} from "@automerge/automerge-repo";
-import { useDocHandle } from "@automerge/automerge-repo-solid-primitives";
+import { onMount, onCleanup, createEffect } from "solid-js";
+import { type AutomergeUrl } from "@automerge/automerge-repo";
 import { OpenDocumentEvent } from "@inkandswitch/patchwork-elements";
 import {
   getType,
@@ -22,6 +11,7 @@ import {
   type DatatypeDescription,
   type DatatypeImplementation,
 } from "@inkandswitch/patchwork-plugins";
+import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
 import {
   ACCOUNT_HISTORY_DATATYPE,
   DEDUPLICATION_TIME_THRESHOLD,
@@ -29,91 +19,39 @@ import {
 } from "./constants.ts";
 import {
   type PatchworkToolProps,
-  type AccountDoc,
   type HistoryDoc,
   type HistoryEntry,
 } from "./types.ts";
 
-declare global {
-  interface Window {
-    accountDocHandle?: DocHandle<AccountDoc>;
-  }
-}
-
-async function getOrCreateAccountHistoryDoc(
-  repo: Repo,
-  accountHandle: DocHandle<AccountDoc>
-): Promise<DocHandle<HistoryDoc>> {
-  const accountDoc = accountHandle.doc();
-  if (!accountDoc) {
-    throw new Error("Account document not available");
-  }
-
-  // Check if history document already exists
-  const existingUrl = accountDoc.accountHistoryUrl;
-
-  if (existingUrl) {
-    try {
-      const handle = await repo.find<HistoryDoc>(existingUrl);
-      await handle.whenReady();
-      return handle;
-    } catch (error) {
-      console.error("Error loading existing history document:", error);
-      // Fall through to create new one
-    }
-  }
-
-  // Create new history document
-  const historyHandle = await repo.create2<HistoryDoc>({
-    ["@patchwork"]: { type: ACCOUNT_HISTORY_DATATYPE },
-    title: "Account History",
-    entries: [],
-  });
-
-  // Update account document with reference to history document
-  accountHandle.change((doc) => {
-    doc.accountHistoryUrl = historyHandle.url;
-  });
-
-  return historyHandle;
-}
+// Key under which this tool's private storage doc is registered — see the
+// `patchwork:tool-storage` provider (patchwork-base/providers). Mounted as a
+// titlebar-tool, this component is bound to whatever *document* is focused,
+// not the account, so it can't reach its own storage via `props.handle`; the
+// provider gives it a private, account-scoped doc instead.
+const TOOL_STORAGE_ID = "account-history";
 
 export function HistoryRecorder(props: PatchworkToolProps<any>) {
-  const [isInitialized, setIsInitialized] = createSignal(false);
+  // Resolves (and, on first use, creates) this tool's private storage doc.
+  // The provider only guarantees an empty doc exists — the shape below
+  // (`entries`, `title`, `@patchwork`) is seeded by us the first time it's
+  // used, the same as the old `getOrCreateAccountHistoryDoc` did.
+  const [historyDoc, historyHandle] = subscribeDoc<HistoryDoc>(
+    props.element,
+    { type: "patchwork:tool-storage", toolId: TOOL_STORAGE_ID }
+  );
 
-  // Get account doc handle from window
-  const accountDocHandle = createMemo(() => {
-    return window.accountDocHandle;
-  });
+  const historyUrl = () => historyHandle()?.url;
 
-  // Get history URL from account doc
-  const historyUrl = createMemo<AutomergeUrl | undefined>(() => {
-    const handle = accountDocHandle();
-    if (!handle) return undefined;
-
-    const doc = handle.doc();
-    return doc?.accountHistoryUrl;
-  });
-
-  // Subscribe to history document handle reactively
-  const historyHandle = useDocHandle<HistoryDoc>(historyUrl, {
-    repo: props.repo,
-  });
-
-  // Initialize history document if needed
-  createEffect(async () => {
-    const accHandle = accountDocHandle();
-    const existingHistoryUrl = historyUrl();
-
-    if (accHandle && !existingHistoryUrl && !isInitialized()) {
-      try {
-        setIsInitialized(true);
-        await getOrCreateAccountHistoryDoc(props.repo, accHandle);
-      } catch (error) {
-        console.error("Error initializing history document:", error);
-        setIsInitialized(false);
-      }
-    }
+  createEffect(() => {
+    const handle = historyHandle();
+    const doc = historyDoc();
+    if (!handle || !doc || Array.isArray(doc.entries)) return;
+    handle.change((d) => {
+      if (Array.isArray(d.entries)) return; // lost an initialization race
+      d["@patchwork"] = { type: ACCOUNT_HISTORY_DATATYPE };
+      d.title = "Account History";
+      d.entries = [];
+    });
   });
 
   onMount(() => {
@@ -163,14 +101,15 @@ export function HistoryRecorder(props: PatchworkToolProps<any>) {
         console.warn("HistoryRecorder: history handle not ready yet");
         return;
       }
-      const historyDoc = currentHistoryHandle.doc();
-      if (!historyDoc) {
+      const historyDocSnapshot = currentHistoryHandle.doc();
+      if (!historyDocSnapshot) {
         console.warn("HistoryRecorder: history document not ready yet");
         return;
       }
 
       // Deduplication: check if this entry is a duplicate from rapid clicks
-      const lastEntry = historyDoc.entries[historyDoc.entries.length - 1];
+      const lastEntry =
+        historyDocSnapshot.entries[historyDocSnapshot.entries.length - 1];
       if (
         lastEntry &&
         lastEntry.docUrl === url &&
