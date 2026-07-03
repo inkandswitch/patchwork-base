@@ -107,8 +107,7 @@ function PackageCard(props: PackageCardProps) {
 
   const handleViewSource = (e: MouseEvent) => {
     const detail: OpenDocumentEventDetail = {
-      url: url() as AutomergeUrl,
-      toolId: "raw",
+      url: url() as AutomergeUrl
     };
     (e.currentTarget as HTMLButtonElement).dispatchEvent(
       new CustomEvent("patchwork:open-document", {
