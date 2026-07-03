@@ -8,7 +8,7 @@
   "exports": {
     ".": {
       "import": "./dist/tool.js",
-      "source": "./src/tool.tsx"
+      "source": "./src/tool.ts"
     },
     "./style.css": "./dist/tool.css"
   },
