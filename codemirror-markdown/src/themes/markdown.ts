@@ -100,14 +100,6 @@ const MARKDOWN_STYLES: Record<string, any> = {
     background: "orange",
   },
 
-  // Render tables in monospace so the pipe columns line up
-  ".cm-md-table": {
-    fontFamily: "var(--studio-family-code, monospace)",
-    fontSize: "0.9em",
-    lineHeight: "1.4em",
-    whiteSpace: "pre",
-  },
-
   // When deeply nested (3+ patchwork-views above), remove editor chrome
   "patchwork-view patchwork-view patchwork-view & .cm-content": {
     margin: "0",
@@ -241,7 +233,6 @@ export const theme = (style: "serif" | "sans") => [
   syntaxHighlighting(markdownSyntaxHighlighting(style)),
   bullets,
   codeblocks,
-  tables,
 ];
 
 const bullets = ViewPlugin.fromClass(
@@ -290,44 +281,6 @@ class BulletWidget extends WidgetType {
     return span;
   }
 }
-const tables = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    view: EditorView;
-    constructor(view: EditorView) {
-      this.view = view;
-      this.decorations = this.build();
-    }
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = this.build();
-      }
-    }
-    private build(): DecorationSet {
-      const builder = new RangeSetBuilder<Decoration>();
-      const doc = this.view.state.doc;
-      syntaxTree(this.view.state).iterate({
-        enter: ({ type, from, to }) => {
-          if (type.name === "Table") {
-            const startLine = doc.lineAt(from).number;
-            const endLine = doc.lineAt(to).number;
-            for (let n = startLine; n <= endLine; n++) {
-              builder.add(
-                doc.line(n).from,
-                doc.line(n).from,
-                Decoration.line({ class: "cm-md-table" })
-              );
-            }
-          }
-        },
-      });
-      return builder.finish();
-    }
-  },
-  {
-    decorations: (v) => v.decorations,
-  }
-);
 const codeblocks = ViewPlugin.fromClass(
   class BlockquotePlugin {
     decorations: DecorationSet = Decoration.none;
