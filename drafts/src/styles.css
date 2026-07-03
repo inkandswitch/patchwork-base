@@ -302,6 +302,105 @@
   background: var(--drafts-faint-fg);
 }
 
+/* ---- Scrubber: the history track beside the group rows ---- */
+
+/* Two-column body inside the scrollable changes area: group rows + scrubber.
+   Positioned so the rows' offsetTop measurements (used to map changes onto
+   the track) are relative to this box. */
+.draft-changes-body {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.draft-changes-rows {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+/* The track spans the whole history: top = latest change, bottom = first. */
+.draft-scrubber {
+  position: relative;
+  flex: none;
+  width: 14px;
+  border-radius: 7px;
+  background: var(--drafts-hover-bg);
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* The token marks the version being looked at (its top edge) and how far
+   back the diff baseline reaches (its height). */
+.draft-scrubber-token {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 5px;
+  background: var(--drafts-primary);
+  opacity: 0.8;
+  cursor: grab;
+  touch-action: none;
+}
+
+.draft-scrubber-token:active {
+  cursor: grabbing;
+}
+
+/* Nothing pinned: the token idles at the top (live latest), drawn muted. */
+.draft-scrubber-token[data-live] {
+  background: var(--drafts-faint-fg);
+}
+
+.draft-scrubber-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.draft-scrubber-handle--top {
+  top: -4px;
+}
+
+.draft-scrubber-handle--bottom {
+  bottom: -4px;
+}
+
+/* The per-group diff toggle: hidden until the row is hovered, kept lit while
+   its group's diff is active. */
+.draft-highlight-eye {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: var(--drafts-radius-sm);
+  color: var(--drafts-muted-fg);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.draft-group-row:hover .draft-highlight-eye,
+.draft-highlight-eye--active {
+  opacity: 1;
+}
+
+.draft-highlight-eye:hover {
+  background: var(--drafts-hover-bg);
+  color: var(--drafts-fg);
+}
+
+.draft-highlight-eye--active {
+  color: var(--drafts-primary);
+}
+
 /* Edit-size counts */
 .draft-counts {
   display: flex;
