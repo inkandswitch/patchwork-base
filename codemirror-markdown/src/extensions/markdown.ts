@@ -15,7 +15,6 @@ import { GFM } from "@lezer/markdown";
 
 /** Styles */
 import { theme } from "../themes/markdown.ts";
-import { tablePreview } from "./tables.ts";
 
 export function markdownExtensions() {
   return [
@@ -32,7 +31,6 @@ export function markdownExtensions() {
     ]),
     EditorView.lineWrapping,
     markdown({ codeLanguages: languages, extensions: GFM }),
-    ...tablePreview(),
     indentUnit.of("    "),
   ];
 }
