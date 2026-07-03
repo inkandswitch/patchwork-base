@@ -44,6 +44,20 @@ export function FileEditor(props: {
 				<Match when={isHTMLFile(doc()!)}>
 					<HTMLFileViewer doc={doc()!} />
 				</Match>
+				{/* Media viewers are matched before text so a string-backed asset
+				    (e.g. an SVG) still renders as media rather than its markup. */}
+				<Match when={isImageFile(doc()!)}>
+					<ImageFileViewer doc={doc()!} />
+				</Match>
+				<Match when={isPDFFile(doc()!)}>
+					<PDFFileViewer doc={doc()!} />
+				</Match>
+				<Match when={isAudioFile(doc()!)}>
+					<AudioFileViewer doc={doc()!} />
+				</Match>
+				<Match when={isVideoFile(doc()!)}>
+					<VideoFileViewer doc={doc()!} />
+				</Match>
 				<Match
 					when={
 						isTextFile(doc()!) &&
@@ -61,18 +75,6 @@ export function FileEditor(props: {
 							doc()!.content.length > LONG_TEXT_FILE_LENGTH_THRESHOLD)
 					}>
 					<LongTextFileViewer doc={doc()!} />
-				</Match>
-				<Match when={isImageFile(doc()!)}>
-					<ImageFileViewer doc={doc()!} />
-				</Match>
-				<Match when={isPDFFile(doc()!)}>
-					<PDFFileViewer doc={doc()!} />
-				</Match>
-				<Match when={isAudioFile(doc()!)}>
-					<AudioFileViewer doc={doc()!} />
-				</Match>
-				<Match when={isVideoFile(doc()!)}>
-					<VideoFileViewer doc={doc()!} />
 				</Match>
 			</Switch>
 		</Show>

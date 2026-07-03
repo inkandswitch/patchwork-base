@@ -27,6 +27,7 @@ import {
 	emacsStyleKeymap,
 } from "@codemirror/commands"
 import {automergeSyncPlugin} from "@automerge/automerge-codemirror"
+import {isImmutableString} from "@automerge/automerge-repo"
 import codemirrorTheme from "../codemirror-theme"
 import {getLanguageExtension} from "../languages"
 import type {FileDoc} from "../types"
@@ -52,12 +53,13 @@ function modshift(event: {
 	return bits
 }
 
+// A file is treated as text whenever its content actually is text — a plain
+// string (editable) or an ImmutableString (read-only). We key off the content
+// shape rather than the declared mimeType, which is frequently missing or
+// generic (e.g. application/octet-stream) for files that are perfectly editable
+// text.
 export const isTextFile = (doc: FileDoc) => {
-	return (
-		doc?.mimeType?.match("text/") ||
-		doc?.mimeType?.match("application/json") ||
-		doc?.mimeType?.match("application/javascript")
-	)
+	return typeof doc?.content === "string" || isImmutableString(doc?.content)
 }
 
 export function TextFileEditor(props: {doc: FileDoc; handle: any}) {

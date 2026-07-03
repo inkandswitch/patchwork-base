@@ -8,8 +8,10 @@
     "build:static": "node scripts/build-static.mjs",
     "build:static:fresh": "node scripts/build-static.mjs --build",
     "build:tools:ci": "node scripts/build-static.mjs --install",
+    "bundle": "node scripts/bundle.mjs",
     "serve:tools": "node scripts/serve-tools.mjs",
     "dev:tools": "pnpm build:static && pnpm serve:tools",
+    "dev": "node scripts/serve-tools.mjs --port 2121",
     "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod"
   },
   "packageManager": "pnpm@11.9.0"

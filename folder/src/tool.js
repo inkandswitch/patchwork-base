@@ -2,7 +2,11 @@ import {
   parseAutomergeUrl,
   isValidAutomergeUrl,
 } from "@automerge/automerge-repo";
-import "@inkandswitch/patchwork-elements";
+import { openDocument } from "@inkandswitch/patchwork-elements";
+import {
+  getRegistry,
+  createDocOfDatatype2,
+} from "@inkandswitch/patchwork-plugins";
 import styles from "./styles.css";
 
 // MIME types we can extract document drags from, in order of preference.
@@ -168,6 +172,125 @@ function updateEntry(entry, docLink) {
   }
 }
 
+// The listable document types, sorted by name. `file` and other unlisted
+// datatypes are hidden — you can't create an empty File, for instance.
+function listableDatatypes() {
+  return getRegistry("patchwork:datatype")
+    .all()
+    .filter((datatype) => !datatype.unlisted)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Create a fresh document of the given datatype and return a DocLink for it.
+// Mirrors the sideboard's createNew: load the plugin on demand, create the doc,
+// register it with the sync server (if a hive is present), then read its title.
+async function createDocLink(repo, hive, datatype) {
+  const loaded = await getRegistry("patchwork:datatype").load(datatype.id);
+  if (!loaded) throw new Error(`couldn't load datatype "${datatype.id}"`);
+  const docHandle = await createDocOfDatatype2(loaded, repo);
+  if (hive) await hive.addSyncServerPullToDoc(docHandle.url);
+  return {
+    url: docHandle.url,
+    name: loaded.module.getTitle(docHandle.doc()),
+    type: datatype.id,
+  };
+}
+
+// The "New" button plus its type-picker popover. Creating a doc appends a
+// DocLink to the folder and opens it. Returns { node, dispose }.
+function buildCreateNew(handle, element) {
+  const menu = el("div", { className: "folder-create-menu", hidden: "" });
+  const button = el(
+    "button",
+    {
+      className: "folder-create-button",
+      type: "button",
+      "aria-label": "Create new document",
+    },
+    el("span", { className: "folder-create-icon" }, "+"),
+    "New"
+  );
+  const node = el("div", { className: "folder-create" }, button, menu);
+
+  let open = false;
+
+  function setOpen(next) {
+    open = next;
+    if (open) {
+      renderMenu();
+      menu.removeAttribute("hidden");
+      node.setAttribute("data-open", "");
+    } else {
+      menu.setAttribute("hidden", "");
+      node.removeAttribute("data-open");
+    }
+  }
+
+  function renderMenu() {
+    const datatypes = listableDatatypes();
+    if (datatypes.length === 0) {
+      menu.replaceChildren(
+        el(
+          "div",
+          { className: "folder-create-empty" },
+          "No document types available"
+        )
+      );
+      return;
+    }
+    menu.replaceChildren(
+      ...datatypes.map((datatype) =>
+        el(
+          "button",
+          {
+            className: "folder-create-item",
+            type: "button",
+            onClick: () => pick(datatype),
+          },
+          datatype.name
+        )
+      )
+    );
+  }
+
+  async function pick(datatype) {
+    setOpen(false);
+    const repo = element.repo;
+    if (!repo) return;
+    try {
+      const link = await createDocLink(repo, element.hive, datatype);
+      handle.change((doc) => {
+        doc.docs.push(link);
+      });
+      openDocument(element, link.url);
+    } catch (error) {
+      console.error("folder: couldn't create document", error);
+    }
+  }
+
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setOpen(!open);
+  });
+
+  // Dismiss the menu on an outside click or Escape.
+  const onPointerDown = (event) => {
+    if (open && !node.contains(event.target)) setOpen(false);
+  };
+  const onKeyDown = (event) => {
+    if (open && event.key === "Escape") setOpen(false);
+  };
+  document.addEventListener("pointerdown", onPointerDown);
+  document.addEventListener("keydown", onKeyDown);
+
+  const dispose = () => {
+    document.removeEventListener("pointerdown", onPointerDown);
+    document.removeEventListener("keydown", onKeyDown);
+  };
+
+  return { node, dispose };
+}
+
 export const FolderTool = (handle, element) => {
   const entries = new Map();
 
@@ -176,10 +299,16 @@ export const FolderTool = (handle, element) => {
 
   const countEl = el("span", { className: "folder-view-count" });
   const listEl = el("div", { className: "folder-view-list" });
+  const createNew = buildCreateNew(handle, element);
   const shell = el(
     "div",
     { className: "folder-view" },
-    el("div", { className: "folder-view-header" }, countEl),
+    el(
+      "div",
+      { className: "folder-view-header" },
+      createNew.node,
+      countEl
+    ),
     listEl
   );
 
@@ -313,6 +442,7 @@ export const FolderTool = (handle, element) => {
 
   return () => {
     handle.off("change", onChange);
+    createNew.dispose();
     element.replaceChildren();
     entries.clear();
     mounted = null;

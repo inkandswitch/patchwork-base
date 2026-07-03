@@ -19,6 +19,7 @@ export const plugins = [
     id: "contact",
     name: "Contact",
     icon: "User",
+    unlisted: true,
     async load() {
       const { ContactDatatype } = await import("./datatype");
       return ContactDatatype;
@@ -30,9 +31,8 @@ export const plugins = [
     name: "Contact Viewer",
     supportedDatatypes: ["contact"],
     async load(): Promise<ToolImplementation> {
-      const { renderContactViewer } = await import(
-        "./components/ContactViewer"
-      );
+      const { renderContactViewer } =
+        await import("./components/ContactViewer");
       const css = await loadStyles();
       return (handle, element) => {
         addStyles(document.head, css);
@@ -46,9 +46,8 @@ export const plugins = [
     name: "Contact Avatar",
     supportedDatatypes: ["contact"],
     async load(): Promise<ToolImplementation> {
-      const { renderContactAvatar } = await import(
-        "./components/ContactAvatar"
-      );
+      const { renderContactAvatar } =
+        await import("./components/ContactAvatar");
       const css = await loadStyles();
       return (handle, element) => {
         addStyles(document.head, css);
@@ -62,9 +61,8 @@ export const plugins = [
     name: "Inline Contact Avatar",
     supportedDatatypes: ["contact"],
     async load(): Promise<ToolImplementation> {
-      const { renderInlineContactAvatar } = await import(
-        "./components/InlineContactAvatar"
-      );
+      const { renderInlineContactAvatar } =
+        await import("./components/InlineContactAvatar");
       const css = await loadStyles();
       return (handle, element) => {
         addStyles(document.head, css);

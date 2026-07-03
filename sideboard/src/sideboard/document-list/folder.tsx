@@ -12,11 +12,29 @@ import type {
 } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { handleFilesDrop } from "./file-drop.ts";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { filter, filterMatches, setRenaming, setPendingNewDoc } from "../state.ts";
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  Show,
+  Suspense,
+} from "solid-js";
+import {
+  filter,
+  filterMatches,
+  setRenaming,
+  setPendingNewDoc,
+  autoExpandedFolders,
+} from "../state.ts";
 import { DocumentList } from "./document-list.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { LoadingRow } from "./loading-row.tsx";
+import { createNew } from "../create-new.tsx";
+import type {
+  DatatypeDescription,
+  Plugin,
+} from "@inkandswitch/patchwork-plugins";
 import { Chevron } from "../icons.tsx";
 import {
   getDropTarget,
@@ -44,7 +62,6 @@ export default function Folder(props: {
   parentFolderHandle?: DocHandle<FolderDoc>;
   itemIndex?: number;
 }) {
-  const [ref, setRef] = createSignal<HTMLElement>();
   const [expanded, setExpanded] = createSignal(false);
 
   const [folder, handle] = useDocument<FolderDoc>(() => props.url, props);
@@ -64,14 +81,12 @@ export default function Folder(props: {
     return filter();
   });
 
-  // lol @ this huge hack
-  onMount(() => {
-    setTimeout(() => {
-      const has = !!ref()?.querySelector(
-        ".document-list-item[aria-selected='true']"
-      );
-      setExpanded((open) => open || has);
-    }, 500);
+  // Auto-expand when this folder lies on the path to a selected doc. The set is
+  // computed from folder data by the panel (see auto-expand.ts), so it reveals
+  // deeply nested selections without us having to eagerly mount the subtree:
+  // as each ancestor expands it mounts the next level, which re-reads the set.
+  createEffect(() => {
+    if (autoExpandedFolders().has(props.url)) setExpanded(true);
   });
 
   // Auto-expand/collapse folders during drag hover.
@@ -101,6 +116,20 @@ export default function Folder(props: {
 
   function rename(name: string) {
     handle()?.change((doc) => updateText(doc, ["title"], name));
+  }
+
+  async function createInside(datatype: Plugin<DatatypeDescription>) {
+    const h = handle();
+    if (!h) return;
+    const freshy = await createNew(props.repo, datatype, props.hive);
+    let newIndex = 0;
+    h.change((folder) => {
+      folder.docs.push(freshy);
+      newIndex = folder.docs.length - 1;
+    });
+    setExpanded(true);
+    props.open(freshy);
+    setRenaming(h.url + "/" + newIndex);
   }
 
   async function handleDropIntoFolder(
@@ -230,6 +259,7 @@ export default function Folder(props: {
         itemIndex={props.itemIndex}
         isExpanded={expanded()}
         onToggleExpand={() => setExpanded((yn) => !yn)}
+        createInside={createInside}
         openWith={(toolId) => {
           props.open({
             url: props.url,
@@ -263,24 +293,32 @@ export default function Folder(props: {
       </Item>
 
       <div
-        ref={(el) => setRef(el)}
         class="document-list-folder__contents"
         classList={{ "document-list-folder__contents--hidden": !expanded() && !filter() }}
         data-depth={depth()}
         style={depthStyle()}
       >
-        <DocumentList
-          docs={folder()?.docs}
-          repo={props.repo}
-          depth={depth() + 1}
-          handle={handle.latest!}
-          open={props.open}
-          hive={props.hive}
-          selectedDocUrls={props.selectedDocUrls}
-          visitedFolders={nextVisitedFolders}
-          element={props.element}
-          rootFolderHandle={props.rootFolderHandle}
-        />
+        {/* Only mount (and thus load) children when the folder is open or a
+            filter is active. Otherwise a collapsed folder would recursively
+            find() its entire subtree on mount, loading the whole tree at once
+            and making the folder appear to suspend on its descendants rather
+            than just its own handle. */}
+        <Show when={expanded() || !!filter()}>
+          <Suspense fallback={<LoadingRow depth={depth() + 1} />}>
+            <DocumentList
+              docs={folder()?.docs}
+              repo={props.repo}
+              depth={depth() + 1}
+              handle={handle.latest!}
+              open={props.open}
+              hive={props.hive}
+              selectedDocUrls={props.selectedDocUrls}
+              visitedFolders={nextVisitedFolders}
+              element={props.element}
+              rootFolderHandle={props.rootFolderHandle}
+            />
+          </Suspense>
+        </Show>
       </div>
     </div>
   );

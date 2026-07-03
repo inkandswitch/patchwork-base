@@ -1,0 +1,36 @@
+import type { DatatypeImplementation } from "@inkandswitch/patchwork-plugins";
+import type { AccountDoc, ThreepaneConfigDoc } from "./types";
+
+/**
+ * Default scalar configuration for a fresh account. Subdoc URLs are intentionally
+ * absent and are populated lazily by the frame on first mount.
+ */
+export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
+  init(doc) {
+    doc.frameToolId = "threepane";
+    // The left pane is now a widget list (migrated into the threepane config
+    // doc); no default account sidebar tool. These seed the migration.
+    doc.contextToolIds = ["comments-view", "history-view"];
+    // Title + spacer are rendered intrinsically by the frame's top bar; only the
+    // right-hand doctitle tools are configured here.
+    doc.documentToolbarToolIds = [
+      "add-doc-to-sidebar-button",
+      "doc-openwith",
+      "doc-presence",
+      "sync-indicator",
+    ];
+  },
+  getTitle: () => "Patchwork Account",
+};
+
+/** The threepane layout config doc (sidebar widgets, context tabs, doctitle tools). */
+export const ThreepaneConfigDatatype: DatatypeImplementation<ThreepaneConfigDoc> =
+  {
+    init(doc) {
+      doc.sidebar = { widgets: [] };
+      doc.contextbar = { tabs: [] };
+      doc.doctitle = { tools: [] };
+      doc.tray = { tools: [] };
+    },
+    getTitle: () => "Threepane Config",
+  };

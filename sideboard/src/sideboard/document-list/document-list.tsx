@@ -41,6 +41,7 @@ import {
 import Folder from "./folder.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { LoadingRow } from "./loading-row.tsx";
 import { NewDocPlaceholder } from "../create-new.tsx";
 import { ShareModal } from "../share-modal.tsx";
 
@@ -96,7 +97,7 @@ export function DocumentList(props: DocumentListProps) {
   };
 
   const placeholder = () => (
-    <div class="sideboard__item sideboard__item--visible">
+    <div class="document-list__item document-list__item--visible">
       <NewDocPlaceholder
         repo={props.repo}
         hive={props.hive}
@@ -259,11 +260,14 @@ export function DocumentList(props: DocumentListProps) {
               </Show>
               <div
                 classList={{
-                  sideboard__item: true,
-                  "sideboard__item--visible": visible(),
-                  "sideboard__item--invisible": !visible(),
+                  "document-list__item": true,
+                  "document-list__item--visible": visible(),
+                  "document-list__item--invisible": !visible(),
                 }}
               >
+                {/* Per-row boundary: a folder still loading its handle shows a
+                    skeleton here without blocking its siblings. */}
+                <Suspense fallback={<LoadingRow depth={props.depth} />}>
                 <Switch>
                 <Match when={doc.type == "folder"}>
                   <Show
@@ -340,6 +344,7 @@ export function DocumentList(props: DocumentListProps) {
                   </Item>
                 </Match>
                 </Switch>
+                </Suspense>
               </div>
             </>
           );

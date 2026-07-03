@@ -14,6 +14,7 @@ export const plugins = [
     type: "patchwork:datatype",
     name: "Account History",
     icon: "Clock",
+    unlisted: true,
     async load() {
       return {
         getTitle: (doc: HistoryDoc) => doc.title || "Account History",

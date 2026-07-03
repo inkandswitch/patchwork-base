@@ -6,6 +6,7 @@ declare module "solid-js" {
         style?: string | Record<string, string>;
         "doc-url"?: string;
         "tool-id"?: string;
+        component?: string;
         key?: string | number;
       };
     }

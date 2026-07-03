@@ -1,4 +1,4 @@
-import { Plugin } from "@inkandswitch/patchwork-plugins";
+import { Plugin, ToolElement } from "@inkandswitch/patchwork-plugins";
 
 export const plugins: Plugin<any>[] = [
   {
@@ -11,6 +11,47 @@ export const plugins: Plugin<any>[] = [
     async load() {
       const { renderCommentsView } = await import("./main");
       return renderCommentsView;
+    },
+  },
+  // Same view, but as a `patchwork:component` that takes no document: the
+  // render function ignores its handle (it reads everything off `element`),
+  // so we pass `null` and it can be slotted in without an account doc.
+  {
+    type: "patchwork:component",
+    id: "comments-view",
+    tags: ["context-tool"],
+    name: "Comments",
+    async load() {
+      const { renderCommentsView } = await import("./main");
+      return (element: ToolElement) => renderCommentsView(null as never, element);
+    },
+  },
+  // The datatype for a comment thread subdocument. Registering it lets a
+  // thread opened on its own (its `@patchwork.type` is `comment-thread`)
+  // resolve a title and, via `supportedDatatypes` below, a tool.
+  {
+    type: "patchwork:datatype",
+    id: "comment-thread",
+    name: "Comment Thread",
+    icon: "MessageSquare",
+    unlisted: true,
+    async load() {
+      const { CommentThreadDatatype } = await import("./datatype");
+      return CommentThreadDatatype;
+    },
+  },
+  // Renders one comment thread from its subdocument url. It's mounted
+  // explicitly by `CommentsView` via `<patchwork-view>`, but now also
+  // declares support for the `comment-thread` datatype so it's the tool
+  // detected when a thread subdocument is opened on its own.
+  {
+    type: "patchwork:tool",
+    id: "comment-thread",
+    name: "Comment Thread",
+    supportedDatatypes: ["comment-thread"],
+    async load() {
+      const { renderCommentThread } = await import("./main");
+      return renderCommentThread;
     },
   },
 ];

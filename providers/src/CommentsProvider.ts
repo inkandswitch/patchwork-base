@@ -178,6 +178,8 @@ export const CommentsProvider = (element: PatchworkViewElement) => {
       const threadUrl = handle.sub("@comments", "threads", {
         id: thread.id,
       }).url;
+      // A ref may be a range/sub-doc target or, for a document-level comment,
+      // the whole-document url itself. Either way it's emitted the same way.
       for (const targetUrl of thread.refs) {
         entries.push({ targetUrl, threadUrl });
       }

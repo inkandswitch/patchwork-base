@@ -7,6 +7,7 @@ export const plugins: Plugin<any>[] = [
     id: 'task-queue',
     name: 'Task Queue',
     icon: 'CirclePlus',
+    unlisted: true,
     load: async () => (await import('./datatype')).TaskQueueDatatype
   },
   {

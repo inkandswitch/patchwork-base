@@ -35,7 +35,39 @@
   color: var(--comments-fg);
 }
 
+.comments-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--comments-muted-fg);
+}
+
+.comments-panel-header-title {
+  font-weight: 500;
+}
+
+.comments-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--comments-muted-fg);
+}
+
 .comments-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* The thread's card + actions are rendered by the `comment-thread` tool into
+   its <patchwork-view> host, so that host is the flex column that lays them
+   out (a custom element is `display: inline` by default). */
+.comments-thread > patchwork-view {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -69,10 +101,38 @@
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
+/* Resolved threads are hidden in the sidebar but shown when embedded. Keep
+   them clearly readable, just visibly "settled": muted fill, dashed border,
+   and slightly dimmed so they read as archived rather than active. */
+.comments-thread-card--resolved {
+  background: var(--comments-hover-bg);
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.comments-thread-resolved-label {
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.625rem;
+  color: var(--comments-muted-fg);
+  border: 1px solid var(--comments-border);
+}
+
 .comments-thread-card-body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.comments-thread-doc-level {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--comments-muted-fg);
 }
 
 .comments-thread-header {

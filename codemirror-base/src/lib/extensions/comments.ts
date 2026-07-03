@@ -10,11 +10,19 @@ export type DocWithComments = {
   };
 };
 
+/**
+ * The `@patchwork.type` stamped on a comment thread so a datatype (and thus a
+ * relevant tool) can be resolved when the thread's subdocument is opened on its
+ * own. Mirrors `COMMENT_THREAD_TYPE` in the comments-view module.
+ */
+export const COMMENT_THREAD_TYPE = "comment-thread";
+
 export type CommentThread = {
   id: string;
   refs: AutomergeUrl[];
   isResolved: boolean;
   comments: Comment[];
+  "@patchwork"?: { type: string; title?: string };
 };
 
 export type Comment = {
@@ -49,6 +57,7 @@ export function createCommentForRange(
           timestamp: Date.now(),
         },
       ],
+      "@patchwork": { type: COMMENT_THREAD_TYPE },
     });
   });
 }

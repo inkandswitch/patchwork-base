@@ -1,6 +1,6 @@
 import "./styles.css";
 import type { DocHandle } from "@automerge/automerge-repo";
-import type { ToolElement, ToolDescription } from "@inkandswitch/patchwork-plugins";
+import type { ToolElement } from "@inkandswitch/patchwork-plugins";
 import { getRegistry } from "@inkandswitch/patchwork-plugins";
 import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 import {
@@ -16,31 +16,41 @@ import {
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { render } from "solid-js/web";
-import type { TinyPatchworkLayoutDoc } from "./types";
+import type {
+  TinyPatchworkLayoutDoc,
+  ThreepaneConfigDoc,
+  ToolSlot,
+} from "./types";
 
 type ModuleOption = {
   id: string;
   name: string;
 };
 
-function useToolDescriptions() {
-  const registry = getRegistry<ToolDescription>("patchwork:tool");
-  const [tools, setTools] = createStore<ToolDescription[]>(
-    (registry.all?.() ?? []).map((p) => p as unknown as ToolDescription)
+// Minimal shape shared by tool and component descriptions — all we need to
+// build the add-popover options.
+type Describable = { id: string; name?: string; tags?: string[] };
+
+// Subscribe to a plugin registry (e.g. "patchwork:tool" or
+// "patchwork:component") and keep a reactive list of its descriptions.
+function useDescriptions(type: string) {
+  const registry = getRegistry(type);
+  const [items, setItems] = createStore<Describable[]>(
+    (registry.all?.() ?? []).map((p) => p as unknown as Describable)
   );
   const update = () => {
     const all = (registry.all?.() ?? []).map(
-      (p) => p as unknown as ToolDescription
+      (p) => p as unknown as Describable
     );
-    setTools(reconcile(all));
+    setItems(reconcile(all));
   };
   update();
   const dispose = registry.on("changed", update);
   onCleanup(dispose);
-  return tools;
+  return items;
 }
 
-function filterToolsByTag(tools: ToolDescription[], tag: string): ModuleOption[] {
+function filterToolsByTag(tools: Describable[], tag: string): ModuleOption[] {
   return tools
     .filter((t) => (t.tags ?? []).includes(tag))
     .map((t) => ({ id: t.id, name: t.name || t.id }))
@@ -103,6 +113,7 @@ function AddPopover(props: {
   available: ModuleOption[];
   onAdd: (id: string) => void;
   onClose: () => void;
+  customPlaceholder?: string;
 }) {
   const [customId, setCustomId] = createSignal("");
 
@@ -127,7 +138,7 @@ function AddPopover(props: {
         <input
           type="text"
           class="add-popover-custom-input"
-          placeholder="tool-id"
+          placeholder={props.customPlaceholder ?? "tool-id"}
           value={customId()}
           onInput={(e) => setCustomId(e.currentTarget.value)}
           onKeyDown={(e) => e.key === "Enter" && addCustom()}
@@ -238,6 +249,9 @@ function ToolbarStrip(props: {
   setValues: (next: string[]) => void;
   allOptions: ModuleOption[];
   docUrl: string;
+  /** How each entry id is previewed/added: a `patchwork:tool` (default, against
+   *  `docUrl`) or a `patchwork:component`. */
+  previewKind?: "tool" | "component";
 }) {
   const [showAdd, setShowAdd] = createSignal(false);
   const [dragIndex, setDragIndex] = createSignal<number | null>(null);
@@ -307,11 +321,21 @@ function ToolbarStrip(props: {
               onDragEnd={() => handleDragEnd()}
             >
               <div class="toolbar-box-preview">
-                <patchwork-view
-                  doc-url={props.docUrl}
-                  tool-id={id}
-                  style="pointer-events:none;width:100%;height:100%"
-                />
+                <Show
+                  when={props.previewKind === "component"}
+                  fallback={
+                    <patchwork-view
+                      doc-url={props.docUrl}
+                      tool-id={id}
+                      style="pointer-events:none;width:100%;height:100%"
+                    />
+                  }
+                >
+                  <patchwork-view
+                    component={id}
+                    style="pointer-events:none;width:100%;height:100%"
+                  />
+                </Show>
               </div>
               <div class="toolbar-box-label">{nameOf(id)}</div>
               <button
@@ -340,6 +364,9 @@ function ToolbarStrip(props: {
               available={available()}
               onAdd={add}
               onClose={() => setShowAdd(false)}
+              customPlaceholder={
+                props.previewKind === "component" ? "component-id" : "tool-id"
+              }
             />
           </Show>
         </div>
@@ -465,22 +492,87 @@ function FrameConfiguratorUI(props: {
     () => props.handle.url
   );
 
-  const allTools = useToolDescriptions();
+  // The doctitle + contextbar config now live in the threepane config doc; we
+  // edit it here. Entries are [toolId, docId] pairs — the docid is the account
+  // doc (a placeholder; the frame feeds doctitle the selected doc).
+  const [threepaneDoc, threepaneHandle] = useDocument<ThreepaneConfigDoc>(
+    () => accountDoc()?.tools?.["threepane"]
+  );
+
+  const allTools = useDescriptions("patchwork:tool");
+  const allComponents = useDescriptions("patchwork:component");
 
   const frameOptions = createMemo(() =>
     filterToolsByTag([...allTools], "frame-tool")
   );
-  const sidebarOptions = createMemo(() =>
-    filterToolsByTag([...allTools], "sidebar-account")
-  );
   const documentToolbarOptions = createMemo(() =>
     filterToolsByTag([...allTools], "titlebar-tool")
   );
+  // Context tabs accept both: tools (tagged "context-tool", rendered against a
+  // doc) and components (same tag, rendered doc-less). The add list unions them;
+  // the setter stores tools as [id, docId] tuples and components as bare ids.
   const contextToolOptions = createMemo(() =>
     filterToolsByTag([...allTools], "context-tool")
   );
+  const contextComponentOptions = createMemo(() =>
+    filterToolsByTag([...allComponents], "context-tool")
+  );
+  const contextOptions = createMemo(() =>
+    [...contextToolOptions(), ...contextComponentOptions()].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    )
+  );
+  // The system tray hosts patchwork:components (not tools), so its options come
+  // from the component registry and its entries are stored as bare ids.
+  const systemTrayOptions = createMemo(() =>
+    filterToolsByTag([...allComponents], "system-tray")
+  );
 
   const docUrl = props.handle.url;
+
+  // Lane entries may be bare component ids (strings) as well as [toolId, docId]
+  // tuples; the strip/tab UIs work in ids either way.
+  const slotId = (slot: ToolSlot) => (typeof slot === "string" ? slot : slot[0]);
+
+  const doctitleIds = () => threepaneDoc()?.doctitle?.tools?.map(slotId);
+  const trayIds = () => threepaneDoc()?.tray?.tools?.map(slotId);
+  const contextIds = () => threepaneDoc()?.contextbar?.tabs?.map(slotId);
+
+  // Rebuild the lane from the strip's id list, preserving any entry that was a
+  // bare component id (so reordering/removing doesn't turn a component into a
+  // tool); ids added through the UI become [toolId, docId] tuples.
+  const toSlots = (ids: string[], prev: ToolSlot[] | undefined): ToolSlot[] => {
+    const components = new Set(
+      (prev ?? []).filter((s): s is string => typeof s === "string")
+    );
+    return ids.map((id) => (components.has(id) ? id : [id, docUrl]));
+  };
+
+  const setDoctitle = (next: string[]) =>
+    threepaneHandle()?.change((doc) => {
+      doc.doctitle.tools = toSlots(next, doc.doctitle.tools);
+    });
+  // Tray entries are component ids, stored bare (SlotView renders a string slot
+  // as a patchwork:component).
+  const setTray = (next: string[]) =>
+    threepaneHandle()?.change((doc) => {
+      if (!doc.tray) doc.tray = { tools: [] };
+      doc.tray.tools = [...next];
+    });
+  // Context tabs accept tools and components: an id is stored bare when it's a
+  // registered context component (or was already bare), otherwise as a tuple.
+  const setContext = (next: string[]) =>
+    threepaneHandle()?.change((doc) => {
+      const components = new Set([
+        ...contextComponentOptions().map((o) => o.id),
+        ...(doc.contextbar.tabs ?? []).filter(
+          (s): s is string => typeof s === "string"
+        ),
+      ]);
+      doc.contextbar.tabs = next.map((id) =>
+        components.has(id) ? id : [id, docUrl]
+      );
+    });
 
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(
     key: K,
@@ -488,16 +580,6 @@ function FrameConfiguratorUI(props: {
   ) => {
     props.handle.change((doc: any) => {
       doc[key] = value as any;
-    });
-  };
-
-  const setArrayField = (
-    key: keyof TinyPatchworkLayoutDoc,
-    next: string[]
-  ) => {
-    props.handle.change((doc: any) => {
-      const arr = doc[key];
-      arr.splice(0, arr.length, ...next);
     });
   };
 
@@ -518,28 +600,36 @@ function FrameConfiguratorUI(props: {
           docUrl={docUrl}
         />
 
-        <PreviewCardGrid
-          label="Account Sidebar"
-          value={accountDoc()!.accountSidebarToolId}
-          onChange={(v) => setField("accountSidebarToolId", v as any)}
-          options={sidebarOptions()}
-          docUrl={docUrl}
-        />
+        <Show
+          when={threepaneDoc()}
+          fallback={
+            <p class="empty-message">Preparing layout configuration…</p>
+          }
+        >
+          <ToolbarStrip
+            label="Toolbar"
+            values={doctitleIds()}
+            setValues={setDoctitle}
+            allOptions={documentToolbarOptions()}
+            docUrl={docUrl}
+          />
 
-        <ToolbarStrip
-          label="Toolbar"
-          values={accountDoc()!.documentToolbarToolIds}
-          setValues={(next) => setArrayField("documentToolbarToolIds", next)}
-          allOptions={documentToolbarOptions()}
-          docUrl={docUrl}
-        />
+          <ContextTabs
+            label="Context Tools"
+            values={contextIds()}
+            setValues={setContext}
+            allOptions={contextOptions()}
+          />
 
-        <ContextTabs
-          label="Context Tools"
-          values={accountDoc()!.contextToolIds}
-          setValues={(next) => setArrayField("contextToolIds", next)}
-          allOptions={contextToolOptions()}
-        />
+          <ToolbarStrip
+            label="System Tray"
+            values={trayIds()}
+            setValues={setTray}
+            allOptions={systemTrayOptions()}
+            docUrl={docUrl}
+            previewKind="component"
+          />
+        </Show>
 
         <Show when={(accountDoc() as any)?.themePreferencesUrl}>
           <div class="config-section">

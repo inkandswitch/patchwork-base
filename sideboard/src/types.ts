@@ -7,7 +7,9 @@ export interface PatchworkToolProps<T> {
   element: PatchworkViewElement;
 }
 
-export type TinyPatchworkAccountDoc = {
-  rootFolderUrl: AutomergeUrl;
-  moduleSettingsUrl: AutomergeUrl;
+/** The account-doc fields the account bar / combined sideboard read. */
+export type SideboardAccountDoc = {
+  rootFolderUrl?: AutomergeUrl;
+  contactUrl?: AutomergeUrl;
+  moduleSettingsUrl?: AutomergeUrl;
 };
