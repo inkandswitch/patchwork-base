@@ -22,18 +22,20 @@ const openLinkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none
   <line x1="10" y1="14" x2="21" y2="3"></line>
 </svg>`;
 
-// `[patchwork:docId/toolId]` — neither id may contain `]` or `/`.
-const EMBED_RE = /\[patchwork:([^/\]]+)\/([^\]]+)\]/;
+// `[patchwork:docId]` or `[patchwork:docId/toolId]` — ids may not contain `]`
+// or `/`. The `/toolId` part is optional; without it the embed falls back to
+// the document's default tool for its datatype (see LegacyImpl).
+const EMBED_RE = /\[patchwork:([^/\]]+)(?:\/([^\]]+))?\]/;
 
 /**
  * Widget to render an embedded <patchwork-view> element in a CodeMirror editor.
  */
 class EmbedWidget extends WidgetType {
   readonly docId: DocumentId;
-  readonly toolId: string;
+  readonly toolId: string | null;
   readonly embedText: string;
 
-  constructor(docId: DocumentId, toolId: string, embedText: string) {
+  constructor(docId: DocumentId, toolId: string | null, embedText: string) {
     super();
     this.docId = docId;
     this.toolId = toolId;
@@ -66,7 +68,8 @@ class EmbedWidget extends WidgetType {
       e.stopPropagation();
       const params = new URLSearchParams();
       params.set("doc", this.docId);
-      params.set("tool", this.toolId);
+      // Tool-less embeds open with the datatype's default tool.
+      if (this.toolId) params.set("tool", this.toolId);
       window.location.hash = params.toString();
     };
 
@@ -75,7 +78,7 @@ class EmbedWidget extends WidgetType {
 
     const view = document.createElement("patchwork-view");
     view.setAttribute("doc-url", `automerge:${this.docId}`);
-    view.setAttribute("tool-id", this.toolId);
+    if (this.toolId) view.setAttribute("tool-id", this.toolId);
 
     container.appendChild(label);
     container.appendChild(view);
@@ -138,7 +141,7 @@ function getEmbedLinks(view: EditorView) {
         if (!isValidDocumentId(docId)) return;
 
         const embed = Decoration.replace({
-          widget: new EmbedWidget(docId as DocumentId, toolId, linkText),
+          widget: new EmbedWidget(docId as DocumentId, toolId ?? null, linkText),
         });
         widgets.push(embed.range(linkFrom, linkTo));
       },
@@ -148,53 +151,188 @@ function getEmbedLinks(view: EditorView) {
   return Decoration.set(widgets, true);
 }
 
-/** MIME type used by the sideboard (and similar) for document drag-and-drop. */
+// MIME types we accept document drags from. Mirrors the sideboard's convention
+// (duplicated on purpose — see the DnD notes; a shared package is a later step).
 const PATCHWORK_DND = "text/x-patchwork-dnd";
+const PATCHWORK_URLS = "text/x-patchwork-urls";
+
+type DocRef = { docId: DocumentId; toolId: string | null };
+
+/** Turn an automerge url or a patchwork web link into a DocumentId, or null. */
+function urlToDocId(raw: string): DocumentId | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Plain automerge url (optionally carrying heads/query/subpath).
+  const am = trimmed.match(/automerge:([a-zA-Z0-9]+)/);
+  if (am && isValidDocumentId(am[1])) return am[1] as DocumentId;
+  // Patchwork web link: #doc=<documentId> (also &doc= / ?doc=).
+  const web = trimmed.match(/[#&?]doc=([a-zA-Z0-9]+)/);
+  if (web && isValidDocumentId(web[1])) return web[1] as DocumentId;
+  return null;
+}
 
 /**
- * Drop handler that accepts documents dragged from the sidebar (or elsewhere)
- * using text/x-patchwork-dnd. Inserts [patchwork:docId/toolId] at the drop position.
+ * Read dragged documents out of a drop event, in order of format preference.
+ * Only an *explicit* `toolId` on a structured item pins the tool; otherwise we
+ * embed tool-less and let the view fall back to the datatype's default tool.
+ * (The previous code mis-read `item.type` — a datatype — as a tool id, so any
+ * source whose datatype != tool id produced a broken embed, and sources that
+ * set only urls were dropped entirely.)
+ */
+function extractDocRefs(dt: DataTransfer): DocRef[] {
+  const refs: DocRef[] = [];
+  const seen = new Set<string>();
+  const push = (docId: DocumentId | null, toolId: string | null) => {
+    if (!docId || seen.has(docId)) return;
+    seen.add(docId);
+    refs.push({ docId, toolId });
+  };
+
+  const dnd = dt.getData(PATCHWORK_DND);
+  if (dnd) {
+    try {
+      const parsed = JSON.parse(dnd) as {
+        items?: Array<{ url?: string; toolId?: string }>;
+      };
+      for (const item of parsed?.items ?? []) {
+        if (item?.url) push(urlToDocId(item.url), item.toolId ?? null);
+      }
+    } catch {
+      // fall through to the other formats
+    }
+  }
+  if (refs.length > 0) return refs;
+
+  const urls = dt.getData(PATCHWORK_URLS);
+  if (urls) {
+    try {
+      const parsed: unknown = JSON.parse(urls);
+      if (Array.isArray(parsed)) {
+        for (const u of parsed) push(urlToDocId(String(u)), null);
+      }
+    } catch {
+      // fall through
+    }
+  }
+  if (refs.length > 0) return refs;
+
+  const text = dt.getData("text/uri-list") || dt.getData("text/plain");
+  if (text) {
+    for (const line of text.split(/\r?\n/)) {
+      if (line.startsWith("#")) continue; // uri-list comments
+      push(urlToDocId(line), null);
+    }
+  }
+  return refs;
+}
+
+function embedSyntax({ docId, toolId }: DocRef): string {
+  return toolId ? `[patchwork:${docId}/${toolId}]` : `[patchwork:${docId}]`;
+}
+
+/**
+ * Import each OS file dropped from the desktop as a Patchwork `file` document,
+ * returning tool-less refs to embed. Uses the realm-local `window.repo` (the
+ * documented global) — fine for creating brand-new docs, which aren't subject
+ * to draft remapping.
+ */
+async function fileDropRefs(files: FileList): Promise<DocRef[]> {
+  const repo = (window as unknown as { repo?: any }).repo;
+  if (!repo) {
+    console.warn(
+      "[codemirror-embed] window.repo unavailable; ignoring dropped files"
+    );
+    return [];
+  }
+  const refs: DocRef[] = [];
+  for (const file of Array.from(files)) {
+    try {
+      const mimeType = file.type || "application/octet-stream";
+      const isText =
+        mimeType.startsWith("text/") || mimeType === "application/json";
+      const content = isText
+        ? await file.text()
+        : new Uint8Array(await file.arrayBuffer());
+      const parts = file.name.split(".");
+      const extension = parts.length > 1 ? parts.pop()! : "";
+      const handle = repo.create();
+      handle.change((d: any) => {
+        d["@patchwork"] = { type: "file" };
+        d.content = content;
+        d.mimeType = mimeType;
+        d.extension = extension;
+        d.name = file.name;
+      });
+      const { documentId } = parseAutomergeUrl(handle.url as AutomergeUrl);
+      if (isValidDocumentId(documentId)) {
+        refs.push({ docId: documentId as DocumentId, toolId: null });
+      }
+    } catch (err) {
+      console.warn(
+        "[codemirror-embed] failed to import dropped file",
+        file.name,
+        err
+      );
+    }
+  }
+  return refs;
+}
+
+function insertRefs(view: EditorView, pos: number, refs: DocRef[]): void {
+  if (refs.length === 0) return;
+  const text = refs.map(embedSyntax).join("\n\n");
+  view.dispatch({
+    changes: { from: pos, insert: text },
+    selection: { anchor: pos + text.length },
+  });
+}
+
+/**
+ * Drop handler that accepts:
+ *  - documents dragged from the sidebar / canvases / other tools
+ *    (`text/x-patchwork-dnd`, `text/x-patchwork-urls`, `text/uri-list`, and
+ *    `text/plain` patchwork links), and
+ *  - files dragged in from the operating system (imported as `file` docs).
+ * Inserts `[patchwork:docId]` (or `[patchwork:docId/toolId]`) at the drop point.
  */
 function embedDropHandlers() {
+  // Only claim the *dragover* for unambiguous patchwork/OS drags — plain
+  // text/uri-list can be an ordinary in-editor text drag, which we must not
+  // swallow. (`Files` covers OS drags, whose `dt.files` is empty until drop.)
+  const wantsDragover = (dt: DataTransfer | null): boolean =>
+    !!dt &&
+    (dt.types.includes("Files") ||
+      dt.types.includes(PATCHWORK_DND) ||
+      dt.types.includes(PATCHWORK_URLS));
+
   return EditorView.domEventHandlers({
     dragover(event) {
-      if (!event.dataTransfer?.types.includes(PATCHWORK_DND)) return false;
+      if (!wantsDragover(event.dataTransfer)) return false;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
       return true;
     },
     drop(event, view) {
-      if (!event.dataTransfer?.types.includes(PATCHWORK_DND)) return false;
-      const raw = event.dataTransfer.getData(PATCHWORK_DND);
-      if (!raw) return false;
-      try {
-        const data = JSON.parse(raw) as {
-          items?: Array<{ url?: string; type?: string }>;
-        };
-        const items = data?.items;
-        if (!Array.isArray(items) || items.length === 0) return false;
-        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-        if (pos == null) return false;
-        const inserts: string[] = [];
-        for (const item of items) {
-          const url = item?.url;
-          const toolId = item?.type;
-          if (!url || !toolId) continue;
-          const { documentId } = parseAutomergeUrl(url as AutomergeUrl);
-          if (!isValidDocumentId(documentId)) continue;
-          inserts.push(`[patchwork:${documentId}/${toolId}]`);
-        }
-        if (inserts.length === 0) return false;
+      const dt = event.dataTransfer;
+      if (!dt) return false;
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos == null) return false;
+
+      // OS files import asynchronously; insert once the docs exist.
+      if (dt.files && dt.files.length > 0) {
         event.preventDefault();
-        const text = inserts.join("\n\n");
-        view.dispatch({
-          changes: { from: pos, insert: text },
-          selection: { anchor: pos + text.length },
-        });
+        void fileDropRefs(dt.files).then((refs) => insertRefs(view, pos, refs));
         return true;
-      } catch {
-        return false;
       }
+
+      // Otherwise only handle the drop if it actually resolves to patchwork
+      // docs (dnd/urls always do; uri-list/plain only for patchwork links).
+      // If not, let CodeMirror handle it as a normal text drop.
+      const refs = extractDocRefs(dt);
+      if (refs.length === 0) return false;
+      event.preventDefault();
+      insertRefs(view, pos, refs);
+      return true;
     },
   });
 }

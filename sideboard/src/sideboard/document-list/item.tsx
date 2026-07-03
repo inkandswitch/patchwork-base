@@ -37,11 +37,50 @@ import {
   type DocHandle,
   type Repo,
 } from "@automerge/automerge-repo";
-import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
+import {
+  type FolderDoc,
+  getImportableUrlFromAutomergeUrl,
+} from "@inkandswitch/patchwork-filesystem";
 import { executeDrop } from "../dnd/operations.ts";
 import { getDndPayload } from "../dnd/payload.ts";
 import { handleFilesDrop } from "./file-drop.ts";
 import { log } from "../dnd/debug.ts";
+
+// ── OS drag-out ─────────────────────────────────────────────────────────────
+// A best-effort extension→MIME map so a single dragged `file` doc can be exposed
+// as a real OS file via the Chromium `DownloadURL` format. The bytes are served
+// (with the doc's stored mime) by the patchwork service worker; the OS keys off
+// the filename extension, so this hint only needs to be reasonable. Duplicated
+// on purpose for now — a shared DnD package is a later step.
+const EXT_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  bmp: "image/bmp",
+  tiff: "image/tiff",
+  svg: "image/svg+xml",
+  pdf: "application/pdf",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  html: "text/html",
+  zip: "application/zip",
+};
+
+function mimeForName(name: string): string | undefined {
+  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+  return ext ? EXT_MIME[ext] : undefined;
+}
 
 export default function Item(props: {
   "aria-label": string;
@@ -72,6 +111,38 @@ export default function Item(props: {
   const datatypes = useFilteredDatatypes((item) => !item.unlisted);
   const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
 
+  // Metadata for OS drag-out, prefetched (once, on mouse-down) for `file` docs
+  // so dragstart can synchronously expose an accurate `DownloadURL`. If the doc
+  // hasn't resolved yet we fall back to the DocLink name + extension-derived
+  // mime, which is good enough (the OS keys off the filename extension anyway).
+  const [fileMeta, setFileMeta] = createSignal<{
+    mime: string;
+    filename: string;
+  } | null>(null);
+  let filePrefetched = false;
+  function prefetchFileMeta() {
+    if (filePrefetched || props.type !== "file") return;
+    filePrefetched = true;
+    props.repo
+      .find(props.url)
+      .then((handle) => {
+        const doc = handle?.doc() as
+          | { name?: string; extension?: string; mimeType?: string }
+          | undefined;
+        if (!doc) return;
+        const base = String(doc.name ?? props.name ?? "file");
+        const ext = doc.extension
+          ? `.${String(doc.extension).replace(/^\.+/, "")}`
+          : "";
+        const filename = ext && !base.endsWith(ext) ? `${base}${ext}` : base;
+        const mime = String(
+          doc.mimeType || mimeForName(filename) || "application/octet-stream"
+        );
+        setFileMeta({ mime, filename });
+      })
+      .catch(() => {});
+  }
+
   createEffect((prev) => {
     if (props.pressed && !prev) {
       const el = untrack(trigger);
@@ -98,14 +169,15 @@ export default function Item(props: {
   ) {
     log("Item drop handler called for:", targetId, position);
 
-    // Handle file drops from OS - add to parent folder at correct position
+    // Handle file drops from OS - add to parent folder at correct position.
+    // Top-level items have no parent handle, so fall back to the root folder.
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
       await handleFilesDrop(
         event.dataTransfer.files,
-        props.parentFolderHandle,
+        props.parentFolderHandle ?? props.rootFolderHandle,
         props.repo,
         position,
-        props.itemIndex
+        props.itemIndex ?? 0
       );
       return;
     }
@@ -198,6 +270,29 @@ export default function Item(props: {
             }),
             "text/x-patchwork-dnd"
           );
+
+          // OS drag-out: a single `file` doc can be dragged straight to the
+          // desktop/Finder as a real file (Chromium `DownloadURL`). Served as
+          // raw content by the patchwork service worker at `/<encoded url>/`.
+          // Single-item only — the format carries one entry.
+          if (dragstack.size === 1 && props.type === "file") {
+            const meta = fileMeta();
+            const filename = meta?.filename ?? props.name;
+            const mime =
+              meta?.mime ?? mimeForName(filename) ?? "application/octet-stream";
+            try {
+              const swUrl = new URL(
+                getImportableUrlFromAutomergeUrl(props.url),
+                location.origin
+              ).href;
+              event.dataTransfer?.setData(
+                "DownloadURL",
+                `${mime}:${filename}:${swUrl}`
+              );
+            } catch {
+              // location unavailable in exotic embeds — skip OS export.
+            }
+          }
 
           // Create drag preview
           const preview = document.createElement("div");
@@ -342,6 +437,8 @@ export default function Item(props: {
         role="treeitem"
         aria-selected={props.pressed ? "true" : undefined}
         onMouseDown={(event: MouseEvent) => {
+          // Warm up file metadata so a subsequent drag can export to the OS.
+          prefetchFileMeta();
           if (event.ctrlKey || event.metaKey) {
             if (dragstack.has(props.id)) {
               removeFromDragstack(props.id);
