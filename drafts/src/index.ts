@@ -57,6 +57,31 @@ export const plugins: Plugin<any>[] = [
         renderDraftsSidebar(null as never, element);
     },
   },
+  // Variant of the drafts sidebar that folds the change history into
+  // 15-minute time groups instead of listing each change individually.
+  {
+    type: "patchwork:tool",
+    id: "grouped-drafts",
+    tags: ["context-tool"],
+    name: "Grouped Drafts",
+    icon: "GitBranch",
+    supportedDatatypes: ["account"],
+    async load() {
+      const { renderGroupedDraftsSidebar } = await import("./main");
+      return renderGroupedDraftsSidebar;
+    },
+  },
+  {
+    type: "patchwork:component",
+    id: "grouped-drafts",
+    name: "Grouped Drafts",
+    tags: ["context-tool"],
+    async load() {
+      const { renderGroupedDraftsSidebar } = await import("./main");
+      return (element: ToolElement) =>
+        renderGroupedDraftsSidebar(null as never, element);
+    },
+  },
 ];
 
 export type {
