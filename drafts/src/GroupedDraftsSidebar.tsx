@@ -40,7 +40,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.3";
+const DRAFTS_VERSION = "0.0.4";
 
 // Changes within this window of a group's newest change fall in the same
 // group ("made around the same time"), so a burst of edits reads as a single
@@ -459,14 +459,26 @@ function changeRef(change: DraftChange): ChangeRef {
   return { docUrl: change.docUrl, hash: change.hash, time: change.time };
 }
 
+// A magnified stretch of the timeline: the range the scrubber spanned when
+// the magnifier was clicked (same anchoring as ScrubberState) plus the finer
+// grouping window to apply inside it. The rest of the timeline keeps the
+// normal TIME_WINDOW grouping.
+type ZoomState = {
+  head: ChangeRef;
+  span: number;
+  windowMs: number;
+};
+
 // Renders a draft's (or main's) changes as a timeline of time groups: every
 // member doc's changes interleaved newest first, then folded into groups of
-// changes made within TIME_WINDOW of each other (see `groupChanges`). Next to
-// the rows sits the scrubber: a track spanning the whole history (top =
-// latest change, bottom = first) whose draggable, resizable token marks the
-// version being looked at and how far back the diff baseline reaches. The
-// member set is passed in (from the card's `DraftSummary`); the effect below
-// keeps the timeline live as those docs edit.
+// changes made within TIME_WINDOW of each other (see `groupChanges`). A
+// gutter on the left spans the whole history (top = latest change, bottom =
+// first); the indicator overlaying the rows — a calendar-style dot + line,
+// drawn as a bracket while it spans a range — marks the version being looked
+// at and how far back the diff baseline reaches, and carries a magnifier
+// that splits the spanned range into smaller time chunks. The member set is
+// passed in (from the card's `DraftSummary`); the effect below keeps the
+// timeline live as those docs edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   mainDocUrl: AutomergeUrl | undefined;
@@ -512,8 +524,74 @@ function DraftChangesList(props: {
     });
   });
 
+  // A magnified range: while set, the changes inside it are grouped with a
+  // finer window so one coarse group splits into smaller time chunks.
+  // Client-only. It stays split while the scrubber roams (re-clicking the
+  // magnifier elsewhere re-anchors it) and folds back when the scrubber
+  // unpins entirely.
+  const [zoom, setZoom] = createSignal<ZoomState | null>(null);
+
+  createEffect(() => {
+    if (!props.scrubber()) setZoom(null);
+  });
+
   // The flat, newest-first history folded into time groups for rendering.
-  const timeGroups = createMemo(() => groupChanges(changes()));
+  // A zoomed range is grouped with its finer window; everything before and
+  // after it keeps the normal window. (A group that would have straddled the
+  // zoom boundary splits there, which is the point.)
+  const timeGroups = createMemo(() => {
+    const list = changes();
+    const z = zoom();
+    if (z) {
+      const start = list.findIndex(
+        (c) => c.hash === z.head.hash && c.docUrl === z.head.docUrl
+      );
+      if (start >= 0) {
+        const end = Math.min(start + z.span, list.length);
+        return [
+          ...groupChanges(list.slice(0, start)),
+          ...groupChanges(list.slice(start, end), z.windowMs),
+          ...groupChanges(list.slice(end)),
+        ];
+      }
+    }
+    return groupChanges(list);
+  });
+
+  // The magnifier is lit while the zoom covers exactly the scrubber's
+  // current range.
+  const zoomActive = createMemo(() => {
+    const z = zoom();
+    const s = props.scrubber();
+    return (
+      !!z &&
+      !!s &&
+      z.head.hash === s.head.hash &&
+      z.head.docUrl === s.head.docUrl &&
+      z.span === s.span
+    );
+  });
+
+  // Toggle the magnifier: split the scrubber's current range into smaller
+  // time chunks (window sized so the range yields a handful of subgroups),
+  // or fold it back to the normal grouping when already split.
+  const toggleZoom = () => {
+    const s = props.scrubber();
+    const hi = headIndex();
+    if (!s || hi === null || s.span === 0) return;
+    if (zoomActive()) {
+      setZoom(null);
+      return;
+    }
+    const list = changes();
+    const end = Math.min(hi + s.span, list.length);
+    const extentMs = (list[hi].time - list[end - 1].time) * 1000;
+    setZoom({
+      head: s.head,
+      span: s.span,
+      windowMs: Math.max(extentMs / 4, 1000),
+    });
+  };
 
   // Scrub so the head sits at the timeline change at `headIndex` (global,
   // 0 = newest), spanning `span` changes back. Resolves the span's oldest
@@ -657,10 +735,10 @@ function DraftChangesList(props: {
     return Math.max(0, last.startIndex + last.count - 1);
   };
 
-  // The token's pixel extent: top edge at the head, bottom edge at the far
-  // end of the span, with a minimum height so a collapsed (no-diff) token
-  // stays grabbable. With nothing pinned it idles at the very top — you're
-  // looking at the live latest.
+  // The indicator's pixel extent: top edge at the head, bottom edge at the
+  // far end of the span. Height 0 is fine — the dot and edge lines overflow
+  // the box and stay grabbable. With nothing pinned it idles at the very
+  // top — you're looking at the live latest.
   const tokenGeometry = createMemo(() => {
     const total = changes().length;
     if (total === 0 || bands().length === 0) return null;
@@ -671,8 +749,14 @@ function DraftChangesList(props: {
         : Math.min(props.scrubber()?.span ?? 0, total - head);
     const top = yForIndex(head);
     const bottom = yForIndex(head + span);
-    return { top, height: Math.max(bottom - top, 8) };
+    return { top, height: Math.max(bottom - top, 0) };
   });
+
+  // Spread = the scrubber spans at least one change back, so the indicator
+  // draws as a bracket (top line, spine, bottom line) instead of a plain
+  // calendar-style now-line.
+  const spread = (): boolean =>
+    headIndex() !== null && (props.scrubber()?.span ?? 0) > 0;
 
   let trackEl: HTMLDivElement | undefined;
 
@@ -683,16 +767,17 @@ function DraftChangesList(props: {
     return ev.clientY - rect.top;
   };
 
-  // Begin a token drag. `mode` decides what the pointer moves:
-  //   - "move":   the whole token; the head follows the pointer (offset by
-  //               where it was grabbed), span preserved.
+  // Begin an indicator drag. `mode` decides what the pointer moves:
+  //   - "move":   the whole indicator (dot, spine, or collapsed line); the
+  //               head follows the pointer (offset by where it was grabbed),
+  //               span preserved.
   //   - "jump":   like "move" but snaps immediately — a click/drag on the
-  //               bare track.
-  //   - "bottom": the bottom edge; resizes the span (how far back the diff
+  //               bare gutter.
+  //   - "bottom": the bottom line; resizes the span (how far back the diff
   //               reaches). Dragging above the head collapses to no diff.
-  //   - "top":    the top edge; moves the head while the bottom anchor stays
-  //               pinned, adjusting head and span together.
-  // Every position snaps to an individual change, so the token can rest
+  //   - "top":    the top line while spread; moves the head while the bottom
+  //               anchor stays pinned, adjusting head and span together.
+  // Every position snaps to an individual change, so the indicator can rest
   // anywhere in history — between groups or in the middle of one.
   const beginDrag = (ev: PointerEvent, mode: "move" | "jump" | "top" | "bottom") => {
     if (!trackEl || changes().length === 0) return;
@@ -746,6 +831,12 @@ function DraftChangesList(props: {
         fallback={<div class="draft-changes-empty">No changes yet.</div>}
       >
         <div class="draft-changes-body">
+          <div
+            class="draft-scrubber"
+            ref={trackEl}
+            title="Drag to scrub through history"
+            onPointerDown={(e) => beginDrag(e, "jump")}
+          />
           <div class="draft-changes-rows" ref={setRowsEl}>
             <For each={timeGroups()}>
               {(group) => (
@@ -760,33 +851,61 @@ function DraftChangesList(props: {
               )}
             </For>
           </div>
-          <div
-            class="draft-scrubber"
-            ref={trackEl}
-            title="Drag to scrub through history"
-            onPointerDown={(e) => beginDrag(e, "jump")}
-          >
-            <Show when={tokenGeometry()}>
+          <Show when={tokenGeometry()}>
+            <div
+              class="draft-scrubber-token"
+              data-live={headIndex() === null ? "" : undefined}
+              data-spread={spread() ? "" : undefined}
+              style={{
+                top: `${tokenGeometry()!.top}px`,
+                height: `${tokenGeometry()!.height}px`,
+              }}
+            >
               <div
-                class="draft-scrubber-token"
-                data-live={headIndex() === null ? "" : undefined}
-                style={{
-                  top: `${tokenGeometry()!.top}px`,
-                  height: `${tokenGeometry()!.height}px`,
-                }}
+                class="draft-scrubber-edge draft-scrubber-edge--top"
+                title={
+                  spread()
+                    ? "Drag to move the top of the range"
+                    : "Drag to scrub through history"
+                }
+                onPointerDown={(e) => beginDrag(e, spread() ? "top" : "move")}
+              />
+              <div
+                class="draft-scrubber-edge draft-scrubber-edge--bottom"
+                title="Drag to change how far back the diff reaches"
+                onPointerDown={(e) => beginDrag(e, "bottom")}
+              />
+              <Show when={spread()}>
+                <div
+                  class="draft-scrubber-spine"
+                  title="Drag to move the range"
+                  onPointerDown={(e) => beginDrag(e, "move")}
+                />
+              </Show>
+              <div
+                class="draft-scrubber-dot"
+                title="Drag to scrub through history"
                 onPointerDown={(e) => beginDrag(e, "move")}
-              >
-                <div
-                  class="draft-scrubber-handle draft-scrubber-handle--top"
-                  onPointerDown={(e) => beginDrag(e, "top")}
-                />
-                <div
-                  class="draft-scrubber-handle draft-scrubber-handle--bottom"
-                  onPointerDown={(e) => beginDrag(e, "bottom")}
-                />
-              </div>
-            </Show>
-          </div>
+              />
+              <Show when={spread()}>
+                <button
+                  type="button"
+                  class="draft-scrubber-zoom"
+                  classList={{ "draft-scrubber-zoom--active": zoomActive() }}
+                  title="Split this range into smaller time chunks"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleZoom();
+                  }}
+                >
+                  <MagnifierIcon />
+                </button>
+              </Show>
+            </div>
+          </Show>
         </div>
       </Show>
     </div>
@@ -860,6 +979,26 @@ function EyeIcon() {
   );
 }
 
+// A magnifying glass for the scrubber's zoom toggle, shown while the
+// indicator spans a range.
+function MagnifierIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="3"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
 // A stack of author avatars (deduped), newest-contributor first.
 function AuthorAvatars(props: { actors: string[] }) {
   const visible = () => props.actors.slice(0, 3);
@@ -902,12 +1041,16 @@ function EditCounts(props: { additions: number; deletions: number }) {
   );
 }
 
-// Fold a flat, newest-first list of changes into time groups. The window is
-// anchored to each group's newest change (the first one seen, since rows
-// arrive newest-first): a change joins the current group while it is no more
-// than TIME_WINDOW older than that anchor, else it starts a new group. So a
-// group never spans more than the window.
-function groupChanges(changes: DraftChange[]): TimeGroup[] {
+// Fold a flat, newest-first list of changes into time groups. The window
+// (TIME_WINDOW unless a magnified range passes a finer one) is anchored to
+// each group's newest change (the first one seen, since rows arrive
+// newest-first): a change joins the current group while it is no more than
+// the window older than that anchor, else it starts a new group. So a group
+// never spans more than the window.
+function groupChanges(
+  changes: DraftChange[],
+  windowMs: number = TIME_WINDOW
+): TimeGroup[] {
   const timeGroups: TimeGroup[] = [];
   let window: DraftChange[] = [];
   let anchorTimeMs: number | null = null;
@@ -921,7 +1064,7 @@ function groupChanges(changes: DraftChange[]): TimeGroup[] {
 
   for (const change of changes) {
     const timeMs = change.time * 1000;
-    if (anchorTimeMs !== null && anchorTimeMs - timeMs > TIME_WINDOW) {
+    if (anchorTimeMs !== null && anchorTimeMs - timeMs > windowMs) {
       flush();
       anchorTimeMs = null;
     }

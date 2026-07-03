@@ -168,6 +168,12 @@
   overflow-y: auto;
 }
 
+/* The selected card gets room to show more history; cards with little
+   history stay at their natural height. */
+.draft-card[data-selected] .draft-card-changes {
+  max-height: 32rem;
+}
+
 .draft-changes-empty {
   font-size: 0.75rem;
   color: var(--drafts-faint-fg);
@@ -302,11 +308,12 @@
   background: var(--drafts-faint-fg);
 }
 
-/* ---- Scrubber: the history track beside the group rows ---- */
+/* ---- Scrubber: the history gutter left of the group rows ---- */
 
-/* Two-column body inside the scrollable changes area: group rows + scrubber.
-   Positioned so the rows' offsetTop measurements (used to map changes onto
-   the track) are relative to this box. */
+/* Two-column body inside the scrollable changes area: gutter + group rows,
+   with the indicator overlaid across both. Positioned so the rows'
+   offsetTop measurements (used to map changes onto the gutter) are relative
+   to this box. */
 .draft-changes-body {
   position: relative;
   display: flex;
@@ -322,54 +329,152 @@
   gap: 0.125rem;
 }
 
-/* The track spans the whole history: top = latest change, bottom = first. */
+/* The gutter spans the whole history: top = latest change, bottom = first.
+   Click or drag anywhere in it to jump the indicator. */
 .draft-scrubber {
   position: relative;
   flex: none;
-  width: 14px;
-  border-radius: 7px;
-  background: var(--drafts-hover-bg);
+  width: 16px;
+  border-radius: var(--drafts-radius-sm);
   cursor: pointer;
   touch-action: none;
 }
 
-/* The token marks the version being looked at (its top edge) and how far
-   back the diff baseline reaches (its height). */
+.draft-scrubber:hover {
+  background: var(--drafts-hover-bg);
+}
+
+/* The indicator overlays the rows like a calendar's now-line: a dot in the
+   gutter plus a line across the rows at the head (the version being looked
+   at). Spread across a range it draws as a bracket instead — top line,
+   spine down the gutter, shorter bottom line at the diff baseline. The box
+   itself ignores pointer events so rows stay clickable; the visible pieces
+   re-enable them. */
 .draft-scrubber-token {
+  --scrub-color: var(--studio-danger, #dc2626);
   position: absolute;
-  left: 2px;
-  right: 2px;
-  border-radius: 5px;
-  background: var(--drafts-primary);
-  opacity: 0.8;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Nothing pinned: the indicator idles at the top (live latest), drawn
+   muted. */
+.draft-scrubber-token[data-live] {
+  --scrub-color: var(--drafts-faint-fg);
+}
+
+.draft-scrubber-dot {
+  position: absolute;
+  top: -5px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--scrub-color);
+  pointer-events: auto;
   cursor: grab;
   touch-action: none;
 }
 
-.draft-scrubber-token:active {
+.draft-scrubber-dot:active {
   cursor: grabbing;
 }
 
-/* Nothing pinned: the token idles at the top (live latest), drawn muted. */
-.draft-scrubber-token[data-live] {
-  background: var(--drafts-faint-fg);
-}
-
-.draft-scrubber-handle {
+/* The horizontal lines at the head (top) and diff baseline (bottom); the
+   element is a taller invisible hit area, the visible 2px line is drawn by
+   its ::after. */
+.draft-scrubber-edge {
   position: absolute;
-  left: 0;
+  left: 8px;
   right: 0;
-  height: 8px;
+  height: 9px;
+  pointer-events: auto;
   cursor: ns-resize;
   touch-action: none;
 }
 
-.draft-scrubber-handle--top {
-  top: -4px;
+.draft-scrubber-edge::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--scrub-color);
 }
 
-.draft-scrubber-handle--bottom {
-  bottom: -4px;
+.draft-scrubber-edge--top {
+  top: -4.5px;
+}
+
+.draft-scrubber-edge--bottom {
+  bottom: -4.5px;
+  /* The baseline line is shorter than the head line, like a bracket. */
+  right: 55%;
+}
+
+/* Collapsed (no span): the line itself moves the head (raised above the
+   bottom edge where they'd overlap), and the bottom edge becomes an
+   invisible grab strip just below the line for spreading downward. */
+.draft-scrubber-token:not([data-spread]) .draft-scrubber-edge--top {
+  cursor: grab;
+  z-index: 1;
+}
+
+.draft-scrubber-token:not([data-spread]) .draft-scrubber-edge--bottom {
+  bottom: -7.5px;
+  height: 6px;
+}
+
+.draft-scrubber-token:not([data-spread]) .draft-scrubber-edge--bottom::after {
+  display: none;
+}
+
+/* The bracket's spine, running down the gutter from head to baseline. */
+.draft-scrubber-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--scrub-color);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* The magnifier at the right end of the head line: splits the spanned range
+   into smaller time chunks, lit while the split is active. */
+.draft-scrubber-zoom {
+  position: absolute;
+  top: -9px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--scrub-color);
+  border-radius: 50%;
+  background: var(--drafts-bg);
+  color: var(--scrub-color);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.draft-scrubber-zoom:hover {
+  background: var(--drafts-hover-bg);
+}
+
+.draft-scrubber-zoom--active {
+  background: var(--scrub-color);
+  color: var(--drafts-bg);
 }
 
 /* The per-group diff toggle: hidden until the row is hovered, kept lit while
