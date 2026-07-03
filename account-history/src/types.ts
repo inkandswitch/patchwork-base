@@ -22,6 +22,3 @@ export type HistoryEntry = {
   heads: string[]; // automerge heads at open time
 };
 
-export type AccountDoc = {
-  accountHistoryUrl?: AutomergeUrl;
-} & Record<string, unknown>;
