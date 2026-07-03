@@ -107,11 +107,19 @@ export function CommentThreadView(props: {
     return next;
   }, []);
 
+  // Multiple drafts can coexist in the same thread (e.g. two people replying
+  // concurrently). The Save/Cancel actions below act on whichever comment
+  // this returns, so it must prefer *our own* draft — otherwise it could
+  // silently target someone else's unfinished comment instead of ours.
   const draftComment = createMemo(() => {
     const t = thread();
     if (!t) return undefined;
-    return t.comments.find(
-      (c) => c.draftContent !== undefined || c.content === undefined
+    const isDraft = (c: Comment) =>
+      c.draftContent !== undefined || c.content === undefined;
+    const contactUrl = currentContactUrl();
+    return (
+      t.comments.find((c) => isDraft(c) && c.contactUrl === contactUrl) ??
+      t.comments.find(isDraft)
     );
   });
 
