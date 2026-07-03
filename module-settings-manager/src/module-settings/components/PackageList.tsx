@@ -1,4 +1,11 @@
-import { ErrorBoundary, For, Show, createMemo, createSignal } from "solid-js";
+import {
+  ErrorBoundary,
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  mapArray,
+} from "solid-js";
 import {
   isValidAutomergeUrl,
   type AutomergeUrl,
@@ -18,8 +25,8 @@ import type {
 } from "../utils/module-types.ts";
 import {
   forceActivatePlugin,
-  sameAutomergeDoc,
   useActiveImportUrl,
+  usePluginStatus,
 } from "../utils/plugin-registry.ts";
 
 interface PackageListProps {
@@ -104,6 +111,33 @@ function PackageCard(props: PackageCardProps) {
   const url = () => props.state.url;
   const pkgInfo = () => props.state.pkgInfo;
   const folderUrl = () => props.state.folderUrl;
+  const sourceUrl = () => folderUrl() ?? (url() as string);
+
+  const pluginStatuses = mapArray(
+    () => props.plugins,
+    (plugin) => ({
+      plugin,
+      status: usePluginStatus(
+        () => plugin.type,
+        () => plugin.id,
+        sourceUrl
+      ),
+    })
+  );
+
+  const inactivePlugins = createMemo(() =>
+    pluginStatuses()
+      .filter(({ plugin, status }) => plugin.id && status() !== "active")
+      .map(({ plugin }) => plugin)
+  );
+
+  const activateAll = () => {
+    const src = sourceUrl();
+    if (!src) return;
+    for (const plugin of inactivePlugins()) {
+      forceActivatePlugin(plugin, src);
+    }
+  };
 
   const handleViewSource = (e: MouseEvent) => {
     const detail: OpenDocumentEventDetail = {
@@ -191,6 +225,13 @@ function PackageCard(props: PackageCardProps) {
       </Show>
 
       <div class="msm-card__action-row">
+        <div class="msm-card__action-row-left">
+          <Show when={inactivePlugins().length > 0}>
+            <button class="msm-card__activate-all" onClick={activateAll}>
+              Activate all ({inactivePlugins().length})
+            </button>
+          </Show>
+        </div>
         <div class="msm-card__action-row-right">
           <Show when={isValidAutomergeUrl(url())}>
             <button class="msm-card__text-btn" onClick={handleViewSource}>
@@ -305,19 +346,10 @@ function PluginItem(props: {
     () => props.plugin.type,
     () => props.plugin.id
   );
-  const status = createMemo<"active" | "shadowed" | "inactive" | "unknown">(
-    () => {
-      if (!props.plugin.id) return "unknown";
-      const active = activeImportUrl();
-      if (!active) return "inactive";
-      if (
-        active === props.sourceUrl ||
-        sameAutomergeDoc(active, props.sourceUrl)
-      ) {
-        return "active";
-      }
-      return "shadowed";
-    }
+  const status = usePluginStatus(
+    () => props.plugin.type,
+    () => props.plugin.id,
+    () => props.sourceUrl
   );
   return (
     <li class="msm-plugin">

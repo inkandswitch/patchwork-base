@@ -659,6 +659,21 @@
   opacity: 1;
 }
 
+.msm-card__activate-all {
+  background: none;
+  border: 1px solid var(--msm-widget-darken-15);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--module-settings-manager-radius);
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--msm-text-warning-light);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.msm-card__activate-all:hover {
+  background: var(--msm-widget-darken-5);
+}
+
 @media (max-width: 540px) {
   .msm-card {
     padding: 1rem;
