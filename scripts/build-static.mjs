@@ -90,7 +90,7 @@ function main() {
   // Workspace install once at the root — wires every tool + link: siblings.
   if (install) {
     console.log("\n── pnpm install (workspace) ──");
-    if (!run("pnpm", ["install"], ROOT)) {
+    if (!run("npx", ["pnpm@11", "install"], ROOT)) {
       console.error("[fail]  root pnpm install");
       process.exit(1);
     }
@@ -117,7 +117,7 @@ function main() {
       }
 
       console.log(`\n── build ${name} ──`);
-      if (run("pnpm", ["build"], dir)) {
+      if (run("npx", ["pnpm@11", "build"], dir)) {
         built.push(name);
       } else {
         console.error(`[fail]  ${name}: pnpm build`);
