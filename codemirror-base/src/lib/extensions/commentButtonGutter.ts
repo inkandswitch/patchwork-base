@@ -54,9 +54,11 @@ const commentTooltip = (
   const sel = state.selection.main;
   if (sel.empty) return null;
 
+  // Anchor the button at the drag tail (the selection head) rather than the
+  // start, so dragging left-to-right lands it on the right and right-to-left
+  // on the left.
   return {
-    pos: sel.from,
-    end: sel.to,
+    pos: sel.head,
     above: true,
     strictSide: false,
     arrow: false,
@@ -81,8 +83,8 @@ const commentButtonTheme = EditorView.baseTheme({
     fontSize: "12px",
     fontWeight: "500",
     lineHeight: "1",
-    color: "white",
-    background: "#3b3b3b",
+    color: "var(--studio-fill, white)",
+    background: "var(--studio-line, #3b3b3b)",
     border: "none",
     borderRadius: "6px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.25)",
@@ -92,7 +94,7 @@ const commentButtonTheme = EditorView.baseTheme({
     transition: "background-color 0.15s",
   },
   ".cm-comment-button:hover": {
-    background: "#000",
+    background: "var(--studio-line-offset-10, #555)",
   },
   ".cm-comment-button svg": {
     display: "block",
