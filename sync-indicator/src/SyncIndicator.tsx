@@ -20,52 +20,35 @@ import "./styles.css";
 
 const log = Debug("patchwork:sync-indicator");
 
-const SYNCSTATE_CHANNEL = "@patchwork/syncstate";
-const SYNCSTATE_DB_NAME = "syncstate";
-const SYNCSTATE_STORE_NAME = "syncstate";
+/**
+ * Worker → tab: one peer's heads for a subscribed document — the worker's own
+ * or a Subduction peer's, keyed by its storageId. Mirrors the bootloader's
+ * `SyncStateDocMessage`; delivered via `patchwork.sw.subscribeSyncState`.
+ */
+interface SyncStateUpdate {
+  type: "sync-state";
+  documentId: string;
+  storageId: string;
+  heads: string[];
+  timestamp: number;
+}
 
-/** Read the latest sync-server heads for a document from the shared
- *  worker's IndexedDB syncstate store. Keyed by documentId alone. */
-function readSyncStateFromDb(
-  documentId: string,
-): Promise<{ storageId: string; heads: UrlHeads; timestamp: number } | undefined> {
-  return new Promise((resolve) => {
-    const req = indexedDB.open(SYNCSTATE_DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(SYNCSTATE_STORE_NAME)) {
-        db.createObjectStore(SYNCSTATE_STORE_NAME);
+declare global {
+  // eslint-disable-next-line no-var
+  var patchwork:
+    | {
+        sw?: {
+          /**
+           * Watch one document's sync heads. Calls `listener` on every update,
+           * replaying current state on subscribe. Returns an unsubscribe fn.
+           */
+          subscribeSyncState?: (
+            documentId: string,
+            listener: (update: SyncStateUpdate) => void,
+          ) => () => void;
+        };
       }
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(SYNCSTATE_STORE_NAME)) {
-        db.close();
-        return resolve(undefined);
-      }
-      const tx = db.transaction(SYNCSTATE_STORE_NAME, "readonly");
-      const store = tx.objectStore(SYNCSTATE_STORE_NAME);
-      const get = store.get(documentId);
-      get.onsuccess = () => {
-        db.close();
-        const val = get.result;
-        if (val && val.heads) {
-          resolve({
-            storageId: val.storageId,
-            heads: val.heads as UrlHeads,
-            timestamp: val.timestamp,
-          });
-        } else {
-          resolve(undefined);
-        }
-      };
-      get.onerror = () => {
-        db.close();
-        resolve(undefined);
-      };
-    };
-    req.onerror = () => resolve(undefined);
-  });
+    | undefined;
 }
 
 export { RepoContext };
@@ -190,33 +173,38 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     h.on("change", onChange);
     h.on("remote-heads", onRemoteHeads);
 
-    // listen for remote heads broadcast from the shared worker
-    const channel = new BroadcastChannel(SYNCSTATE_CHANNEL);
-    channel.addEventListener("message", (event) => {
-      const data = event.data;
-      if (
-        data?.type === "remote-heads" &&
-        data.documentId === h.documentId
-      ) {
+    // Subscribe to this doc's sync heads from the automerge worker. It replays
+    // the current state on subscribe and pushes every update, keyed by peer
+    // storageId, so there's no need to seed from IndexedDB or listen on a
+    // broadcast channel. Updates for a known peer refresh that peer's row;
+    // anything else (the sync server, which the tab doesn't talk to directly)
+    // drives the sync-server slot.
+    const onSyncState = (update: SyncStateUpdate) => {
+      if (update.documentId !== h.documentId) return;
+      log("sync-state", update);
+
+      const heads = update.heads as UrlHeads;
+      const idx = peers.findIndex((p) => p.storageId === update.storageId);
+      if (idx >= 0) {
+        const currentHeads = ownHeads();
+        setPeers(idx, {
+          heads,
+          lastSyncTimestamp: update.timestamp,
+          inSync: currentHeads ? A.equals(currentHeads, heads) : false,
+        });
+      } else {
         applySyncServerUpdate(
-          data.storageId as StorageId,
-          data.heads as UrlHeads,
-          data.timestamp,
+          update.storageId as StorageId,
+          heads,
+          update.timestamp,
         );
       }
-    });
+    };
 
-    // seed from the shared worker's IndexedDB syncstate store
-    readSyncStateFromDb(h.documentId).then((stored) => {
-      if (!stored) return;
-      const current = syncServerTimestamp();
-      if (current && current >= stored.timestamp) return;
-      applySyncServerUpdate(
-        stored.storageId as StorageId,
-        stored.heads,
-        stored.timestamp,
-      );
-    });
+    const unsubscribeSyncState = globalThis?.patchwork?.sw?.subscribeSyncState?.(
+      h.documentId,
+      onSyncState,
+    );
 
     // build initial peer list
     refreshPeers();
@@ -224,7 +212,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     onCleanup(() => {
       h.off("change", onChange);
       h.off("remote-heads", onRemoteHeads);
-      channel.close();
+      unsubscribeSyncState?.();
     });
   });
 
