@@ -40,50 +40,34 @@
     var(--module-settings-manager-widget-fill),
     var(--editor-line, black) 15%
   );
-  --msm-widget-darken-16: color-mix(
-    in oklab,
-    var(--module-settings-manager-widget-fill),
-    var(--editor-line, black) 16%
-  );
   --msm-widget-darken-20: color-mix(
     in oklab,
     var(--module-settings-manager-widget-fill),
     var(--editor-line, black) 20%
   );
 
+  /* Accent tints: soft fills and borders for the info/danger/warning callouts,
+     mixed from the studio accents toward the page. Only the steps in use are
+     kept — the full light/dark ramps were speculative and mostly unreferenced. */
   --msm-blue-light-10: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 10%);
   --msm-blue-light-20: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 20%);
   --msm-blue-light-40: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 40%);
-  --msm-blue-light-50: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 50%);
-  --msm-blue-light-70: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 70%);
   --msm-blue-dark-5: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 5%);
   --msm-blue-dark-10: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 10%);
-  --msm-blue-dark-20: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 20%);
-  --msm-blue-dark-40: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 40%);
-  --msm-blue-dark-50: color-mix(in oklab, var(--studio-secondary, #33ccf8), var(--editor-line, black) 50%);
 
-  --msm-green-light-85: color-mix(in oklab, var(--studio-added, #35f7ca), var(--editor-fill, white) 85%);
-
-  --msm-red-light-40: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-fill, white) 40%);
   --msm-red-light-60: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-fill, white) 60%);
   --msm-red-light-80: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-fill, white) 80%);
-  --msm-red-dark-50: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-line, black) 50%);
-  --msm-red-dark-70: color-mix(in oklab, var(--studio-danger, #ff6a90), var(--editor-line, black) 70%);
 
   --msm-yellow-light-50: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-fill, white) 50%);
   --msm-yellow-light-70: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-fill, white) 70%);
-  --msm-yellow-dark-40: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-line, black) 40%);
-  --msm-yellow-dark-50: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-line, black) 50%);
-  --msm-yellow-dark-60: color-mix(in oklab, var(--studio-warning, #f8c43b), var(--editor-line, black) 60%);
 
-  --msm-text-error-light: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--editor-line, black) 50%);
-  --msm-text-error-dark: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--editor-fill, white) 40%);
-  --msm-text-warning-light: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--editor-line, black) 50%);
-  --msm-text-warning-dark: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--editor-fill, white) 40%);
-  --msm-text-blue-light: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--editor-line, black) 50%);
-  --msm-text-blue-dark: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--editor-fill, white) 40%);
-  --msm-text-green-light: color-mix(in oklch, var(--studio-added, #35f7ca), var(--editor-line, black) 50%);
-  --msm-text-green-dark: color-mix(in oklch, var(--studio-added, #35f7ca), var(--editor-fill, white) 40%);
+  /* Accent text: the accent used as ink on the editor surface. Prefer the
+     theming token (which tracks light/gloom automatically); fall back to a
+     local mix so the module still reads standalone when theming isn't loaded. */
+  --msm-text-danger: var(--editor-danger-text, color-mix(in oklch, var(--studio-danger, #ff6a90), var(--editor-line, black) 35%));
+  --msm-text-warning: var(--editor-warning-text, color-mix(in oklch, var(--studio-warning, #f8c43b), var(--editor-line, black) 35%));
+  --msm-text-info: var(--editor-secondary-text, color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--editor-line, black) 35%));
+  --msm-text-added: var(--editor-primary-text, color-mix(in oklch, var(--studio-added, #35f7ca), var(--editor-line, black) 35%));
 }
 }
 
@@ -278,7 +262,7 @@
 }
 
 .module-settings-module-input__add-button:hover:not(:disabled) {
-  background: #3b82f6;
+  background: var(--msm-blue-dark-5);
   border-color: var(--msm-blue-dark-10);
 }
 
@@ -292,7 +276,7 @@
   background: var(--msm-red-light-80);
   border: 1px solid var(--msm-red-light-60);
   border-radius: 4px;
-  color: var(--msm-text-error-light);
+  color: var(--msm-text-danger);
   font-size: 0.875rem;
 }
 
@@ -308,7 +292,7 @@
   background: var(--msm-yellow-light-70);
   border: 1px solid var(--msm-yellow-light-50);
   border-radius: 4px;
-  color: var(--msm-text-warning-light);
+  color: var(--msm-text-warning);
   font-size: 0.875rem;
 }
 
@@ -354,7 +338,7 @@
   background: var(--msm-blue-light-40);
   border: 1px solid var(--msm-blue-light-20);
   border-radius: 3px;
-  color: var(--msm-text-blue-light);
+  color: var(--msm-text-info);
   font-weight: 500;
 }
 
@@ -470,7 +454,7 @@
 }
 .msm-card__url--copied,
 .msm-plugin__id--copied {
-  color: var(--msm-text-green-light);
+  color: var(--msm-text-added);
 }
 
 .msm-card__heads {
@@ -558,10 +542,10 @@
   color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 50%);
 }
 .msm-plugin__type--datatype {
-  color: var(--msm-text-blue-light);
+  color: var(--msm-text-info);
 }
 .msm-plugin__type--tool {
-  color: var(--msm-text-green-light);
+  color: var(--msm-text-added);
 }
 
 .msm-plugin__id {
@@ -587,10 +571,10 @@
   background: var(--msm-widget-darken-15);
 }
 .msm-plugin__status--active {
-  background: var(--msm-text-green-light);
+  background: var(--msm-text-added);
 }
 .msm-plugin__status--shadowed {
-  background: var(--msm-text-warning-light);
+  background: var(--msm-text-warning);
 }
 .msm-plugin__status--inactive {
   background: var(--msm-widget-darken-20);
@@ -604,7 +588,7 @@
   border-radius: var(--module-settings-manager-radius);
   font: inherit;
   font-size: 0.75rem;
-  color: var(--msm-text-warning-light);
+  color: var(--msm-text-warning);
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -625,11 +609,11 @@
   color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 35%);
 }
 .msm-plugin__supports-item--any {
-  color: var(--msm-text-blue-light);
+  color: var(--msm-text-info);
   font-style: italic;
 }
 .msm-plugin__supports-item--none {
-  color: var(--msm-text-warning-light);
+  color: var(--msm-text-warning);
   font-style: italic;
 }
 
@@ -677,7 +661,7 @@
 }
 
 .msm-card__text-btn--danger {
-  color: var(--msm-text-error-light);
+  color: var(--msm-text-danger);
   opacity: 0.8;
 }
 .msm-card__text-btn--danger:hover {
@@ -691,7 +675,7 @@
   border-radius: var(--module-settings-manager-radius);
   font: inherit;
   font-size: 0.75rem;
-  color: var(--msm-text-warning-light);
+  color: var(--msm-text-warning);
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -739,7 +723,7 @@
   background: var(--msm-red-light-80);
   border: 1px solid red;
   border-radius: 4px;
-  color: var(--msm-text-error-light);
+  color: var(--msm-text-danger);
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -799,7 +783,7 @@
 
 .module-settings-manager__branch-url--copied {
   opacity: 1;
-  color: var(--msm-text-green-light);
+  color: var(--msm-text-added);
 }
 
 .module-settings-manager__branch-picker {
@@ -871,7 +855,7 @@
   padding: 0;
   font: inherit;
   font-size: inherit;
-  color: var(--msm-text-blue-light);
+  color: var(--msm-text-info);
   cursor: pointer;
   text-decoration: none;
 }
@@ -881,7 +865,7 @@
 }
 
 .module-settings-manager__branch-picker-button--missing {
-  color: var(--msm-text-error-light);
+  color: var(--msm-text-danger);
 }
 
 .module-settings-manager__branch-picker-caret {
@@ -971,7 +955,7 @@
 }
 
 .module-settings-manager__branch-picker-item--create {
-  color: var(--msm-text-green-light);
+  color: var(--msm-text-added);
   font-style: italic;
 }
 
