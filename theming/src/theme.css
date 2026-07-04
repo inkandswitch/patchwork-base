@@ -213,6 +213,17 @@
 	--studio-warning-fill-offset-40: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 32%);
 	--studio-warning-fill-offset-50: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 50%);
 
+	/* The link accent is built on the --studio-link color. Everything else derives
+	   from --studio-link-fill — the invert ink, hover/border ramp, and all three
+	   -text variants — so retinting links is a single override of --studio-link. */
+	--studio-link-fill: var(--studio-link);
+	--studio-link-line: oklch(from var(--studio-link-fill) clamp(0, (0.62 - l) * 1000, 1) 0 0);
+	--studio-link-fill-offset-10: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 0%);
+	--studio-link-fill-offset-20: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 7%);
+	--studio-link-fill-offset-30: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 18%);
+	--studio-link-fill-offset-40: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 32%);
+	--studio-link-fill-offset-50: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 50%);
+
 	/* Accent AS ink on the ambient background. Legibility depends on which surface
 	   the text sits on, so there's one per surface family — each mixes the accent
 	   toward that surface's own line, which rides the theme automatically (darkened
@@ -222,6 +233,7 @@
 	--studio-secondary-text: color-mix(in oklch, var(--studio-secondary), var(--studio-line) 35%);
 	--studio-danger-text: color-mix(in oklch, var(--studio-danger), var(--studio-line) 35%);
 	--studio-warning-text: color-mix(in oklch, var(--studio-warning), var(--studio-line) 35%);
+	--studio-link-text: color-mix(in oklch, var(--studio-link-fill), var(--studio-line) 35%);
 
 	--studio-family-sans: "Jost*", "Jost", system-ui, -apple-system, sans-serif;
 	--studio-family-code:
@@ -340,6 +352,7 @@
 	--editor-secondary-text: color-mix(in oklch, var(--studio-secondary), var(--editor-line) 35%);
 	--editor-danger-text: color-mix(in oklch, var(--studio-danger), var(--editor-line) 35%);
 	--editor-warning-text: color-mix(in oklch, var(--studio-warning), var(--editor-line) 35%);
+	--editor-link-text: color-mix(in oklch, var(--studio-link-fill), var(--editor-line) 35%);
 
 	--editor-family-code: var(--studio-family-code);
 	--editor-family-sans: var(--studio-family-sans);
@@ -412,6 +425,7 @@
 	--text-editor-secondary-text: color-mix(in oklch, var(--studio-secondary), var(--text-editor-line) 35%);
 	--text-editor-danger-text: color-mix(in oklch, var(--studio-danger), var(--text-editor-line) 35%);
 	--text-editor-warning-text: color-mix(in oklch, var(--studio-warning), var(--text-editor-line) 35%);
+	--text-editor-link-text: color-mix(in oklch, var(--studio-link-fill), var(--text-editor-line) 35%);
 
 	--text-editor-family-code: var(--editor-family-code);
 	--text-editor-family-sans: var(--editor-family-sans);
