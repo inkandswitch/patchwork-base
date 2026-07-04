@@ -14,12 +14,18 @@ import {
 import { relativeTime } from "./relative-time";
 import { useDocument } from "@automerge/automerge-repo-solid-primitives";
 import {
+  isValidAutomergeUrl,
   type AutomergeUrl,
   type DocHandle,
   type Repo,
 } from "@automerge/automerge-repo";
 import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
-import type { ToolElement } from "@inkandswitch/patchwork-plugins";
+import {
+  getRegistry,
+  getSupportedToolsForType,
+  type LoadedTool,
+  type ToolElement,
+} from "@inkandswitch/patchwork-plugins";
 import { createReply, type Comment, type CommentThread } from "./comments";
 
 // A standalone tool rendering a single comment thread from its subdocument
@@ -303,6 +309,42 @@ function CommentView(props: {
     });
   };
 
+  // A comment stamped with a `@patchwork.type` whose `content` is an automerge
+  // url is a reference to another document: instead of showing `content` as
+  // text, we render that document inline via <patchwork-view>, pointed at the
+  // comment's own ref url (the full ref id) so the embedded doc resolves in the
+  // comment's context.
+  const embeddedType = () => comment()?.["@patchwork"]?.type;
+  const isEmbeddedDoc = () => {
+    const c = comment();
+    return (
+      !!c && !!c["@patchwork"]?.type && isValidAutomergeUrl(c.content)
+    );
+  };
+
+  // Keep the tool list live: tools register as their module bundles load.
+  const [toolsEpoch, setToolsEpoch] = createSignal(0);
+  onMount(() => {
+    const off = getRegistry("patchwork:tool").on("changed", () => {
+      setToolsEpoch((n) => n + 1);
+    });
+    onCleanup(off);
+  });
+  const availableTools = createMemo<LoadedTool[]>(() => {
+    toolsEpoch();
+    const type = embeddedType();
+    if (!type) return [];
+    return getSupportedToolsForType(type).filter((t) => !t.unlisted);
+  });
+
+  // Which view is selected. `undefined` lets <patchwork-view> pick its own
+  // fallback (the datatype's default tool); the selector overrides it.
+  const [selectedToolId, setSelectedToolId] = createSignal<string | undefined>(
+    undefined
+  );
+  const effectiveToolId = () =>
+    selectedToolId() ?? availableTools()[0]?.id;
+
   return (
     <Show when={shouldRender() && comment()}>
       <div class="comment-card" data-id={props.commentHandle.url}>
@@ -323,7 +365,33 @@ function CommentView(props: {
         <Show
           when={isDraft()}
           fallback={
-            <div class="comment-content">{comment()!.content}</div>
+            <div class="comment-content">
+              <Show
+                when={isEmbeddedDoc()}
+                fallback={comment()!.content}
+              >
+                <Show when={availableTools().length > 1}>
+                  <div class="comment-content-tools">
+                    <select
+                      class="comment-content-tool-select"
+                      value={effectiveToolId() ?? ""}
+                      onChange={(e) =>
+                        setSelectedToolId(e.currentTarget.value || undefined)
+                      }
+                    >
+                      <For each={availableTools()}>
+                        {(tool) => <option value={tool.id}>{tool.name}</option>}
+                      </For>
+                    </select>
+                  </div>
+                </Show>
+                <patchwork-view
+                  class="comment-content-embed"
+                  doc-url={props.commentHandle.url}
+                  tool-id={effectiveToolId()}
+                />
+              </Show>
+            </div>
           }
         >
           <textarea

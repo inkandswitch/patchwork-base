@@ -188,6 +188,28 @@
   overflow-wrap: break-word;
 }
 
+.comment-content-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.375rem;
+}
+
+.comment-content-tool-select {
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--comments-fg);
+  background: var(--comments-bg);
+  border: 1px solid var(--comments-border);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  cursor: pointer;
+}
+
+.comment-content-embed {
+  display: block;
+  width: 100%;
+}
+
 .comment-draft-textarea {
   width: 100%;
   min-height: 6rem;
