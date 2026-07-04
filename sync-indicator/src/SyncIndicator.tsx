@@ -10,7 +10,15 @@ import {
   useRepo,
   RepoContext,
 } from "@automerge/automerge-repo-solid-primitives";
-import { createSignal, createEffect, on, onCleanup, Show, For } from "solid-js";
+import {
+  createSignal,
+  createEffect,
+  on,
+  onCleanup,
+  untrack,
+  Show,
+  For,
+} from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { SyncStateDocMessage } from "@inkandswitch/patchwork-bootloader/types";
 import { getRelativeTimeString } from "./lib/relative-time";
@@ -194,8 +202,13 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
       onSyncState,
     );
 
-    // build initial peer list
-    refreshPeers();
+    // Build the initial peer list. refreshPeers() reads the syncServer* signals,
+    // and onSyncState *writes* them on every update — so tracking those reads
+    // here would make this effect re-run (tearing down and re-subscribing, which
+    // makes the worker replay) on every single sync-state message: a feedback
+    // loop that floods messages, flickers the peer list, and kills the shared
+    // worker. untrack keeps this effect depending on props.handle alone.
+    untrack(refreshPeers);
 
     onCleanup(() => {
       h.off("change", onChange);
