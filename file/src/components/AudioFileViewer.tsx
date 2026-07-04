@@ -3,7 +3,9 @@ import type {FileDoc} from "../types"
 import {isBinaryFileDoc} from "../datatype"
 
 export const isAudioFile = (doc: FileDoc) => {
-	return doc.mimeType?.startsWith("audio/")
+	// Require binary content: audio is inherently binary, so a string-backed doc
+	// (e.g. a text file with a misdetected media mimeType) is never really audio.
+	return isBinaryFileDoc(doc) && doc.mimeType?.startsWith("audio/")
 }
 
 export function AudioFileViewer(props: {doc: FileDoc}) {

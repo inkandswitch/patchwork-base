@@ -3,7 +3,12 @@ import type {FileDoc} from "../types"
 import {isBinaryFileDoc} from "../datatype"
 
 export const isVideoFile = (doc: FileDoc) => {
-	return doc.mimeType?.startsWith("video/")
+	// Require binary content: a video is inherently binary, so a string-backed
+	// doc is never really a video. This disambiguates the ".ts" extension, which
+	// mimeType detection reports as video/mp2t (MPEG transport stream) — a
+	// TypeScript source file has string content and falls through to the text
+	// editor, while an actual transport stream is binary and renders here.
+	return isBinaryFileDoc(doc) && doc.mimeType?.startsWith("video/")
 }
 
 export function VideoFileViewer(props: {doc: FileDoc}) {
