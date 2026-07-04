@@ -89,8 +89,9 @@ const ensureCommentButtonVars = (): void => {
     :root, :host, [theme] {
       --cm-comment-button-fg: var(--editor-fill, white);
       --cm-comment-button-bg: var(--editor-line, black);
-      /* a lil tinted offset from the ink, not a jump to pure black */
-      --cm-comment-button-bg-hover: var(--editor-line-offset-10, #333);
+      /* hover LIFTS off the ink toward the fill — a clear, lighter highlight,
+         not the barely-there offset-10 (which reads as still-dark). */
+      --cm-comment-button-bg-hover: var(--editor-line-offset-40, #555);
     }
   `;
   document.head.append(style);
