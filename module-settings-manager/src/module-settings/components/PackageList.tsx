@@ -15,6 +15,7 @@ import {
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import { ModuleControls } from "./ModuleControls.tsx";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard.ts";
+import { useDocHeads } from "../hooks/useDocHeads.ts";
 import type {
   EnrichedPlugin,
   ModuleLoadState,
@@ -109,6 +110,7 @@ function PackageCard(props: PackageCardProps) {
   const [copiedUrl, copyUrl] = useCopyToClipboard();
 
   const url = () => props.state.url;
+  const heads = useDocHeads(props.repo, url);
   const pkgInfo = () => props.state.pkgInfo;
   const folderUrl = () => props.state.folderUrl;
   const sourceUrl = () => folderUrl() ?? (url() as string);
@@ -182,6 +184,16 @@ function PackageCard(props: PackageCardProps) {
         >
           {copiedUrl() === url() ? "copied" : url()}
         </code>
+        <Show when={heads().length > 0}>
+          <code
+            class="msm-card__heads"
+            title={`Heads:\n${heads().join("\n")}`}
+          >
+            <For each={heads()}>
+              {(head) => <span class="msm-card__head">{head}</span>}
+            </For>
+          </code>
+        </Show>
       </header>
 
       <Show when={pkgInfo()?.version}>

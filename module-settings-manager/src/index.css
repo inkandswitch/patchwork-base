@@ -464,6 +464,22 @@
   color: var(--msm-text-green-light);
 }
 
+.msm-card__heads {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-family: var(--module-settings-manager-family-code);
+  font-size: 0.6875rem;
+  color: color-mix(in oklab, var(--module-settings-manager-line), var(--module-settings-manager-widget-fill) 55%);
+}
+.msm-card__head {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .msm-card__contributes {
   display: flex;
   flex-direction: column;
