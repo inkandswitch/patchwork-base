@@ -1,5 +1,8 @@
 import { makeDocumentProjection } from "@automerge/automerge-repo-solid-primitives";
 import { Show } from "solid-js";
+import { render } from "solid-js/web";
+import type { DocHandle, Repo } from "@automerge/automerge-repo";
+import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 
 import type { PatchworkToolProps, SideboardAccountDoc } from "../types.ts";
 import { DocumentListPanel } from "./document-list-panel.tsx";
@@ -37,5 +40,18 @@ export function Sideboard(props: PatchworkToolProps<SideboardAccountDoc>) {
         element={props.element}
       />
     </div>
+  );
+}
+
+// Kept here (rather than index.tsx) so the entry point never statically
+// imports solid-js/web — the sideboard shouldn't load Solid until it's
+// actually mounted.
+export function renderSideboard(
+  handle: DocHandle<SideboardAccountDoc>,
+  element: PatchworkViewElement & { repo: Repo }
+) {
+  return render(
+    () => <Sideboard handle={handle} repo={element.repo} element={element} />,
+    element
   );
 }

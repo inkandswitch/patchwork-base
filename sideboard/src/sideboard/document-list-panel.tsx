@@ -4,6 +4,7 @@ import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { createEffect, createSignal, onCleanup, Show, Suspense } from "solid-js";
+import { render } from "solid-js/web";
 
 import {
   filter,
@@ -226,5 +227,20 @@ export function DocumentListPanel(props: {
         </Show>
       </nav>
     </aside>
+  );
+}
+
+// Kept here (rather than index.tsx) so the entry point never statically
+// imports solid-js/web — the doc-list tool shouldn't load Solid until it's
+// actually mounted for a folder document.
+export function renderDocumentListPanel(
+  folderUrl: AutomergeUrl,
+  element: PatchworkViewElement & { repo: Repo }
+) {
+  return render(
+    () => (
+      <DocumentListPanel folderUrl={folderUrl} repo={element.repo} element={element} />
+    ),
+    element
   );
 }
