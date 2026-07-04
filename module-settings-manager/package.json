@@ -30,7 +30,7 @@
     "register": "pw-modules add \"$MODULE_SETTINGS_DOC_URL\" \"$(pushwork url)\""
   },
   "dependencies": {
-    "@inkandswitch/patchwork-bootloader": "^0.0.8",
+    "@inkandswitch/patchwork-bootloader": "^0.3.0",
     "@inkandswitch/patchwork-elements": "^0.0.6",
     "solid-automerge": "^1.1.0"
   },
