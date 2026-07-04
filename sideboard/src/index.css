@@ -15,6 +15,7 @@
     oklch(1 0 0 / 1) 10%
   );
   --document-list-line: var(--studio-line, black);
+  --document-list-line-offset-20: var(--studio-line-offset-20, #333);
   --document-list-widget-fill: var(--studio-fill, white);
   --document-list-widget-line: var(--document-list-line);
 
@@ -124,6 +125,10 @@ button {
   gap: 1ex;
   position: relative;
   flex-shrink: 0;
+}
+
+.create-new-button__icon {
+  stroke: var(--document-list-line-offset-20);
 }
 
 /* square, icon-only variant used in the doclist toolbar; also the drag handle
@@ -414,7 +419,7 @@ button {
   }
 
   & path {
-    stroke: var(--studio-chrome-line-offset-30);
+    stroke: var(--document-list-line-offset-20);
   }
 }
 

@@ -5,6 +5,10 @@
 	color-scheme: light;
 	color: var(--studio-line);
 	accent-color: var(--studio-primary);
+	font-family: var(--studio-family);
+	font-size: var(--studio-font-size);
+	font-weight: var(--studio-font-weight);
+	line-height: var(--studio-line-height);
 	--default-tab-size: 2;
 
 	/* a plain fill<->line mix drifts to neutral gray in the middle of the
@@ -677,5 +681,11 @@
 
 body {
 	margin: 0;
+}
+
+input, button, select, textarea, optgroup {
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
 }
 }
