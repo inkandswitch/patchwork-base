@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [solid(), cssInjectedByJsPlugin()],
 
   build: {
+    sourcemap: true,
     emptyOutDir: true,
     minify: false,
     rollupOptions: {

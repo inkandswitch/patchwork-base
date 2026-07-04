@@ -14,6 +14,7 @@ export default defineConfig({
   plugins: [topLevelAwait(), wasm(), react(), cssInjectedByJsPlugin()],
 
   build: {
+    sourcemap: true,
     rollupOptions: {
       external,
       input: './src/index.ts',

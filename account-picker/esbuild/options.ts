@@ -18,7 +18,7 @@ export default {
   format: "esm",
   splitting: true,
   logLevel: "debug",
-  sourcemap: false,
+  sourcemap: true,
   external: externals,
   plugins: [
     solid(),

@@ -5,6 +5,7 @@ import external from "@inkandswitch/patchwork-bootloader/externals"
 export default defineConfig({
 	plugins: [solidPlugin()],
 	build: {
+		sourcemap: true,
 		lib: {
 			entry: "src/index.ts",
 			formats: ["es"],
