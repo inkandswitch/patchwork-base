@@ -19,6 +19,8 @@
   overflow: hidden;
   border-radius: 9999px;
   border: 1px solid var(--contact-border);
+  min-width: 2rem;
+  min-height: 2rem;
   max-width: 2rem;
   max-height: 2rem;
   height: 100%;
@@ -26,11 +28,19 @@
 }
 
 .contact-avatar--sm {
+  min-width: initial;
+  min-height: initial;
+  max-width: initial;
+  max-height: initial;
   width: 1.5rem;
   height: 1.5rem;
 }
 
 .contact-avatar--lg {
+  min-width: initial;
+  min-height: initial;
+  max-width: initial;
+  max-height: initial;
   width: 64px;
   height: 64px;
 }
