@@ -225,19 +225,6 @@ export function DocumentListPanel(props: {
           </Suspense>
         </Show>
       </nav>
-      <Show when={marquee.rect()}>
-        {(r) => (
-          <div
-            class="document-list__marquee"
-            style={{
-              left: `${r().x}px`,
-              top: `${r().y}px`,
-              width: `${r().w}px`,
-              height: `${r().h}px`,
-            }}
-          />
-        )}
-      </Show>
     </aside>
   );
 }

@@ -1,4 +1,3 @@
-import { createSignal } from "solid-js";
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import {
   dragstack,
@@ -7,12 +6,9 @@ import {
   type SideboardDragAndDropItem,
 } from "../dnd/dnd.ts";
 
-export type MarqueeRect = { x: number; y: number; w: number; h: number };
-
 /**
  * A cmd/ctrl-drag rubber-band selection over the document list. Attach the
- * returned `onMouseDown` to the list container and render `rect()` as a
- * fixed-position overlay while it's non-null.
+ * returned `onMouseDown` to the list container.
  *
  * Rows whose bounding boxes intersect the band are added to the drag selection
  * (the `dragstack`); rows the band leaves are removed again, so the selection
@@ -23,8 +19,6 @@ export function createMarquee(opts: {
   container: () => HTMLElement | undefined;
   source: () => string;
 }) {
-  const [rect, setRect] = createSignal<MarqueeRect | null>(null);
-
   let startX = 0;
   let startY = 0;
   let active = false;
@@ -57,7 +51,6 @@ export function createMarquee(opts: {
     const top = Math.min(startY, event.clientY);
     const right = Math.max(startX, event.clientX);
     const bottom = Math.max(startY, event.clientY);
-    setRect({ x: left, y: top, w: right - left, h: bottom - top });
 
     const container = opts.container();
     if (!container) return;
@@ -90,7 +83,6 @@ export function createMarquee(opts: {
     active = false;
     owned = new Set();
     preexisting = new Set();
-    setRect(null);
   }
 
   function onMouseDown(event: MouseEvent) {
@@ -106,5 +98,5 @@ export function createMarquee(opts: {
     window.addEventListener("mouseup", onMouseUp, true);
   }
 
-  return { rect, onMouseDown };
+  return { onMouseDown };
 }

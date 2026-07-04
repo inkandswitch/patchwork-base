@@ -320,15 +320,6 @@ button {
   }
 }
 
-.document-list__marquee {
-  position: fixed;
-  z-index: 10;
-  pointer-events: none;
-  border: 1px solid var(--document-list-line);
-  background: color-mix(in oklch, var(--document-list-primary), transparent 60%);
-  border-radius: 2px;
-}
-
 .document-list-folder[data-drop-state="inside"] {
   outline: 2px solid var(--document-list-primary);
   outline-offset: -2px;
