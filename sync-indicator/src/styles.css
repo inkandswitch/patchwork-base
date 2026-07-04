@@ -13,6 +13,13 @@
 }
 }
 
+/* System-tray layout: one SyncIndicator per selected doc, in a row. */
+.sync-tray {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .sync-trigger {
   padding: 4px;
   border-radius: 6px;

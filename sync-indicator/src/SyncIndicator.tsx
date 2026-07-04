@@ -12,6 +12,7 @@ import {
 } from "@automerge/automerge-repo-solid-primitives";
 import {
   createSignal,
+  createMemo,
   createEffect,
   on,
   onCleanup,
@@ -329,13 +330,12 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     const peerOrder = (p: PeerSyncInfo) =>
       p.name === "Shared Worker" ? 0 : p.name === "Sync Server" ? 2 : 1;
     peerList.sort((a, b) => peerOrder(a) - peerOrder(b));
-    let p = peerList;
 
     log("peers", peerList);
-    if (!localStorage.debug && !localStorage.DEBUG) {
-      p = p.filter((p) => p.name != "Shared Worker");
-    }
-    setPeers(reconcile(p));
+    // Show every connected peer, including our own shared worker — the icon
+    // stays driven by the sync server (see syncedToServer), but the popover is
+    // a full readout of who we're talking to.
+    setPeers(reconcile(peerList));
   }
 
   // recompute inSync when own heads change
@@ -358,24 +358,37 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     }
   });
 
-  // the icon is driven by sync server state specifically
-  const syncServerInSync = () => {
+  // Single source of truth for "are we up to date with the sync server". Both
+  // the icon AND the Sync Server row read this one memo. Previously the icon
+  // derived it live (`containsServerHeads`) while the row rendered a separately
+  // stored `peer.inSync` snapshot, set on a different code path — so a fast
+  // burst of edits could settle with the two disagreeing (icon still "syncing"
+  // while the row already said "synced"). One memo, read in both places, can't
+  // diverge.
+  const syncedToServer = createMemo(() => {
     ownHeads(); // re-evaluate when our heads move (containsHeads reads the doc)
     return containsServerHeads(syncServerHeads());
-  };
+  });
 
   const syncServerKnown = () => !!syncServerHeads();
+
+  // Status label for one peer row. The Sync Server row reflects `syncedToServer`
+  // (the same memo the icon uses); everyone else compares stored heads.
+  const peerStatusLabel = (peer: PeerSyncInfo) => {
+    const inSync = peer.name === "Sync Server" ? syncedToServer() : peer.inSync;
+    return inSync ? "synced" : peer.heads ? "behind" : "unknown";
+  };
 
   const iconState = (): "synced" | "syncing" | "error" | "unknown" => {
     if (!connected()) return "error"; // no live link to the sync server
     if (!syncServerKnown()) return "unknown";
-    return syncServerInSync() ? "synced" : "syncing";
+    return syncedToServer() ? "synced" : "syncing";
   };
 
   const statusText = () => {
     if (!connected()) return "Offline";
     if (!syncServerKnown()) return "Connecting…";
-    return syncServerInSync() ? "Synced to server" : "Syncing…";
+    return syncedToServer() ? "Synced to server" : "Syncing…";
   };
 
   const onCopy = async () => {
@@ -385,7 +398,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
         storageId: syncServerStorageId(),
         heads: syncServerHeads(),
         lastSyncTimestamp: syncServerTimestamp(),
-        inSync: syncServerInSync(),
+        inSync: syncedToServer(),
       },
       peers: peers.map((p) => ({
         name: p.name,
@@ -453,11 +466,7 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
                     <div class="sync-peer-header">
                       <span class="sync-peer-name">{peer.name}</span>
                       <span class="sync-peer-status">
-                        {peer.inSync
-                          ? "synced"
-                          : peer.heads
-                            ? "behind"
-                            : "unknown"}
+                        {peerStatusLabel(peer)}
                       </span>
                     </div>
                     <Show when={peer.heads}>
