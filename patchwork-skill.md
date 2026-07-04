@@ -124,6 +124,46 @@ export const plugins = [
 - A package can register **many** plugins (a datatype + its tool, or several datatypes). See
   `file/src/index.ts` (file + new-file) and `bento/main.js` (datatype + tool).
 
+### ⚠ The entry module runs in a worker — every plugin field must be serializable
+
+Patchwork loads the module that exports `plugins` **inside a Web Worker**, reads the array,
+and **`structuredClone`s each plugin entry to the main thread**. Two hard consequences:
+
+1. **No functions as top-level plugin fields (except `load`).** The host clones every field of
+   a plugin *except* `load` (which it strips and reconstructs on the main side). Any other
+   function-valued field throws `DataCloneError: (…) => … could not be cloned` and the whole
+   module fails to import. So a plugin entry may only carry **JSON-ish metadata** at the top
+   level (`type`, `id`, `name`, `icon`, `tier`, strings, numbers, arrays, plain objects, and
+   `RegExp`/`Date`/`Map`/`Set` — all clone-safe). **All "fancy code" — every function, and any
+   behaviour object — must live behind `async load()`**, which returns it (the registry exposes
+   the loaded result under the plugin's `.module`). This is exactly why the `patchwork:tool`
+   render function and the datatype object go behind `load()`, and it applies equally to any
+   **custom-typed** plugins you register (e.g. `chat:slash`, `chat:messageaction`,
+   `sketchy:*`). If you have an array of behaviour-bearing descriptors, register them as
+   metadata-only descriptions and defer the code:
+
+   ```js
+   // WRONG — `transform` is a top-level function → DataCloneError in the worker
+   { type: "chat:slash", id: "me", cmd: "/me", transform: (arg) => ({ text: arg }) }
+
+   // RIGHT — metadata only at the top level; the fn is returned by load()
+   { type: "chat:slash", id: "me", cmd: "/me",
+     async load() { return { transform: (arg) => ({ text: arg }) } } }
+   ```
+
+   (A tool can still keep the inline-function version in a *separate* module it imports on the
+   main thread for its own use — that copy is never cloned. Only what goes into the exported
+   `plugins` array crosses the worker boundary.)
+
+2. **No bare external imports in the entry module's static graph.** The worker has **no
+   importmap**, so a top-level `import … from "@inkandswitch/patchwork-plugins"` (or any other
+   importmap-provided / bootloader-external specifier) fails with *"Failed to resolve module
+   specifier"* — even transitively, and even if the imported binding is unused (marked-external
+   modules can't be tree-shaken, so bundlers keep a bare side-effect `import`). Keep such
+   imports **inside `load()`** (dynamic `import()`), which runs on the main thread where the
+   importmap exists. If a data-only helper module (e.g. your plugin metadata) accidentally pulls
+   in an external via one stray import, split that import out so the entry graph stays clean.
+
 ## 3. The datatype contract
 
 A datatype object describes a document type and how to title it:
@@ -433,26 +473,33 @@ Use these variables (with fallbacks) instead of hardcoded values:
 
 Every tool's CSS follows this structure:
 
-1. **Define local variables in `:root, :host, [theme]`** so they re-evaluate when a theme is
-   applied (the theme system sets a `[theme]` attribute on `<html>`):
+1. **Define local variables in a `@layer package` block targeting `:root, :host, [theme]`** so
+   they re-evaluate when a theme is applied (the theme system sets a `[theme]` attribute on
+   `<html>`) and sit at the right cascade priority (see "CSS cascade layers" below). The
+   `@layer package { … }` wrapper is **required** — do NOT define these variables in your
+   top-level/root rule or any other unlayered block:
 
 ```css
-:root,
-:host,
-[theme] {
-  --my-tool-bg: var(--editor-fill, white);
-  --my-tool-fg: var(--editor-line, black);
-  --my-tool-muted: var(--editor-line-offset-50, #999);
-  --my-tool-border: var(--editor-fill-offset-20, #ccc);
-  --my-tool-accent: var(--studio-primary, #35f7ca);
-  --my-tool-hover: color-mix(in oklch, var(--editor-fill), var(--editor-line) 5%);
-  --my-tool-family: var(--editor-family-sans, system-ui, sans-serif);
-  --my-tool-family-code: var(--editor-family-code, ui-monospace, monospace);
+@layer package {
+  :root,
+  :host,
+  [theme] {
+    --my-tool-bg: var(--editor-fill, white);
+    --my-tool-fg: var(--editor-line, black);
+    --my-tool-muted: var(--editor-line-offset-50, #999);
+    --my-tool-border: var(--editor-fill-offset-20, #ccc);
+    --my-tool-accent: var(--studio-primary, #35f7ca);
+    --my-tool-hover: color-mix(in oklch, var(--editor-fill), var(--editor-line) 5%);
+    --my-tool-family: var(--editor-family-sans, system-ui, sans-serif);
+    --my-tool-family-code: var(--editor-family-code, ui-monospace, monospace);
+  }
 }
 ```
 
 Note fill/line/typography derive from `--editor-*` (this is a tool), while the accent comes from
-`--studio-primary` (accents have no editor equivalent).
+`--studio-primary` (accents have no editor equivalent). The `@layer package` wrapper is the one
+place every host var your tool consumes is mapped to a `--my-tool-*` token; style rules below
+reference only those tokens.
 
 **Important:** Global `--editor-*` and `--studio-*` variables must NEVER be used directly in CSS
 rules. They should ONLY appear inside `:root, :host, [theme]` derivation blocks. The derived
@@ -641,6 +688,16 @@ tools.)
 
 - **No shadow DOM.** Tools render into the light DOM. Namespace CSS classes; don't rely on
   scoped styles. Bundle CSS into the JS (`vite-plugin-css-injected-by-js`).
+- **Scope all CSS under a root class.** Put a unique-enough class (the tool id is ideal,
+  e.g. `class="my-tool-id"`) on your root element, and nest every selector under it (e.g.
+  `.my-tool-id .message { ... }`). Otherwise your styles leak into the rest of Patchwork and
+  other tools' styles bleed into yours, since everything shares the light DOM.
+- **Size your outermost container; handle scrolling internally.** The host renders tools
+  with `layout: contain`, so your tool is a bounded box that won't grow the page or scroll
+  itself. Give the outermost container you mount `height: 100%`, then make whichever part
+  should scroll handle its own overflow (`overflow: auto`) — that may be the root, or just
+  an inner pane (e.g. a message list under a fixed header). Without this the tool clips or
+  overflows instead of scrolling within its pane.
 - **Never `stopPropagation()` on `click`.** Solid (and other frameworks) delegate `click` to
   `document`; stopping it kills their `onClick`. Only stop propagation on
   `pointerdown`/`pointerup` (what tldraw uses).
@@ -648,6 +705,11 @@ tools.)
 - **`repo.find`/`repo.create2` return Promises** that resolve to ready handles — no
   `whenReady()`.
 - **Pin id === tool id.** Mismatched ids mean the pin won't resolve to the tool.
+- **The `plugins` entry module runs in a worker and each entry is `structuredClone`d.** So a
+  plugin may carry only serializable metadata at the top level — **all functions/behaviour go
+  behind `async load()`** (the host strips `load` before cloning; any other top-level function
+  throws `DataCloneError`). And **no bare external imports in that module's static graph** (the
+  worker has no importmap) — keep them inside `load()`'s dynamic `import()`. See §2.
 - **Always return a cleanup function** from the render function and actually tear down
   (listeners, roots, intervals, rAF, AudioContext, workers).
 - **New tools: vanilla JS, no TypeScript.** No `.ts`/`.tsx`, no type annotations, no
