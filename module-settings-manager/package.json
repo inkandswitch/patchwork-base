@@ -17,10 +17,6 @@
     "./tools/module-settings": {
       "import": "./dist/module-settings/module-settings.js",
       "source": "./src/module-settings/module-settings.tsx"
-    },
-    "./module-settings/module-loader-worker": {
-      "import": "./dist/module-settings/workers/module-loader-worker.js",
-      "source": "./src/module-settings/workers/module-loader-worker.ts"
     }
   },
   "scripts": {

@@ -1,6 +1,9 @@
-// Main-thread client for the module-loader worker (see
-// module-loader-worker.ts), mirroring ../app's
-// core/bootloader/src/module-loader.ts.
+// Main-thread client for the module-loader worker.
+//
+// The worker itself is no longer bundled here: the host site emits the
+// bootloader's `@inkandswitch/patchwork-bootloader/module-loader-worker` to
+// `/module-loader-worker.js` (the same way it emits the automerge/service
+// workers), so we just talk to that one over the shared `discover` protocol.
 //
 // `importModuleDescriptorsViaWorker` asks the worker to import a package's
 // entry point and report which plugins it exports, then returns the same
@@ -27,18 +30,14 @@ const pending = new Map<
 
 function getWorker(): Worker {
   if (worker) return worker;
-  // `import.meta.url` here resolves relative to wherever esbuild ends up
-  // placing *this* module's code (module-settings.js, since this file is
-  // inlined there, not emitted standalone) — not this source file's own
-  // nested path — so the worker's built location needs its subdirectory
-  // spelled out, not just its filename.
-  worker = new Worker(
-    new URL("./workers/module-loader-worker.js", import.meta.url),
-    {
-      type: "module",
-      name: "module-settings-manager-module-loader",
-    }
-  );
+  // The bootloader's vite plugin emits its module-loader worker to the site
+  // root, so we load it from there rather than bundling our own copy. Its
+  // `import()` of package entry points is served by the controlling service
+  // worker, exactly as it is for the automerge worker.
+  worker = new Worker("/module-loader-worker.js", {
+    type: "module",
+    name: "module-settings-manager-module-loader",
+  });
   worker.addEventListener("message", (event: MessageEvent<WorkerReply>) => {
     const data = event.data;
     if (!data || (data.type !== "descriptors" && data.type !== "error"))
