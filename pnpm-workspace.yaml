@@ -13,3 +13,5 @@ allowBuilds:
   cbor-extract: true
   core-js: true
   esbuild: true
+configDependencies:
+  pnpm-plugin-patchwork: 0.4.0
