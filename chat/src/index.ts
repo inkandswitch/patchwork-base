@@ -1,4 +1,4 @@
-import {featurePlugins} from "./features"
+import {featureDescriptions} from "./features"
 import {parserExtensionPlugins} from "./lib/parser-extensions"
 import {slashPluginDescriptions} from "./lib/slash-plugins"
 import {messageActionDescriptions} from "./lib/message-actions"
@@ -6,19 +6,11 @@ import {emojiPackDescriptions} from "./lib/emoji-packs"
 
 export const plugins = [
 	{
-		// The "Chitter" preset: seeds the full built-in plugin set into the doc.
-		type: "patchwork:datatype",
-		id: "chitterchatter",
-		name: "Chitter",
-		icon: "MessageCircle",
-		async load() {
-			return (await import("./datatype")).ChitterDatatype
-		},
-	},
-	{
-		// The "Chat" preset: seeds an empty plugin list (core-only). Grows via
-		// `/plugin load`. `chat` is also the legacy datatype id — legacy docs have
-		// no `plugins` field and default to all features (see datatype/docSelector).
+		// The "Chat" preset: seeds just the computer. Grows via `/plugin load` or by
+		// loading the chitter bundle. `chat` is also the legacy datatype id. The
+		// "everything" preset now lives in the chitter bundle (the `chitter`
+		// datatype); the base tool still RENDERS `chitterchatter`/`chitter` docs via
+		// `supportedDatatypes`, and chitter registers those datatypes' presets.
 		type: "patchwork:datatype",
 		id: "chat",
 		name: "Chat",
@@ -35,7 +27,7 @@ export const plugins = [
 		id: "chat",
 		name: "Chat",
 		icon: "MessageSquare",
-		supportedDatatypes: ["chitterchatter", "chat"],
+		supportedDatatypes: ["chitterchatter", "chat", "chitter"],
 		async load() {
 			return (await import("./tool")).ChatTool
 		},
@@ -76,7 +68,7 @@ export const plugins = [
 	// entries are pure data (RegExp is cloneable) and spread raw; `slash`,
 	// `messageaction` and `emojipack` carry function fields, so they're registered
 	// as descriptions with the fancy code behind `async load()`.
-	...featurePlugins,
+	...featureDescriptions,
 	...parserExtensionPlugins,
 	...slashPluginDescriptions,
 	...messageActionDescriptions,

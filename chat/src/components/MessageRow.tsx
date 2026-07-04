@@ -4,13 +4,13 @@ import type {ChatMessage} from "../types"
 import {Avatar} from "./Avatar"
 import {MessageBody} from "./MessageBody"
 import {MessageReplyRef} from "./MessageReplyRef"
-import {MessageReactions} from "./MessageReactions"
 import {MessageHoverActions} from "./MessageHoverActions"
 import {formatTime} from "../lib/helpers"
 import {automergeUrlToServiceWorkerUrl} from "@inkandswitch/patchwork-filesystem"
 import {resolveNamedColor} from "../lib/named-colors"
 import {useTheme} from "../context/ThemeContext"
 import {useChat} from "../context/ChatContext"
+import {Slot} from "../context/SlotContext"
 
 export function MessageRow(props: {
 	msg: ChatMessage
@@ -24,7 +24,7 @@ export function MessageRow(props: {
 	onScrollToMsg?: (msgId: string) => void
 }) {
 	const {isLightBg} = useTheme()
-	const {repo, hasFeature} = useChat()
+	const {repo} = useChat()
 	const resolvedColor = createMemo(() => {
 		if (!props.msg.color) return undefined
 		return resolveNamedColor(props.msg.color, isLightBg())
@@ -90,14 +90,15 @@ export function MessageRow(props: {
 					</Show>
 					<div>
 						<MessageBody msg={props.msg} emoticonBlobUrls={props.emoticonBlobUrls} />
-						<Show when={hasFeature("reactions")}>
-							<MessageReactions
-								msg={props.msg}
-								rawIdx={props.msg._rawIdx!}
-								onToggleReaction={props.onToggleReaction}
-								onAddReaction={props.onReact}
-							/>
-						</Show>
+						<Slot
+							name="message-reactions-row"
+							extra={{
+								msg: props.msg,
+								rawIdx: props.msg._rawIdx!,
+								onToggleReaction: props.onToggleReaction,
+								onAddReaction: props.onReact,
+							}}
+						/>
 					</div>
 					<MessageHoverActions
 						msg={props.msg}
@@ -140,14 +141,15 @@ export function MessageRow(props: {
 								<span class="chat-msg-time">{formatTime(props.msg.timestamp)}</span>
 							</div>
 							<MessageBody msg={props.msg} emoticonBlobUrls={props.emoticonBlobUrls} />
-							<Show when={hasFeature("reactions")}>
-								<MessageReactions
-									msg={props.msg}
-									rawIdx={props.msg._rawIdx!}
-									onToggleReaction={props.onToggleReaction}
-									onAddReaction={props.onReact}
-								/>
-							</Show>
+							<Slot
+								name="message-reactions-row"
+								extra={{
+									msg: props.msg,
+									rawIdx: props.msg._rawIdx!,
+									onToggleReaction: props.onToggleReaction,
+									onAddReaction: props.onReact,
+								}}
+							/>
 						</div>
 						<MessageHoverActions
 							msg={props.msg}

@@ -1,7 +1,7 @@
-import {Show, createResource, createMemo} from "solid-js"
-import {createSignal} from "solid-js"
+import {Show, createMemo, createSignal, createEffect, onCleanup} from "solid-js"
 import type {AutomergeUrl} from "@automerge/automerge-repo"
 import {automergeUrlToServiceWorkerUrl} from "@inkandswitch/patchwork-filesystem"
+import {getRepo} from "../lib/repo"
 
 const computerPngUrl = new URL("../../computer.png", import.meta.url).href
 
@@ -34,11 +34,44 @@ export function Avatar(props: {
 	})
 
 	const isGif = () => !!props.gifSelfieUrl
-	// Live avatar from the contact doc (comments-view pattern) — used when we have a
-	// contactUrl and aren't showing a GIF selfie or the computer icon. Falls back to
-	// the stored avatarUrl / initials for older messages without a contactUrl.
+	// Resolve the avatar straight off the contact doc (instead of embedding a
+	// `<patchwork-view tool-id="contact-avatar">`): find the contact handle, read
+	// its `avatarUrl`, and render the file ourselves via a service-worker URL. Stays
+	// live by re-reading on contact-doc changes. Used when we have a contactUrl and
+	// aren't showing a GIF selfie or the computer icon; falls back to the stored
+	// avatarUrl / initials for older messages without a contactUrl.
 	const useContactView = () =>
 		!!props.contactUrl && !isGif() && !props.isComputer
+
+	const [contactAvatarSrc, setContactAvatarSrc] = createSignal<string | null>(null)
+	createEffect(() => {
+		const url = useContactView() ? props.contactUrl : undefined
+		setContactAvatarSrc(null)
+		if (!url) return
+		const repo = getRepo()
+		if (!repo) return
+		let off: (() => void) | undefined
+		let cancelled = false
+		repo
+			.find(url)
+			.then((h: any) => {
+				if (cancelled) return
+				const read = () => {
+					const av = (h.doc() as any)?.avatarUrl as AutomergeUrl | undefined
+					setContactAvatarSrc(av ? automergeUrlToServiceWorkerUrl(av) : null)
+				}
+				read()
+				h.on("change", read)
+				off = () => h.off("change", read)
+			})
+			.catch(() => {})
+		onCleanup(() => {
+			cancelled = true
+			off?.()
+		})
+	})
+
+	const initials = () => (props.name || "?")[0].toUpperCase()
 
 	return (
 		<div
@@ -60,7 +93,7 @@ export function Avatar(props: {
 					<Show
 						when={imgUrl()}
 						fallback={
-							<Show when={props.isComputer} fallback={(props.name || "?")[0].toUpperCase()}>
+							<Show when={props.isComputer} fallback={initials()}>
 								<img src={computerPngUrl} alt="Computer" />
 							</Show>
 						}
@@ -69,11 +102,9 @@ export function Avatar(props: {
 					</Show>
 				}
 			>
-				<patchwork-view
-					class="chat-avatar-view"
-					tool-id="contact-avatar"
-					doc-url={props.contactUrl}
-				/>
+				<Show when={contactAvatarSrc()} fallback={initials()}>
+					<img class="chat-avatar-view" src={contactAvatarSrc()!} alt={props.name} />
+				</Show>
 			</Show>
 		</div>
 	)

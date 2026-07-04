@@ -768,6 +768,11 @@
       display:flex; align-items:center; gap:10px; background:var(--bg-input); border-radius:8px;
       padding:8px 12px; animation:fadeIn 0.15s ease;
     }
+    /* Recording UI now lives in the voice slot component and overlays the input
+       row (which stays mounted underneath) instead of replacing it in flow. */
+    .chat-recording-overlay {
+      position:absolute; inset:0; z-index:3;
+    }
     @keyframes fadeIn { from{opacity:0;transform:scale(0.98)} to{opacity:1;transform:scale(1)} }
     .chat-recording-dot {
       width:10px; height:10px; border-radius:50%; background:#ed4245; flex-shrink:0;

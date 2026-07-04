@@ -2,7 +2,7 @@ import {For, Show} from "solid-js"
 import {formatTime} from "../lib/helpers"
 import type {ChatMessage} from "../types"
 import {useChat} from "../context/ChatContext"
-import {resolvePlugins} from "../lib/registry"
+import {createLoadedPlugins} from "../lib/slots"
 import {messageActionPlugins} from "../lib/message-actions"
 
 export function MessageHoverActions(props: {
@@ -13,11 +13,11 @@ export function MessageHoverActions(props: {
 	onDelete: (idx: number) => void
 }) {
 	const {selector} = useChat()
-	// Active hover-bar actions from the chat:messageaction registry, filtered by
-	// the tool's messageActions feature (the minimal `chat` tool shows none).
-	const actions = () =>
-		resolvePlugins("chat:messageaction", messageActionPlugins, selector())
-			.filter((a: any) => !a.show || a.show(props.msg))
+	// Active hover-bar actions from the chat:messageaction registry, with behaviour
+	// (`run`/`show`) resolved inline for own built-ins or loaded from a cross-bundle
+	// contribution's `.module` (e.g. chitter's react/delete). Filtered by `show`.
+	const loaded = createLoadedPlugins("chat:messageaction", messageActionPlugins, selector)
+	const actions = () => loaded().filter((a: any) => !a.show || a.show(props.msg))
 
 	return (
 		<div class="chat-msg-actions">

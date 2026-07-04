@@ -10,15 +10,12 @@ import {ChatProvider, useChat} from "../context/ChatContext"
 import {IdentityProvider, useIdentity} from "../context/IdentityContext"
 import {ThemeProvider} from "../context/ThemeContext"
 import {PresenceProvider, usePresence} from "../context/PresenceContext"
+import {SlotProvider, Slot, type SlotBaseCaps} from "../context/SlotContext"
 import {PresenceBar} from "./PresenceBar"
 import {MessageList} from "./MessageList"
 import {TypingBar} from "./TypingBar"
 import {InputArea} from "./InputArea"
-import {EmojiPicker} from "./EmojiPicker"
-import {EmoticonAddDialog} from "./EmoticonAddDialog"
-import {FontAddDialog} from "./FontAddDialog"
 import {PluginPanel} from "./PluginPanel"
-import {Sidebar} from "./Sidebar"
 import {Lightbox} from "./Lightbox"
 // @ts-ignore — plain-JS library, ships no type declarations
 import {
@@ -33,15 +30,11 @@ import {
 	parseToolCalls as llmParseToolCalls,
 } from "@chee/patchwork-llm"
 import {generateId} from "../lib/helpers"
-import {
-	getNotificationSound,
-	showOSNotification,
-	setFaviconUnread,
-} from "../lib/notifications"
 import {automergeUrlToServiceWorkerUrl} from "@inkandswitch/patchwork-filesystem"
 import {transcribeVoiceNote} from "../lib/transcription"
 import {reloadPreviewIframe} from "../lib/preview-frame"
 import "../styles/chat.css"
+
 
 export function ChatRoot(props: {
 	handle: DocHandle<ChatDoc>
@@ -3233,6 +3226,28 @@ Never overwrite an entire long field with a key-assign (range:"content") just to
 		}
 	}
 
+	// Base capabilities exposed to slot renderers (which may live in another bundle
+	// and therefore can't useContext). Assembled from ChatRoot's own scope.
+	const slotCaps: SlotBaseCaps = {
+		isContext,
+		sidebarVisible,
+		setSidebarVisible,
+		toggleSidebar,
+		pinDoc,
+		emojiPickerState,
+		openEmojiPicker,
+		closeEmojiPicker,
+		replyToId,
+		setReplyToId,
+		showEmoticonDialog,
+		setShowEmoticonDialog,
+		showFontDialog,
+		setShowFontDialog,
+		onCallCommand: handleCallCommand,
+		openLightbox,
+		computerActive,
+	}
+
 	return (
 		<div
 			ref={rootRef}
@@ -3252,8 +3267,9 @@ Never overwrite an entire long field with a key-assign (range:"content") just to
 				<IdentityProvider>
 					<ThemeProvider rootEl={rootRef}>
 						<PresenceProvider handle={props.handle}>
+							<SlotProvider caps={slotCaps}>
 							<div class="chat-main">
-								<Show when={has("presence") || has("sidebar") || has("call")}>
+								<Show when={has("presence") || has("sidebar") || has("call") || has("notifications")}>
 									<PresenceBar
 										onToggleSidebar={toggleSidebar}
 										onCallCommand={handleCallCommand}
@@ -3311,35 +3327,10 @@ Never overwrite an entire long field with a key-assign (range:"content") just to
 									setPendingEmbeds={setPendingEmbeds}
 								/>
 							</div>
-							<Show when={!isContext() && has("sidebar")}>
-								<Sidebar
-									visible={sidebarVisible()}
-									onVisibilityChange={setSidebarVisible}
-								/>
-							</Show>
-							<Show when={emojiPickerState().open}>
-								<EmojiPicker
-									targetIdx={emojiPickerState().targetIdx}
-									anchorEl={emojiPickerState().anchorEl}
-									onClose={closeEmojiPicker}
-								/>
-							</Show>
-							<Show when={showEmoticonDialog()}>
-								<div
-									class="chat-dialog-overlay"
-									on:click={() => setShowEmoticonDialog(false)}>
-									<EmoticonAddDialog
-										onClose={() => setShowEmoticonDialog(false)}
-									/>
-								</div>
-							</Show>
-							<Show when={showFontDialog()}>
-								<div
-									class="chat-dialog-overlay"
-									on:click={() => setShowFontDialog(false)}>
-									<FontAddDialog onClose={() => setShowFontDialog(false)} />
-								</div>
-							</Show>
+							<Slot name="right-sidebar" />
+							<Slot name="emoji-picker-overlay" />
+							<Slot name="emoticon-add-dialog" />
+							<Slot name="font-add-dialog" />
 							<Show when={showPluginPanel()}>
 								<div
 									class="chat-dialog-overlay"
@@ -3347,14 +3338,13 @@ Never overwrite an entire long field with a key-assign (range:"content") just to
 									<PluginPanel onClose={() => setShowPluginPanel(false)} />
 								</div>
 							</Show>
-							<Show when={has("notifications")}>
-								<NotificationManager handle={props.handle} />
-							</Show>
+							<Slot name="background" />
 							<Lightbox
 								src={lightboxSrc()}
 								type={lightboxType()}
 								onClose={() => setLightboxSrc(null)}
 							/>
+							</SlotProvider>
 						</PresenceProvider>
 					</ThemeProvider>
 				</IdentityProvider>
@@ -3363,128 +3353,4 @@ Never overwrite an entire long field with a key-assign (range:"content") just to
 	)
 }
 
-/** Watches for new messages and triggers sound/OS notifications + title updates */
-function NotificationManager(props: {handle: DocHandle<ChatDoc>}) {
-	const {doc, repo} = useChat()
-	const {myName, chatProfileHandle} = useIdentity()
-	const {isFocused, typingUsers} = usePresence()
 
-	let lastMsgCount = 0
-	let hasUnread = false
-	const soundEnabled = () =>
-		localStorage.getItem("chat-sound-enabled") !== "false"
-	const notificationsEnabled = () =>
-		localStorage.getItem("chat-notifications-enabled") === "true"
-
-	function updateTitle() {
-		const d = doc()
-		const baseTitle = d?.title || "Chat"
-		const typers = typingUsers()
-		let title = baseTitle
-		if (typers.length > 0) {
-			title = typers.join(", ") + " is typing\u2026 \u2014 " + baseTitle
-		}
-		if (hasUnread) title = "* " + title
-		document.title = title
-		setFaviconUnread(hasUnread)
-	}
-
-	function markReadIfVisible() {
-		if (!isFocused()) return
-		const d = doc()
-		if (!d?.messages?.length) return
-		const lastMsg = d.messages[d.messages.length - 1] as any
-		const ts = lastMsg?.timestamp || Date.now()
-		hasUnread = false
-		updateTitle()
-
-		const ph = chatProfileHandle()
-		if (ph) {
-			ph.change((p: any) => {
-				if (!p.readPositions) p.readPositions = {}
-				p.readPositions[props.handle.url] = ts
-			})
-		}
-	}
-
-	onMount(() => {
-		const d = doc()
-		lastMsgCount = d?.messages?.length || 0
-
-		// Check initial unread state
-		const ph = chatProfileHandle()
-		if (ph) {
-			const profile = ph.doc() as any
-			const lastRead = profile?.readPositions?.[props.handle.url] || 0
-			if (d?.messages?.length) {
-				const lastMsg = d.messages[d.messages.length - 1] as any
-				if ((lastMsg?.timestamp || 0) > lastRead) {
-					hasUnread = true
-				}
-			}
-		}
-		updateTitle()
-	})
-
-	// Watch for new messages
-	createEffect(() => {
-		const d = doc()
-		if (!d?.messages) return
-		const count = d.messages.length
-		if (count > lastMsgCount && lastMsgCount > 0) {
-			// New message(s) arrived
-			const lastEntry = d.messages[count - 1] as any
-			if (lastEntry?.ref && lastEntry?.url) {
-				// NotificationManager has no `element` prop — use the repo from
-				// useChat() (already destructured above), not props.element.repo.
-				if (repo) {
-					repo.find(lastEntry.url).then(async (mh: any) => {
-						const msg = mh.doc()
-						if (!msg || msg.name === myName()) return
-
-						// Play sound
-						if (soundEnabled() && !isFocused()) {
-							const audio = await getNotificationSound()
-							if (audio) {
-								audio.currentTime = 0
-								audio.play().catch(() => {})
-							}
-						}
-
-						// OS notification
-						if (notificationsEnabled() && !isFocused()) {
-							const avatarIcon = msg.avatarUrl
-								? automergeUrlToServiceWorkerUrl(msg.avatarUrl as any)
-								: undefined
-							showOSNotification(
-								msg.name,
-								msg.text,
-								avatarIcon,
-								props.handle.url
-							)
-						}
-
-						if (!isFocused()) {
-							hasUnread = true
-							updateTitle()
-						}
-					})
-				}
-			}
-		}
-		lastMsgCount = count
-	})
-
-	// Update title when typing users change
-	createEffect(() => {
-		typingUsers() // track
-		updateTitle()
-	})
-
-	// Mark read when focused
-	createEffect(() => {
-		if (isFocused()) markReadIfVisible()
-	})
-
-	return null
-}

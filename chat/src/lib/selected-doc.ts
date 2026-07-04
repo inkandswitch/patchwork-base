@@ -66,3 +66,16 @@ export function selectedDocUrl(element: HTMLElement): Accessor<AutomergeUrl | un
 	)
 	return () => urls()?.[0]
 }
+
+/** The url of this tool's private, account-scoped storage doc (lazily created by
+ * the host's `patchwork:tool-storage` provider on first request). */
+export function toolStorageUrl(
+	element: HTMLElement,
+	toolId: string
+): Accessor<AutomergeUrl | undefined> {
+	return subscribe<AutomergeUrl | undefined>(
+		element,
+		{type: "patchwork:tool-storage", toolId},
+		undefined
+	)
+}

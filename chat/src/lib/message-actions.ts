@@ -27,19 +27,12 @@ export interface MessageActionPlugin {
 	run: (ctx: MessageActionContext) => void
 }
 
+// The base owns only the core `reply` action; `react`/`delete` come from chitter.
 export const messageActionPlugins: MessageActionPlugin[] = [
 	{
 		type: "chat:messageaction", id: "reply", name: "Reply", icon: SVG_ICONS.reply, tier: "core",
 		show: (msg) => !msg._loading,
 		run: (ctx) => ctx.onReply(ctx.msg.id),
-	},
-	{
-		type: "chat:messageaction", id: "react", name: "Add reaction", icon: SVG_ICONS.react, tier: "full",
-		run: (ctx) => ctx.onReact(ctx.rawIdx, ctx.anchorEl),
-	},
-	{
-		type: "chat:messageaction", id: "delete", name: "Delete", icon: SVG_ICONS.trash, tier: "full",
-		run: (ctx) => ctx.onDelete(ctx.rawIdx),
 	},
 ]
 

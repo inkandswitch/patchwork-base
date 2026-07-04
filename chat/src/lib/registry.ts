@@ -1,6 +1,47 @@
 // @ts-ignore — resolved at runtime from the host importmap (bootloader externals)
 import {getRegistry} from "@inkandswitch/patchwork-plugins"
 
+// Re-export so slot loading (lib/slots.ts) can reach the raw registry for
+// `.get(id)` / `.load(id)` / event subscription without re-importing the extern.
+export {getRegistry}
+
+// Return the currently-registered entry for a plugin id (description before load,
+// or `{...meta, module}` after), or undefined. Never throws.
+export function getPlugin(type: string, id: string): any | undefined {
+	try {
+		return getRegistry(type)?.get?.(id)
+	} catch {
+		return undefined
+	}
+}
+
+// Load a registry plugin's implementation on demand — resolves the description's
+// `load()` and returns `{...meta, module}` (the host caches it). Returns null if
+// the id isn't registered or can't load. This is how cross-bundle behaviour
+// (e.g. a chitter feature's slot renderers) reaches the base at runtime.
+export async function loadPlugin(type: string, id: string): Promise<any | null> {
+	try {
+		const reg: any = getRegistry(type)
+		if (!reg?.load) return null
+		return (await reg.load(id)) ?? null
+	} catch {
+		return null
+	}
+}
+
+// Subscribe to registry mutations for a type (a bundle registering/loading its
+// plugins after we've mounted). Returns an unsubscribe fn; no-ops if unsupported.
+export function onRegistryChange(type: string, cb: () => void): () => void {
+	try {
+		const reg: any = getRegistry(type)
+		if (!reg?.on) return () => {}
+		const off = reg.on("changed", cb)
+		return typeof off === "function" ? off : () => reg.off?.("changed", cb)
+	} catch {
+		return () => {}
+	}
+}
+
 // Enumerate host-registered plugins of a given type. Mirrors newspace's
 // `list(type)` helper (newspace/src/layers.js): the registry is asked first, and
 // callers pass their own built-ins as a backstop so an empty/absent registry

@@ -13,7 +13,7 @@ export function PresenceBar(props: {
 	onCallCommand?: () => void
 	computerActive?: boolean
 }) {
-	const {doc} = useChat()
+	const {doc, hasFeature} = useChat()
 	const {myName, myAvatarUrl} = useIdentity()
 	const {presenceMap, isFocused} = usePresence()
 
@@ -102,30 +102,36 @@ export function PresenceBar(props: {
 				)}
 			</For>
 			<div style="margin-left:auto;display:flex;align-items:center;gap:2px">
-				<button
-					ref={notifyBtnRef}
-					class="chat-notify-btn"
-					on:click={toggleNotify}
-					innerHTML={SVG_ICONS.bellOutline}
-				/>
-				<Show when={showNotify() && notifyRect()}>
-					<NotifyMenu
-						anchorRect={notifyRect()!}
-						onClose={() => setShowNotify(false)}
+				<Show when={hasFeature("notifications")}>
+					<button
+						ref={notifyBtnRef}
+						class="chat-notify-btn"
+						on:click={toggleNotify}
+						innerHTML={SVG_ICONS.bellOutline}
+					/>
+					<Show when={showNotify() && notifyRect()}>
+						<NotifyMenu
+							anchorRect={notifyRect()!}
+							onClose={() => setShowNotify(false)}
+						/>
+					</Show>
+				</Show>
+				<Show when={hasFeature("call")}>
+					<button
+						class="chat-theme-btn"
+						title="Call"
+						on:click={() => props.onCallCommand?.()}
+						innerHTML={SVG_ICONS.phone}
 					/>
 				</Show>
-				<button
-					class="chat-theme-btn"
-					title="Call"
-					on:click={() => props.onCallCommand?.()}
-					innerHTML={SVG_ICONS.phone}
-				/>
-				<button
-					class="chat-sidebar-toggle-btn"
-					title="Toggle sidebar"
-					on:click={() => props.onToggleSidebar?.()}
-					innerHTML={SVG_ICONS.sidebar}
-				/>
+				<Show when={hasFeature("sidebar")}>
+					<button
+						class="chat-sidebar-toggle-btn"
+						title="Toggle sidebar"
+						on:click={() => props.onToggleSidebar?.()}
+						innerHTML={SVG_ICONS.sidebar}
+					/>
+				</Show>
 			</div>
 		</div>
 	)

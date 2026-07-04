@@ -2,13 +2,13 @@ import {createSignal, createEffect, onMount, onCleanup, Show, For, Index} from "
 import {useChat} from "../context/ChatContext"
 import {useIdentity} from "../context/IdentityContext"
 import {usePresence} from "../context/PresenceContext"
-import {generateId, formatDuration} from "../lib/helpers"
-import {createFileDoc, createRecordingDoc} from "../lib/file-helpers"
-import {resolvePlugins} from "../lib/registry"
+import {generateId} from "../lib/helpers"
+import {createFileDoc} from "../lib/file-helpers"
+import {createLoadedPlugins} from "../lib/slots"
+import {Slot} from "../context/SlotContext"
 import {slashPlugins, matchSlashCommand} from "../lib/slash-plugins"
 import {SVG_ICONS} from "../lib/svg-icons"
 import {cmPromise} from "../lib/codemirror-setup"
-import {SimpleGIFEncoder} from "../lib/gif-encoder"
 import {ensureFontLoaded} from "../lib/blob-cache"
 import {AutocompletePopup, type AutocompleteItem, type AutocompleteHandle} from "./AutocompletePopup"
 import type {ChatMessage} from "../types"
@@ -35,10 +35,28 @@ export function InputArea(props: {
 }) {
 	let inputWrapRef!: HTMLDivElement
 	let inputRowRef!: HTMLDivElement
-	let gifVideoRef!: HTMLVideoElement
-	let recBarsRef!: HTMLDivElement
 	const [cmView, setCmView] = createSignal<any>(null)
-	const {handle, doc, repo, selector, hasFeature} = useChat()
+	const {handle, doc, repo, selector} = useChat()
+	// Active slash commands with behaviour (`transform`) resolved inline for own
+	// built-ins or loaded from a cross-bundle contribution's `.module` (chitter).
+	const loadedSlash = createLoadedPlugins("chat:slash", slashPlugins, selector)
+	// Extension seam for input-actions slot features (voice/gif live in chitter):
+	// pre-send hooks may mutate the outgoing message; content-checks let an
+	// otherwise-empty send fire (e.g. GIF-only).
+	const preSendHooks: ((msg: any) => Promise<void> | void)[] = []
+	const contentChecks: (() => boolean)[] = []
+	const inputCaps = {
+		registerPreSend: (fn: (msg: any) => Promise<void> | void) => {
+			preSendHooks.push(fn)
+			return () => { const i = preSendHooks.indexOf(fn); if (i >= 0) preSendHooks.splice(i, 1) }
+		},
+		registerContentCheck: (fn: () => boolean) => {
+			contentChecks.push(fn)
+			return () => { const i = contentChecks.indexOf(fn); if (i >= 0) contentChecks.splice(i, 1) }
+		},
+		focusInput: () => focusInput(),
+	}
+	const anyContentPending = () => contentChecks.some((c) => { try { return c() } catch { return false } })
 	const {myName, myContactUrl, myFont, myAvatarUrl, myEmoticons, myFonts, chatProfileHandle} = useIdentity()
 	const {broadcastPresence, peerFonts} = usePresence()
 
@@ -46,26 +64,10 @@ export function InputArea(props: {
 	const setPendingFiles = (fn: (prev: PendingFile[]) => PendingFile[]) => props.setPendingFiles(fn)
 	const pendingEmbeds = () => props.pendingEmbeds
 	const setPendingEmbeds = (fn: (prev: PendingEmbed[]) => PendingEmbed[]) => props.setPendingEmbeds(fn)
-	const [gifModeEnabled, setGifModeEnabled] = createSignal(false)
-	const [gifCapturing, setGifCapturing] = createSignal(false)
-	const [gifProgress, setGifProgress] = createSignal(0)
 	const [inputText, setInputText] = createSignal("")
 	const [cursorPos, setCursorPos] = createSignal(0)
 
-	// Voice recording state
-	const [isRecording, setIsRecording] = createSignal(false)
-	const [recElapsed, setRecElapsed] = createSignal(0)
-	let mediaRecorder: MediaRecorder | null = null
-	let recStream: MediaStream | null = null
-	let recAnalyser: AnalyserNode | null = null
-	let recAnimFrame: number | null = null
-	let recTimerInterval: number | null = null
-	let recordingChunks: Blob[] = []
-	let recStartTime = 0
-	let recSendOnStop = false
 
-	// GIF camera state
-	let gifStream: MediaStream | null = null
 
 	// Autocomplete handle
 	let acHandle: AutocompleteHandle | null = null
@@ -107,228 +109,12 @@ export function InputArea(props: {
 		setCursorPos(cm.state.selection.main.head)
 	}
 
-	// ---- GIF Camera ----
-	async function startGifCamera() {
-		try {
-			gifStream = await navigator.mediaDevices.getUserMedia({
-				video: {width: 320, height: 320, facingMode: "user"},
-			})
-			if (gifVideoRef) {
-				gifVideoRef.srcObject = gifStream
-				gifVideoRef.play()
-			}
-		} catch (e) {
-			console.warn("[Chat] camera:", e)
-			setGifModeEnabled(false)
-		}
-	}
-
-	function stopGifCamera() {
-		if (gifStream) {
-			gifStream.getTracks().forEach(t => t.stop())
-			gifStream = null
-		}
-		if (gifVideoRef) gifVideoRef.srcObject = null
-	}
-
-	createEffect(() => {
-		if (gifModeEnabled()) startGifCamera()
-		else stopGifCamera()
-	})
-
 	onCleanup(() => {
-		stopGifCamera()
-		cleanupRecording()
 		if (draftHandle) {
 			try { draftHandle.off("change", onDraftRemoteChange) } catch {}
 		}
 		if (draftSyncTimer) { clearTimeout(draftSyncTimer); draftSyncTimer = null }
 	})
-
-	async function captureGif(): Promise<string | null> {
-		if (!gifStream || !gifVideoRef) return null
-		setGifCapturing(true)
-		setGifProgress(0)
-
-		const canvas = document.createElement("canvas")
-		canvas.width = 160
-		canvas.height = 160
-		const ctx = canvas.getContext("2d")!
-		const encoder = new SimpleGIFEncoder(160, 160)
-		const frameCount = 15
-		const frameDelay = 133
-
-		for (let i = 0; i < frameCount; i++) {
-			const vw = gifVideoRef.videoWidth
-			const vh = gifVideoRef.videoHeight
-			const size = Math.min(vw, vh)
-			const sx = (vw - size) / 2
-			const sy = (vh - size) / 2
-			ctx.drawImage(gifVideoRef, sx, sy, size, size, 0, 0, 160, 160)
-			encoder.addFrame(canvas, frameDelay)
-			setGifProgress((i + 1) / frameCount)
-			await new Promise(r => setTimeout(r, frameDelay))
-		}
-
-		const data = encoder.encode()
-		setGifCapturing(false)
-		setGifProgress(0)
-
-		if (!data) return null
-		const blob = new Blob([data], {type: "image/gif"})
-		try {
-			const url = await createFileDoc(blob, "selfie-" + Date.now() + ".gif", "image/gif")
-			handle.change((d: any) => {
-				if (!d.docs) d.docs = []
-				d.docs.push({url, type: "file", name: "GIF Selfie"})
-			})
-			return url
-		} catch (e) {
-			console.error("[Chat] GIF save:", e)
-			return null
-		}
-	}
-
-	// ---- Voice Recording ----
-	function cleanupRecording() {
-		if (recAnimFrame) cancelAnimationFrame(recAnimFrame)
-		if (recTimerInterval) clearInterval(recTimerInterval)
-		if (recStream) recStream.getTracks().forEach(t => t.stop())
-		mediaRecorder = null
-		recStream = null
-		recAnalyser = null
-		recAnimFrame = null
-		recTimerInterval = null
-		recordingChunks = []
-	}
-
-	async function startRecording() {
-		try {
-			recStream = await navigator.mediaDevices.getUserMedia({audio: true})
-		} catch (e) {
-			console.warn("[Chat] mic access denied:", e)
-			return
-		}
-
-		let mimeType: string | undefined
-		if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-			mimeType = "audio/webm;codecs=opus"
-		} else if (MediaRecorder.isTypeSupported("audio/webm")) {
-			mimeType = "audio/webm"
-		}
-
-		recordingChunks = []
-		recSendOnStop = false
-		recStartTime = Date.now()
-
-		mediaRecorder = new MediaRecorder(recStream, mimeType ? {mimeType} : undefined)
-		mediaRecorder.ondataavailable = (e) => {
-			if (e.data.size > 0) recordingChunks.push(e.data)
-		}
-		mediaRecorder.onstop = async () => {
-			const duration = (Date.now() - recStartTime) / 1000
-			if (recStream) recStream.getTracks().forEach(t => t.stop())
-			recStream = null
-			setIsRecording(false)
-
-			if (!recSendOnStop || duration < 0.5) {
-				recordingChunks = []
-				return
-			}
-
-			const blob = new Blob(recordingChunks, {type: mimeType || "audio/webm"})
-			recordingChunks = []
-
-			try {
-				const {url} = await createRecordingDoc(blob, duration)
-				handle.change((d: any) => {
-					if (!d.docs) d.docs = []
-					d.docs.push({url, type: "recording", name: "Voice Note"})
-				})
-				sendVoiceMessage(url, duration)
-			} catch (e) {
-				console.error("[Chat] voice save:", e)
-			}
-		}
-
-		mediaRecorder.start()
-		setIsRecording(true)
-		setRecElapsed(0)
-
-		recTimerInterval = window.setInterval(() => {
-			setRecElapsed((Date.now() - recStartTime) / 1000)
-		}, 500)
-
-		// Audio visualizer
-		try {
-			const audioCtx = new AudioContext()
-			const source = audioCtx.createMediaStreamSource(recStream)
-			recAnalyser = audioCtx.createAnalyser()
-			recAnalyser.fftSize = 64
-			source.connect(recAnalyser)
-			animateRecViz()
-		} catch (e) {
-			console.warn("[Chat] visualizer:", e)
-		}
-	}
-
-	function animateRecViz() {
-		if (!recAnalyser || !recBarsRef) return
-		const data = new Uint8Array(recAnalyser.frequencyBinCount)
-		recAnalyser.getByteFrequencyData(data)
-		const bars = recBarsRef.children
-		for (let i = 0; i < Math.min(bars.length, data.length); i++) {
-			const h = Math.max(3, (data[i] / 255) * 22)
-			;(bars[i] as HTMLElement).style.height = h + "px"
-		}
-		recAnimFrame = requestAnimationFrame(animateRecViz)
-	}
-
-	function cancelRecording() {
-		recSendOnStop = false
-		if (recAnimFrame) cancelAnimationFrame(recAnimFrame)
-		recAnimFrame = null
-		if (recTimerInterval) clearInterval(recTimerInterval)
-		recTimerInterval = null
-		if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop()
-	}
-
-	function stopAndSendRecording() {
-		recSendOnStop = true
-		if (recAnimFrame) cancelAnimationFrame(recAnimFrame)
-		recAnimFrame = null
-		if (recTimerInterval) clearInterval(recTimerInterval)
-		recTimerInterval = null
-		if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop()
-	}
-
-	function toggleRecording() {
-		if (isRecording()) stopAndSendRecording()
-		else startRecording()
-	}
-
-	function sendVoiceMessage(voiceUrl: string, duration: number) {
-		const msgData: any = {
-			id: generateId(),
-			name: myName(),
-			text: "",
-			timestamp: Date.now(),
-			voiceUrl,
-			voiceDuration: duration,
-		}
-		if (myFont()) msgData.font = myFont()
-		const av = myAvatarUrl()
-		if (av) msgData.avatarUrl = av
-		const cu = myContactUrl()
-		if (cu) msgData.contactUrl = cu
-
-		repo.create2(msgData).then((msgHandle: any) => {
-			handle.change((d: any) => {
-				if (!d.messages) d.messages = []
-				d.messages.push({ref: true, url: msgHandle.url, timestamp: msgData.timestamp})
-			})
-		})
-	}
 
 	// ---- Draft sync ----
 	function syncDraftToDoc() {
@@ -486,11 +272,11 @@ export function InputArea(props: {
 	// ---- Send ----
 	async function sendMessage() {
 		const text = getInputValue().trim()
-		if (!text && pendingFiles().length === 0 && pendingEmbeds().length === 0 && !gifModeEnabled()) return
+		if (!text && pendingFiles().length === 0 && pendingEmbeds().length === 0 && !anyContentPending()) return
 
 		// Slash commands, dispatched via the chat:slash registry (filtered by this
 		// tool's slashCommands feature). Side-effecting commands don't send a message.
-		const activeSlash = resolvePlugins("chat:slash", slashPlugins, selector())
+		const activeSlash = loadedSlash()
 		const slashMatch = matchSlashCommand(text, activeSlash)
 		if (slashMatch?.plugin.sideEffect) {
 			setInputValue("")
@@ -530,12 +316,6 @@ export function InputArea(props: {
 		}
 		setPendingFiles(() => [])
 
-		// GIF selfie capture
-		let gifSelfieUrl: string | null = null
-		if (gifModeEnabled()) {
-			gifSelfieUrl = await captureGif()
-		}
-
 		const slashCmd =
 			slashMatch?.plugin.transform?.(slashMatch.argText) ?? null
 		const sourceText = slashCmd ? slashCmd.text : text
@@ -571,11 +351,16 @@ export function InputArea(props: {
 			msgData.imageUrl = imageUrl
 			msgData.imageName = imageName
 		}
-		if (gifSelfieUrl) msgData.gifSelfieUrl = gifSelfieUrl
 		if (slashCmd?.marquee) msgData.marquee = true
 		if (slashCmd?.action) msgData.action = true
 		if (slashCmd?.overrideColor) msgData.color = slashCmd.overrideColor
 		if (fileAttachments.length > 0) msgData.files = fileAttachments
+
+		// Run input-actions pre-send hooks (e.g. GIF selfie capture) — they may
+		// add fields such as `gifSelfieUrl` to the outgoing message.
+		for (const hook of preSendHooks) {
+			try { await hook(msgData) } catch (e) { console.warn("[Chat] pre-send hook:", e) }
+		}
 
 		// Add embeds (from patchwork links in text + pending embeds from drag/drop)
 		if (allEmbeds.length > 0) {
@@ -597,7 +382,7 @@ export function InputArea(props: {
 			setPendingEmbeds(() => [])
 		}
 
-		if (!msgText && !imageUrl && !gifSelfieUrl && fileAttachments.length === 0 && allEmbeds.length === 0) return
+		if (!msgText && !imageUrl && !msgData.gifSelfieUrl && fileAttachments.length === 0 && allEmbeds.length === 0) return
 
 		// Embed emoticon URLs referenced in text
 		const usedEmoticons: Record<string, string> = {}
@@ -735,55 +520,14 @@ export function InputArea(props: {
 				onHandle={(h) => { acHandle = h }}
 			/>
 
-			{/* Recording bar — replaces input row when recording */}
-			<Show when={isRecording()}>
-				<div class="chat-recording-bar">
-					<span class="chat-recording-dot" />
-					<span class="chat-recording-time">{formatDuration(recElapsed())}</span>
-					<div class="chat-recording-viz" ref={recBarsRef}>
-						{Array.from({length: 32}, () => (
-							<div class="chat-recording-viz-bar" />
-						))}
-					</div>
-					<button class="chat-recording-cancel" on:click={cancelRecording}>Cancel</button>
-					<button class="chat-recording-send" on:click={stopAndSendRecording}>
-						<span innerHTML={SVG_ICONS.send} />
-					</button>
-				</div>
-			</Show>
-
-			{/* Input row — hidden when recording */}
+			{/* Input row */}
 			<div
 				ref={inputRowRef}
 				class="chat-input-row"
-				classList={{processing: gifCapturing()}}
-				style={{display: isRecording() ? "none" : undefined}}
+				style={{position: "relative"}}
 				on:paste={handlePaste}
 			>
-				<Show when={hasFeature("gifSelfie")}>
-				<button
-					class="chat-gif-toggle"
-					classList={{active: gifModeEnabled(), recording: gifCapturing()}}
-					title="Toggle GIF selfie mode"
-					on:click={() => setGifModeEnabled(!gifModeEnabled())}
-				>
-					<span class="chat-gif-icon" innerHTML={SVG_ICONS.camera} />
-					<video ref={gifVideoRef} muted playsinline />
-					<Show when={gifCapturing()}>
-						<svg class="chat-gif-progress" viewBox="0 0 36 36">
-							<circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
-							<circle
-								cx="18" cy="18" r="16" fill="none" stroke="var(--accent)" stroke-width="2"
-								stroke-linecap="round"
-								stroke-dasharray={`${2 * Math.PI * 16}`}
-								stroke-dashoffset={`${2 * Math.PI * 16 * (1 - gifProgress())}`}
-								transform="rotate(-90 18 18)"
-							/>
-						</svg>
-					</Show>
-				</button>
-				</Show>
-
+				<Slot name="input-actions-left" extra={inputCaps} />
 				<div
 				ref={inputWrapRef}
 				class="chat-input-wrap"
@@ -823,15 +567,7 @@ export function InputArea(props: {
 				}}
 			/>
 
-				<Show when={hasFeature("voice")}>
-				<button
-					class="chat-input-btn"
-					classList={{recording: isRecording()}}
-					title={isRecording() ? "Stop recording" : "Record voice"}
-					innerHTML={isRecording() ? SVG_ICONS.micStop : SVG_ICONS.mic}
-					on:click={toggleRecording}
-				/>
-				</Show>
+				<Slot name="input-actions-right" extra={inputCaps} />
 				<button
 					class="chat-input-btn"
 					title="Send"

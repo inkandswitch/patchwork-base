@@ -1,4 +1,4 @@
-// The `context-tool` variant of chitterchatter.
+// The `context-tool` variant of chitterchatter — the "chitchat" sidebar.
 //
 // Registered as a `patchwork:component` (render signature `(element) => cleanup`,
 // no bound doc). It reads whatever document the user has FOCUSED from the
@@ -6,18 +6,31 @@
 // `focusedDoc['@patchwork'].chitchat` (created on first use), and renders the
 // chat UI — streamlined (no sidebar) and with the computer pointed at editing
 // the focused document instead of building tools.
+//
+// The set of plugins a *new* chitchat starts with is remembered per-account via
+// the `patchwork:tool-storage` provider (`{defaultPlugins}`, initialised to just
+// `["computer"]`). Whenever a chitchat's plugin set changes (e.g. via `/plugin`),
+// that new set is written back as the remembered default for future chitchats.
 import {render} from "solid-js/web"
-import {createSignal, createEffect, Show} from "solid-js"
+import {createSignal, createEffect, onCleanup, Show} from "solid-js"
 import type {Repo, DocHandle, AutomergeUrl} from "@automerge/automerge-repo"
 import {ChatRoot} from "./components/ChatRoot"
-import {selectedDocUrl} from "./lib/selected-doc"
+import {selectedDocUrl, toolStorageUrl} from "./lib/selected-doc"
 import {setRepo} from "./lib/repo"
 import type {ChatDoc} from "./types"
 
-/** Find (or create + link) the chat doc stored on the focused document. */
+interface ToolStorageDoc {
+	defaultPlugins?: string[]
+}
+
+const DEFAULT_CHITCHAT_PLUGINS = ["computer"]
+
+/** Find (or create + link) the chat doc stored on the focused document, seeding a
+ * new one's plugin set from the remembered default. */
 async function ensureChitchat(
 	repo: Repo,
-	targetUrl: AutomergeUrl
+	targetUrl: AutomergeUrl,
+	defaultPlugins: string[]
 ): Promise<DocHandle<ChatDoc>> {
 	const target = await repo.find(targetUrl)
 	const existing = (target.doc() as any)?.["@patchwork"]?.chitchat
@@ -28,6 +41,9 @@ async function ensureChitchat(
 		title: "chat: " + (targetTitle || "document"),
 		messages: [],
 		docs: [],
+		// Seed the plugin set from the user's remembered chitchat default (starts as
+		// just the computer). The computer is auto-invited below.
+		plugins: defaultPlugins.slice(),
 		"@patchwork": {type: "chitterchatter"},
 		// Auto-invite the computer (ChatRoot's onMount claims the host when
 		// hasComputer is set) — but it stays off nosey, so it only replies when
@@ -50,6 +66,30 @@ function ContextHost(props: {element: HTMLElement; repo: Repo}) {
 	)
 	let ensuringFor: string | null = null
 
+	// The account-scoped tool-storage doc that remembers the user's default
+	// chitchat plugin set. Resolve its handle; ensure it has `defaultPlugins`.
+	const storageUrl = toolStorageUrl(props.element, "chitchat")
+	const [storageHandle, setStorageHandle] =
+		createSignal<DocHandle<ToolStorageDoc> | null>(null)
+	createEffect(() => {
+		const url = storageUrl()
+		if (!url) return
+		props.repo
+			.find(url)
+			.then((h: DocHandle<ToolStorageDoc>) => {
+				if (!Array.isArray(h.doc()?.defaultPlugins)) {
+					h.change((d) => {
+						if (!Array.isArray(d.defaultPlugins))
+							d.defaultPlugins = DEFAULT_CHITCHAT_PLUGINS.slice()
+					})
+				}
+				setStorageHandle(h)
+			})
+			.catch((e) => console.warn("[chitchat] tool-storage:", e))
+	})
+	const defaultPlugins = () =>
+		storageHandle()?.doc()?.defaultPlugins ?? DEFAULT_CHITCHAT_PLUGINS
+
 	createEffect(() => {
 		const url = targetUrl()
 		if (!url) {
@@ -60,12 +100,37 @@ function ContextHost(props: {element: HTMLElement; repo: Repo}) {
 		if (ensuringFor === url) return
 		ensuringFor = url
 		setChatHandle(null)
-		ensureChitchat(props.repo, url)
+		ensureChitchat(props.repo, url, defaultPlugins())
 			.then((h) => {
 				// Ignore if the selection moved on while we were resolving.
 				if (targetUrl() === url) setChatHandle(h)
 			})
 			.catch((e) => console.warn("[chitterchatter:context] ensureChitchat", e))
+	})
+
+	// Mirror last-used: when the active chitchat's plugin set changes, remember it
+	// as the default for future chitchats.
+	createEffect(() => {
+		const chat = chatHandle()
+		const storage = storageHandle()
+		if (!chat || !storage) return
+		const write = () => {
+			const plugins = (chat.doc() as any)?.plugins
+			if (!Array.isArray(plugins)) return
+			const current = storage.doc()?.defaultPlugins
+			if (
+				Array.isArray(current) &&
+				current.length === plugins.length &&
+				current.every((p, i) => p === plugins[i])
+			)
+				return
+			storage.change((d) => {
+				d.defaultPlugins = plugins.slice()
+			})
+		}
+		write()
+		chat.on("change", write)
+		onCleanup(() => chat.off("change", write))
 	})
 
 	return (

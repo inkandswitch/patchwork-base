@@ -1,5 +1,5 @@
 {
-  "name": "@patchwork/chitterchatter",
+  "name": "@patchwork/chat",
   "version": "0.4.0",
   "description": "chitterchatter: chat with emoji reactions, presence/typing indicators, image paste, voice notes, and message replies.",
   "type": "module",
