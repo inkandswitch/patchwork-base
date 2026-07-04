@@ -10,10 +10,7 @@ import {
   type AutomergeUrl,
   type Repo,
 } from "@automerge/automerge-repo";
-import {
-  importModuleFromFolderDocUrl,
-  automergeUrlToServiceWorkerUrl,
-} from "@inkandswitch/patchwork-filesystem";
+import { automergeUrlToServiceWorkerUrl } from "@inkandswitch/patchwork-filesystem";
 import {
   extractUniqueDatatypes,
   matchesDatatype,
@@ -25,6 +22,7 @@ import {
   type ModuleEntry,
   type ModuleSettingsDocWithBranches,
 } from "../utils/module-types.ts";
+import { importModuleDescriptorsViaWorker } from "../workers/module-loader-client.ts";
 import type {
   Plugin,
   PluginDescription,
@@ -124,11 +122,15 @@ export function useModulePlugins(params: UseModulePluginsParams) {
             throw new Error("Could not resolve module entry to a folder URL");
           }
 
-          const module = validAutomergeUrl
-            ? await importModuleFromFolderDocUrl(folderUrl!)
-            : await import(/* @vite-ignore */ url);
-          const plugins = (module?.plugins ||
-            []) as Plugin<PluginDescription>[];
+          // For an Automerge package, discover its plugins' descriptions in
+          // a worker instead of importing (and running) the package here —
+          // see module-loader-client.ts. Non-Automerge URLs have no worker
+          // counterpart and are imported directly.
+          const plugins = validAutomergeUrl
+            ? ((await importModuleDescriptorsViaWorker(folderUrl!))
+                .plugins as unknown as Plugin<PluginDescription>[])
+            : (((await import(/* @vite-ignore */ url))?.plugins ??
+                []) as Plugin<PluginDescription>[]);
 
           let pkgInfo: PackageInfo | undefined;
           if (folderUrl) {
