@@ -1,9 +1,11 @@
 import { CodeMirror } from "./lib/codemirror.tsx";
+import { render } from "solid-js/web";
+import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 
 /** CodeMirror Extensions */
 import { RangeSet, type Extension, type Range } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
-import { commentButtonGutter } from "./lib/extensions/commentButtonGutter.ts";
+import { commentUI } from "./lib/extensions/commentUI.ts";
 
 /** Automerge */
 import type { PatchworkToolProps } from "./types.ts";
@@ -24,7 +26,12 @@ import {
 
 /** Styles */
 import { createMemo, createResource, createSignal, onMount } from "solid-js";
-import { createCommentForRange } from "./lib/extensions/comments.ts";
+import {
+  createCommentForRange,
+  type Comment,
+  type CommentThread,
+  type DocWithComments,
+} from "./lib/extensions/comments.ts";
 
 export type TextDoc = {
   content: string;
@@ -32,6 +39,7 @@ export type TextDoc = {
 
 type CommentEntry = {
   targetUrl: AutomergeUrl;
+  threadUrl: AutomergeUrl;
 };
 
 // Diff baseline served by the draft overlay (`draft:baseline`). `heads` is
@@ -132,18 +140,118 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     );
   };
 
-  const onComment = (from: number, to: number) => {
+  // Clicking the floating "Comment" button seeds an empty thread for the
+  // selection and returns its url; the comment UI then opens that thread in a
+  // popover for the author to fill in.
+  const createThreadForRange = (
+    from: number,
+    to: number
+  ): AutomergeUrl | null => {
     const url = contactUrl();
     if (!url) {
       console.warn("Cannot create comment: no contactUrl available");
-      return;
+      return null;
     }
-    createCommentForRange(props.handle, PATH, from, to, url);
+    return createCommentForRange(props.handle, PATH, from, to, url);
+  };
+
+  // Find the thread whose commented range covers `pos` (and that range's
+  // start), so clicking commented text can reopen the thread under its start.
+  const threadAtPos = (
+    pos: number
+  ): { threadUrl: AutomergeUrl; from: number } | null => {
+    const threadByTarget = new Map<AutomergeUrl, AutomergeUrl>();
+    for (const entry of commentEntries()) {
+      threadByTarget.set(entry.targetUrl, entry.threadUrl);
+    }
+    for (const handle of commentTargets()) {
+      const positions = handle.rangePositions();
+      if (!positions) continue;
+      const [start, end] = positions;
+      if (start === end || pos < start || pos > end) continue;
+      const threadUrl = threadByTarget.get(handle.url as AutomergeUrl);
+      if (threadUrl) return { threadUrl, from: start };
+    }
+    return null;
+  };
+
+  // Threads live inline under `@comments.threads` on this doc, so we resolve a
+  // thread url back to its entry by matching the sub-handle url its id yields.
+  const findThreadByUrl = (
+    threadUrl: AutomergeUrl
+  ): CommentThread | undefined => {
+    const threads =
+      (props.handle.doc() as DocWithComments | undefined)?.["@comments"]
+        ?.threads ?? [];
+    return threads.find(
+      (thread) =>
+        props.handle.sub("@comments", "threads", { id: thread.id }).url ===
+        threadUrl
+    );
+  };
+
+  // Watch a thread and fire `close` once the author's pending draft resolves —
+  // i.e. the comment was submitted (or cancelled), or the thread went away.
+  const watchThreadForClose = (
+    threadUrl: AutomergeUrl,
+    close: () => void
+  ): (() => void) => {
+    const contact = contactUrl();
+    const hasOwnDraft = (thread: CommentThread): boolean =>
+      thread.comments.some(
+        (c) =>
+          c.contactUrl === contact &&
+          (c.draftContent !== undefined || c.content === undefined)
+      );
+    const seed = findThreadByUrl(threadUrl);
+    let sawDraft = seed ? hasOwnDraft(seed) : false;
+    const onChange = () => {
+      const thread = findThreadByUrl(threadUrl);
+      if (!thread) return close();
+      if (hasOwnDraft(thread)) sawDraft = true;
+      else if (sawDraft) close();
+    };
+    props.handle.on("change", onChange);
+    return () => props.handle.off("change", onChange);
+  };
+
+  // When a popover closes, discard the author's own comment if it was never
+  // filled in, and drop the thread if that leaves it empty — so dismissing a
+  // just-opened "Comment" popover doesn't litter the doc with empty threads.
+  const onClosePopover = (threadUrl: AutomergeUrl): void => {
+    const contact = contactUrl();
+    const isEmptyOwnDraft = (c: Comment): boolean =>
+      c.contactUrl === contact &&
+      c.content === undefined &&
+      (c.draftContent === undefined || c.draftContent.trim() === "");
+    const thread = findThreadByUrl(threadUrl);
+    if (!thread || !thread.comments.some(isEmptyOwnDraft)) return;
+    const threadId = thread.id;
+    // Deferred so this write doesn't land inside the CodeMirror update that
+    // tore the popover down (which is what triggers this callback).
+    queueMicrotask(() => {
+      props.handle.change((doc: DocWithComments) => {
+        const list = doc["@comments"]?.threads;
+        if (!list) return;
+        const index = list.findIndex((t) => t.id === threadId);
+        if (index === -1) return;
+        const target = list[index];
+        for (let i = target.comments.length - 1; i >= 0; i--) {
+          if (isEmptyOwnDraft(target.comments[i])) target.comments.splice(i, 1);
+        }
+        if (target.comments.length === 0) list.splice(index, 1);
+      });
+    });
   };
 
   // Base CodeMirror extensions (context-specific, not language-specific)
   const [extensions, setExtensions] = createSignal<Extension[]>([
-    commentButtonGutter(onComment),
+    commentUI({
+      createThreadForRange,
+      threadAtPos,
+      watchThreadForClose,
+      onClose: onClosePopover,
+    }),
   ]);
 
   onMount(async () => {
@@ -172,6 +280,16 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
     </div>
   );
 }
+
+// The tool implementation returned by the plugin's `load()`. Lives here (not in
+// the `.ts` entrypoint) because it uses JSX and imports the Solid runtime.
+export const mount: ToolImplementation<TextDoc> = (handle, element) =>
+  render(
+    () => (
+      <CodeMirrorEditor handle={handle} repo={element.repo} element={element} />
+    ),
+    element
+  );
 
 function prefersDarkMode(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
