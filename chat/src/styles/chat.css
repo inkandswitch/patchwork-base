@@ -696,6 +696,13 @@
       max-width:200px;
     }
     .chat-paste-embed-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* "@selection" chip contributed by the selection-mention feature's input slot */
+    .chat-selection-chip {
+      display:inline-flex; align-items:center; max-width:220px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      background:var(--bg-hover); color:var(--text-secondary);
+      border-radius:6px; padding:2px 8px; margin:0 4px; font-size:12px;
+    }
     .chat-paste-embed-remove {
       background:none; border:none; cursor:pointer; color:var(--text-secondary);
       padding:0; display:flex; align-items:center;

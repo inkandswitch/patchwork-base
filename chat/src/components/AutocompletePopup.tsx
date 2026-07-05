@@ -1,10 +1,12 @@
-import {createSignal, createMemo, createEffect, For, Show} from "solid-js"
+import {createSignal, createMemo, createEffect, mapArray, For, Show} from "solid-js"
 import {useIdentity} from "../context/IdentityContext"
 import {usePresence} from "../context/PresenceContext"
 import {useChat} from "../context/ChatContext"
 import {EMOJI_ALIASES, EMOJI_DATA, EMOJI_LOADED} from "../lib/emoji-data"
 import {resolvePlugins} from "../lib/registry"
+import {createLoadedPlugins} from "../lib/slots"
 import {slashPlugins} from "../lib/slash-plugins"
+import {autocompletePlugins, type AutocompleteCtx} from "../lib/autocomplete-plugins"
 import type {AutomergeUrl} from "@automerge/automerge-repo"
 
 export interface AutocompleteItem {
@@ -125,9 +127,19 @@ export function AutocompletePopup(props: {
 }) {
 	const {myEmoticons} = useIdentity()
 	const {peerEmoticons, presenceMap} = usePresence()
-	const {selector} = useChat()
+	const {selector, element, repo} = useChat()
 	let listRef!: HTMLDivElement
 	const [activeIndex, setActiveIndex] = createSignal(0)
+
+	// chat:autocomplete providers — extension seam for extra mention items (e.g.
+	// "@selection"). Each provider is `create`d once (in this reactive scope, so it
+	// can hold live state) and then called per keystroke. `mapArray` keeps each
+	// provider's scope stable across registry changes.
+	const acCtx: AutocompleteCtx = {element, repo, selector}
+	const acPlugins = createLoadedPlugins("chat:autocomplete", autocompletePlugins, selector)
+	const providers = mapArray(acPlugins, (p: any) =>
+		typeof p?.create === "function" ? p.create(acCtx) : null
+	)
 
 	const state = createMemo(() => {
 		const text = props.inputText
@@ -175,6 +187,17 @@ export function AutocompletePopup(props: {
 				}
 			}
 			items.sort((a, b) => fuzzyScore(query, a.label.slice(1)) - fuzzyScore(query, b.label.slice(1)))
+			// Plugin-contributed "@" items (e.g. "@selection"), prepended so they
+			// surface first. Reading `providers()` + calling each tracks their live
+			// state, so the popup re-renders as the underlying source (the selection)
+			// changes.
+			for (const provide of providers()) {
+				if (!provide) continue
+				try {
+					const extra = provide({trigger: "@", query})
+					if (extra && extra.length) items.unshift(...extra)
+				} catch {}
+			}
 			if (items.length > 0) {
 				return {mode: "mention" as const, items: items.slice(0, 8), colonStart: mentionStart}
 			}

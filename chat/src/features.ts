@@ -1,4 +1,5 @@
 import type {PluginSelector} from "./lib/registry"
+import {selectionFeature} from "./features/selection-mention"
 
 // Features are NOT a hardcoded struct on the component. Each big feature is a
 // `chat:feature` plugin declaration (host-registrable, like the other four types);
@@ -36,6 +37,7 @@ export const featurePlugins: FeaturePlugin[] = [
 	{type: "chat:feature", id: "presence", name: "Presence", tier: "core"},
 	{type: "chat:feature", id: "typing", name: "Typing indicator", tier: "core"},
 	{type: "chat:feature", id: "computer", name: "Computer (AI)", tier: "full"},
+	selectionFeature,
 ]
 
 // Serializable registry descriptions: metadata only, with `slots` deferred behind

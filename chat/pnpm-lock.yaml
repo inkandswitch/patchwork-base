@@ -50,6 +50,9 @@ importers:
       '@inkandswitch/patchwork-filesystem':
         specifier: ^0.1.2
         version: 0.1.2(@automerge/automerge-repo@2.5.3)(@automerge/automerge@3.2.4)
+      cute.txt:
+        specifier: ^0.0.1
+        version: 0.0.1(@automerge/automerge@3.2.4)(solid-js@1.9.11)
       solid-js:
         specifier: ^1.9.11
         version: 1.9.11
@@ -716,6 +719,23 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  cute.txt@0.0.1:
+    resolution: {integrity: sha512-c+5/1EgdZiwoevxTI2x9WYnRcN0rxpxEJ/XQjKTgeIKkS89bDy2GiJqaSX4Xy8IsE3BzZfiW6+DtAaESFdSoRg==}
+    peerDependencies:
+      '@automerge/automerge': '*'
+      '@codemirror/state': '*'
+      '@codemirror/view': '*'
+      solid-js: '*'
+    peerDependenciesMeta:
+      '@automerge/automerge':
+        optional: true
+      '@codemirror/state':
+        optional: true
+      '@codemirror/view':
+        optional: true
+      solid-js:
+        optional: true
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -1671,6 +1691,11 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   csstype@3.2.3: {}
+
+  cute.txt@0.0.1(@automerge/automerge@3.2.4)(solid-js@1.9.11):
+    optionalDependencies:
+      '@automerge/automerge': 3.2.4
+      solid-js: 1.9.11
 
   debug@4.4.3:
     dependencies:
