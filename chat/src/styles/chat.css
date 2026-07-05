@@ -665,7 +665,7 @@
        <body>, positioned fixed at the caret). Rows reuse .chat-autocomplete-item*. */
     .chat-autocomplete-pop {
       position:fixed; z-index:50; min-width:200px; max-width:340px; max-height:200px;
-      overflow-y:auto; overscroll-behavior:contain; background:var(--bg-darkest);
+      overflow-y:auto; overscroll-behavior:contain; background:var(--editor-fill, Canvas);
       border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.3);
     }
     .chat-autocomplete-item-icon { width:20px; height:20px; flex-shrink:0; color:var(--text-muted); }
