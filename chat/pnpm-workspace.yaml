@@ -8,4 +8,4 @@ minimumReleaseAgeExclude:
   - '@chee/patchwork-transcript@0.1.0'
   - '@chee/patchwork-bundles@0.0.1 || 0.1.0 || 0.2.0'
   - '@inkandswitch/patchwork-filesystem@0.1.2'
-  - cute.txt@0.0.1
+  - cute.txt@0.0.1 || 0.0.3 || 0.0.5

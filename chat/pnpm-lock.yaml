@@ -51,8 +51,8 @@ importers:
         specifier: ^0.1.2
         version: 0.1.2(@automerge/automerge-repo@2.5.3)(@automerge/automerge@3.2.4)
       cute.txt:
-        specifier: ^0.0.1
-        version: 0.0.1(@automerge/automerge@3.2.4)(solid-js@1.9.11)
+        specifier: ^0.0.5
+        version: 0.0.5(@automerge/automerge@3.2.4)(solid-js@1.9.11)
       solid-js:
         specifier: ^1.9.11
         version: 1.9.11
@@ -720,8 +720,8 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
-  cute.txt@0.0.1:
-    resolution: {integrity: sha512-c+5/1EgdZiwoevxTI2x9WYnRcN0rxpxEJ/XQjKTgeIKkS89bDy2GiJqaSX4Xy8IsE3BzZfiW6+DtAaESFdSoRg==}
+  cute.txt@0.0.5:
+    resolution: {integrity: sha512-SnXJVhJ9yslpJCGdkfIu6lFIjvfRRhTBRPvF7DQv0CPQ7jjJYvelQrci5TJK49dYjGhp3fngfPyk4KEKSRAHnQ==}
     peerDependencies:
       '@automerge/automerge': '*'
       '@codemirror/state': '*'
@@ -1692,7 +1692,7 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  cute.txt@0.0.1(@automerge/automerge@3.2.4)(solid-js@1.9.11):
+  cute.txt@0.0.5(@automerge/automerge@3.2.4)(solid-js@1.9.11):
     optionalDependencies:
       '@automerge/automerge': 3.2.4
       solid-js: 1.9.11

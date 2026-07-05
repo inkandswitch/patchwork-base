@@ -1,4 +1,4 @@
-import {createSignal, createEffect, onMount, onCleanup, mapArray, Show, For, Index} from "solid-js"
+import {createSignal, createEffect, createMemo, onMount, onCleanup, mapArray, Show, For, Index} from "solid-js"
 import {useChat} from "../context/ChatContext"
 import {useIdentity} from "../context/IdentityContext"
 import {usePresence} from "../context/PresenceContext"
@@ -11,8 +11,10 @@ import {SVG_ICONS} from "../lib/svg-icons"
 import {cmPromise} from "../lib/codemirror-setup"
 import {ensureFontLoaded} from "../lib/blob-cache"
 import {cuteAutocomplete} from "cute.txt/autocomplete"
-import {createCompletionSpecs, chatRenderRow} from "../lib/completion"
+import {cutePreview} from "cute.txt/preview"
+import {createCompletionSpecs, chatRenderRow, emoticonImgSrc} from "../lib/completion"
 import {autocompletePlugins, type AutocompleteCtx} from "../lib/autocomplete-plugins"
+import {useChatSchema} from "../lib/syntax-schema"
 import type {ChatMessage} from "../types"
 
 type PendingFile = {blob: Blob; dataUrl?: string; name: string; mimeType: string}
@@ -38,7 +40,7 @@ export function InputArea(props: {
 	let inputWrapRef!: HTMLDivElement
 	let inputRowRef!: HTMLDivElement
 	const [cmView, setCmView] = createSignal<any>(null)
-	const {handle, doc, repo, selector, element} = useChat()
+	const {handle, doc, repo, selector, element, hasFeature} = useChat()
 	// Active slash commands with behaviour (`transform`) resolved inline for own
 	// built-ins or loaded from a cross-bundle contribution's `.module` (chitter).
 	const loadedSlash = createLoadedPlugins("chat:slash", slashPlugins, selector)
@@ -90,6 +92,26 @@ export function InputArea(props: {
 		myEmoticons,
 		peerEmoticons: () => Object.fromEntries(peerEmoticons()),
 		mentionProviders: () => mentionProviders().filter(Boolean) as any,
+	})
+
+	// Live-preview schema for the input box: the same cute.txt schema messages render
+	// with, so `*bold*`/`:emoji:`/etc. preview as you type (reveal-on-cursor to edit).
+	// Emoticons come from my own + peers' catalogs (no per-message maps here).
+	const inputEmoticonUrls = createMemo(() => {
+		const urls: Record<string, string> = {}
+		for (const [, m] of peerEmoticons()) {
+			for (const [name, url] of Object.entries(m)) if (!urls[name]) urls[name] = emoticonImgSrc(url as any)
+		}
+		for (const [name, url] of Object.entries(myEmoticons())) {
+			if (!urls[name]) urls[name] = emoticonImgSrc(url as any)
+		}
+		return urls
+	})
+	const inputSchema = useChatSchema({
+		selector,
+		emoticonBlobUrls: inputEmoticonUrls,
+		allowEmoticons: () => hasFeature("emoticons"),
+		allowThink: () => hasFeature("computer"),
 	})
 
 	// Draft sync
@@ -214,6 +236,9 @@ export function InputArea(props: {
 					}),
 					EditorView.lineWrapping,
 					EditorView.contentAttributes.of({"aria-label": placeholderText}),
+						// cute.txt live-preview: marks/emoji/embeds render as you type,
+						// with reveal-on-cursor to edit. Same schema messages render with.
+						...cutePreview(() => inputSchema()),
 						// cuteAutocomplete adds a Prec.highest keymap (Arrow/Enter/Tab/Escape)
 						// that wins only while the popup is open; when closed it returns
 						// false so Enter falls through to sendMessage here.
