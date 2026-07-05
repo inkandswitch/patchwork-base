@@ -424,14 +424,16 @@
   box-shadow: inset 0 1px 0 0 var(--context-sidebar-tab-active-accent);
 }
 
-/* The close (collapse) button. */
+/* The close (collapse) button. Centred vertically in the tab header (the header
+   is otherwise flex-end for the tabs) so it lands at the same height as the
+   reopen toggle in the top bar when the sidebar is collapsed. */
 .context-sidebar__close {
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   flex-shrink: 0;
   padding-inline: var(--threepane-space-sm);
-  margin-bottom: var(--threepane-space-xs);
   margin-right: var(--threepane-space-2xs);
   border: none;
   background: transparent;
