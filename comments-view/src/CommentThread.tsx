@@ -362,12 +362,35 @@ function CuteDraftEditor(props: {
       handle,
       path: ["draftContent"],
       schema: defaultSchema,
-      autocompletes: defaultAutocompletes,
+      // `defaultAutocompletes` is a map keyed by id; the editor wants the specs
+      // as a flat array (e.g. the built-in emoji `:` completer).
+      autocompletes: Object.values(defaultAutocompletes),
       parent,
       repo: props.repo,
     });
     editor.view.focus();
-    onCleanup(() => editor.destroy());
+
+    // Cmd/Ctrl+Space sends the draft — the same commit the Save button does
+    // (`draftContent` → `content`). Capture-phase so it wins before CodeMirror
+    // treats the Space as text input.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.code !== "Space") return;
+      event.preventDefault();
+      event.stopPropagation();
+      const draft = handle.doc()?.draftContent ?? "";
+      if (!draft.trim()) return;
+      handle.change((c: Comment) => {
+        c.content = c.draftContent;
+        c.timestamp = Date.now();
+        delete c.draftContent;
+      });
+    };
+    parent.addEventListener("keydown", onKeyDown, true);
+
+    onCleanup(() => {
+      parent.removeEventListener("keydown", onKeyDown, true);
+      editor.destroy();
+    });
   });
   return <div class="cutetxt-editor comment-draft-editor" ref={parent} />;
 }

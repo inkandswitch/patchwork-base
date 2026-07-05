@@ -2,9 +2,9 @@
 :root,
 :host,
 [theme] {
-  --comments-fg: var(--studio-line, black);
+  --comments-fg: var(--text-editor-line, var(--studio-line, black));
   --comments-muted-fg: var(--studio-line-offset-50, #999);
-  --comments-bg: var(--studio-fill, white);
+  --comments-bg: var(--text-editor-fill, var(--studio-fill, white));
   --comments-border: var(--studio-fill-offset-20, #ccc);
   --comments-hover-bg: var(--studio-fill-offset-10, #f5f5f5);
   --comments-font: var(--studio-family-sans, system-ui, sans-serif);
@@ -83,7 +83,6 @@
 .comments-thread-card {
   background: var(--comments-bg);
   border: 1px solid var(--comments-border);
-  border-radius: 0.5rem;
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
