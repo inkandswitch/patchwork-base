@@ -34,7 +34,17 @@ async function ensureChitchat(
 ): Promise<DocHandle<ChatDoc>> {
 	const target = await repo.find(targetUrl)
 	const existing = (target.doc() as any)?.["@patchwork"]?.chitchat
-	if (existing) return repo.find(existing)
+	if (existing) {
+		const chat = (await repo.find(existing)) as DocHandle<ChatDoc>
+		chat.change((d: any) => {
+			const isMissingPlugins = !Array.isArray(d.plugins)
+			if (isMissingPlugins) d.plugins = defaultPlugins.slice()
+			if (isMissingPlugins && d["@patchwork"]?.type === "chitterchatter") {
+				d["@patchwork"].type = "chat"
+			}
+		})
+		return chat
+	}
 
 	const targetTitle = (target.doc() as any)?.title
 	const created = await repo.create2({
@@ -44,7 +54,7 @@ async function ensureChitchat(
 		// Seed the plugin set from the user's remembered chitchat default (starts as
 		// just the computer). The computer is auto-invited below.
 		plugins: defaultPlugins.slice(),
-		"@patchwork": {type: "chitterchatter"},
+		"@patchwork": {type: "chat"},
 		// Auto-invite the computer (ChatRoot's onMount claims the host when
 		// hasComputer is set) — but it stays off nosey, so it only replies when
 		// @mentioned or replied to.
@@ -76,14 +86,15 @@ function ContextHost(props: {element: HTMLElement; repo: Repo}) {
 		if (!url) return
 		props.repo
 			.find(url)
-			.then((h: DocHandle<ToolStorageDoc>) => {
-				if (!Array.isArray(h.doc()?.defaultPlugins)) {
-					h.change((d) => {
+			.then((h) => {
+				const storage = h as DocHandle<ToolStorageDoc>
+				if (!Array.isArray(storage.doc()?.defaultPlugins)) {
+					storage.change((d) => {
 						if (!Array.isArray(d.defaultPlugins))
 							d.defaultPlugins = DEFAULT_CHITCHAT_PLUGINS.slice()
 					})
 				}
-				setStorageHandle(h)
+				setStorageHandle(storage)
 			})
 			.catch((e) => console.warn("[chitchat] tool-storage:", e))
 	})
