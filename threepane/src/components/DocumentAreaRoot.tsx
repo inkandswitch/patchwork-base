@@ -17,6 +17,7 @@
 
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
+import { makePersisted } from "@solid-primitives/storage";
 import {
   createEffect,
   createMemo,
@@ -134,8 +135,10 @@ export function DocumentAreaRoot(props: DocumentAreaRootProps) {
 
   // Selected context-sidebar tab, lifted above the per-draft remount boundary so
   // the active tab survives branch switches even though its content remounts.
-  const [selectedContextToolId, setSelectedContextToolId] =
-    createSignal<string>();
+  const [selectedContextToolId, setSelectedContextToolId] = makePersisted(
+    createSignal<string | undefined>(),
+    { name: SIDEBAR_KEYS.contextToolId }
+  );
 
   // Per-document draft scope. The provider element persists across navigation:
   // we feed it a reactive `doc-url` and it re-points in place (it watches the

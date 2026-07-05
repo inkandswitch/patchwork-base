@@ -20,6 +20,7 @@
     "@inkandswitch/patchwork-plugins": "^0.0.11",
     "@inkandswitch/patchwork-providers": "0.2.2",
     "@inkandswitch/patchwork-providers-solid": "0.2.3",
+    "@solid-primitives/storage": "^4.3.5",
     "solid-js": "^1.9.10"
   },
   "devDependencies": {
