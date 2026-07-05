@@ -1,8 +1,12 @@
 import { createSignal, createMemo, Show } from "solid-js";
+import { render } from "solid-js/web";
 import {
   useDocument,
   makeDocumentProjection,
+  RepoContext,
 } from "@automerge/automerge-repo-solid-primitives";
+import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
+import "./styles.css";
 import type { DocHandle, Repo } from "@automerge/automerge-repo";
 import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import { HasPatchworkMetadata } from "@inkandswitch/patchwork-filesystem/dist/metadata";
@@ -523,4 +527,34 @@ function CopyIcon(props: { class?: string }) {
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
     </svg>
   );
+}
+
+// The tool implementation returned by the plugin's `load()`. Lives here (not in
+// the `.ts` entrypoint) because it uses JSX and imports the Solid runtime.
+function addStyles(element: HTMLElement, textContent: string) {
+  const id = "account-picker-styles";
+  const el = element.querySelector(`#${id}`) ?? document.createElement("style");
+  Object.assign(el, { textContent, id });
+  element.append(el);
+}
+
+async function loadStyles() {
+  const url = new URL("./tool.css", import.meta.url);
+  return (await fetch(url)).text();
+}
+
+export async function loadTool(): Promise<ToolImplementation> {
+  const css = await loadStyles();
+  return (handle, element) => {
+    addStyles(document.head, css);
+    const dispose = render(
+      () => (
+        <RepoContext.Provider value={element.repo}>
+          <AccountPicker handle={handle} element={element} />
+        </RepoContext.Provider>
+      ),
+      element
+    );
+    return () => dispose();
+  };
 }

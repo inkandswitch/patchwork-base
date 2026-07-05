@@ -65,7 +65,7 @@ const PlusIcon = () => (
     height="14"
     viewBox="0 0 14 14"
     fill="none"
-    stroke="currentColor"
+    stroke="var(--studio-chrome-line)"
     stroke-width="1.5"
     stroke-linecap="round"
   >
@@ -82,7 +82,7 @@ const CloseIcon = (props: { size?: number }) => {
       height={s()}
       viewBox="0 0 10 10"
       fill="none"
-      stroke="currentColor"
+      stroke="var(--studio-chrome-line)"
       stroke-width="1.5"
       stroke-linecap="round"
     >
@@ -98,7 +98,7 @@ const CheckIcon = () => (
     height="12"
     viewBox="0 0 12 12"
     fill="none"
-    stroke="currentColor"
+    stroke="var(--studio-chrome-line)"
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"

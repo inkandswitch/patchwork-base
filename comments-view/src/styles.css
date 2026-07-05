@@ -13,13 +13,20 @@
 }
 
 /* The width:100% boxes below (panel, textarea) also carry padding and a
-   border, so without border-box they extend past the sidebar and overflow it.
-   Scoped to the panel subtree so the injected stylesheet never touches the
-   host page (it may be injected into document.head, not a shadow root). */
+   border, so without border-box they extend past their container and overflow
+   it. Scoped to the panel and the thread card so the injected stylesheet never
+   touches the host page (it may be injected into document.head, not a shadow
+   root). The card is covered on its own because a single thread renders
+   standalone too — e.g. in the editor's comment popover, with no panel around
+   it — and its draft textarea would otherwise spill out of the card. */
 .comments-panel,
 .comments-panel *,
 .comments-panel *::before,
-.comments-panel *::after {
+.comments-panel *::after,
+.comments-thread-card,
+.comments-thread-card *,
+.comments-thread-card *::before,
+.comments-thread-card *::after {
   box-sizing: border-box;
 }
 

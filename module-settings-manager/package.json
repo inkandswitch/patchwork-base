@@ -8,7 +8,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "source": "./src/index.tsx"
+      "source": "./src/index.ts"
     },
     "./datatype": {
       "import": "./dist/datatype.js",
