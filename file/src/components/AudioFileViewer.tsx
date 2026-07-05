@@ -29,7 +29,13 @@ export function AudioFileViewer(props: {doc: FileDoc}) {
 			{audioUrl() ? (
 				<audio src={audioUrl()} controls />
 			) : (
-				<div style={{color: "#6b7280"}}>No audio to play</div>
+				<div
+					style={{
+						background: "var(--editor-fill)",
+						color: "var(--editor-line)",
+					}}>
+					No audio to play
+				</div>
 			)}
 		</div>
 	)

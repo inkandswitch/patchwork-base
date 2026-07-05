@@ -37,7 +37,8 @@ export function PDFFileViewer(props: {doc: FileDoc}) {
 						"align-items": "center",
 						"justify-content": "center",
 						height: "100%",
-						color: "#6b7280",
+						background: "var(--editor-fill)",
+						color: "var(--editor-line)",
 					}}>
 					No PDF to display
 				</div>

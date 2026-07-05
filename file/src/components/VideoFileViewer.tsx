@@ -40,7 +40,13 @@ export function VideoFileViewer(props: {doc: FileDoc}) {
 					}}
 				/>
 			) : (
-				<div style={{color: "#6b7280"}}>No video to play</div>
+				<div
+					style={{
+						background: "var(--editor-fill)",
+						color: "var(--editor-line)",
+					}}>
+					No video to play
+				</div>
 			)}
 		</div>
 	)

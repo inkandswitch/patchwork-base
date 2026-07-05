@@ -26,6 +26,12 @@ export function ImageFileViewer(props: {doc: FileDoc}) {
 			}}
 		/>
 	) : (
-		<div style={{color: "#6b7280"}}>No image to display</div>
+		<div
+			style={{
+				background: "var(--editor-fill)",
+				color: "var(--editor-line)",
+			}}>
+			No image to display
+		</div>
 	)
 }
