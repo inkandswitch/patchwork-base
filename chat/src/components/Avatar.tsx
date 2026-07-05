@@ -33,17 +33,6 @@ export function Avatar(props: {
 	})
 
 	const isGif = () => !!props.gifSelfieUrl
-	// Delegate contact avatars to the host's `contact-avatar` tool via
-	// `<patchwork-view>` (same as the comments sidebar) instead of hand-building a
-	// service-worker `<img src>` ourselves. The host tool renders in the host realm
-	// (correct origin + service worker), so it resolves the avatar file regardless
-	// of where *this* tool bundle is served from — a hand-rolled `/automerge:…` URL
-	// resolves against our own (possibly cross-origin) bundle origin and 404s. Used
-	// when we have a contactUrl and aren't showing a GIF selfie or the computer
-	// icon; falls back to the stored avatarUrl / initials for older messages
-	// without a contactUrl.
-	const useContactView = () =>
-		!!props.contactUrl && !isGif() && !props.isComputer
 
 	const initials = () => (props.name || "?")[0].toUpperCase()
 
@@ -62,25 +51,14 @@ export function Avatar(props: {
 			}}
 		>
 			<Show
-				when={useContactView()}
+				when={imgUrl()}
 				fallback={
-					<Show
-						when={imgUrl()}
-						fallback={
-							<Show when={props.isComputer} fallback={initials()}>
-								<img src={computerPngUrl} alt="Computer" />
-							</Show>
-						}
-					>
-						<img src={imgUrl()!} alt={props.name} />
+					<Show when={props.isComputer} fallback={initials()}>
+						<img src={computerPngUrl} alt="Computer" />
 					</Show>
 				}
 			>
-				<patchwork-view
-					class="chat-avatar-view"
-					doc-url={props.contactUrl}
-					tool-id="contact-avatar"
-				/>
+				<img src={imgUrl()!} alt={props.name} />
 			</Show>
 		</div>
 	)
