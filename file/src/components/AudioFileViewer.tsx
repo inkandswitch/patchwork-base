@@ -19,11 +19,17 @@ export function AudioFileViewer(props: {doc: FileDoc}) {
 	})
 
 	return (
-		<div class="flex items-center justify-center h-full">
+		<div
+			style={{
+				display: "flex",
+				"align-items": "center",
+				"justify-content": "center",
+				height: "100%",
+			}}>
 			{audioUrl() ? (
 				<audio src={audioUrl()} controls />
 			) : (
-				<div class="text-gray-500">No audio to play</div>
+				<div style={{color: "#6b7280"}}>No audio to play</div>
 			)}
 		</div>
 	)

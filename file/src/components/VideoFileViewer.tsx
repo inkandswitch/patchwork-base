@@ -22,15 +22,25 @@ export function VideoFileViewer(props: {doc: FileDoc}) {
 	})
 
 	return (
-		<div class="flex items-center justify-center h-full">
+		<div
+			style={{
+				display: "flex",
+				"align-items": "center",
+				"justify-content": "center",
+				height: "100%",
+			}}>
 			{videoUrl() ? (
 				<video
 					src={videoUrl()}
 					controls
-					class="max-w-full max-h-full object-contain"
+					style={{
+						"max-width": "100%",
+						"max-height": "100%",
+						"object-fit": "contain",
+					}}
 				/>
 			) : (
-				<div class="text-gray-500">No video to play</div>
+				<div style={{color: "#6b7280"}}>No video to play</div>
 			)}
 		</div>
 	)

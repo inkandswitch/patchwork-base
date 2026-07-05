@@ -23,7 +23,7 @@ export function PDFFileViewer(props: {doc: FileDoc}) {
 	})
 
 	return (
-		<div class="overflow-auto h-full">
+		<div style={{overflow: "auto", height: "100%"}}>
 			{pdfUrl() ? (
 				<iframe
 					src={pdfUrl()}
@@ -31,7 +31,14 @@ export function PDFFileViewer(props: {doc: FileDoc}) {
 					title={props.doc.name}
 				/>
 			) : (
-				<div class="flex items-center justify-center h-full text-gray-500">
+				<div
+					style={{
+						display: "flex",
+						"align-items": "center",
+						"justify-content": "center",
+						height: "100%",
+						color: "#6b7280",
+					}}>
 					No PDF to display
 				</div>
 			)}
