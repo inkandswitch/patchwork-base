@@ -256,6 +256,10 @@ export function getActiveThemeState() {
 
 export function setThemeForCurrentMode(themeId: string) {
 	const mode = getMode()
+	setThemeForMode(mode, themeId)
+}
+
+export function setThemeForMode(mode: "light" | "dark", themeId: string) {
 	currentPrefsHandle?.change((doc: any) => {
 		doc[mode] = themeId
 	})

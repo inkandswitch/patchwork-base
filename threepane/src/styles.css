@@ -589,7 +589,7 @@
   min-height: var(--threepane-tray-height);
   padding-inline: var(--threepane-space-sm);
   border-top: 1px solid var(--context-sidebar-border);
-  background: var(--context-sidebar-content-bg);
+  background: var(--threepane-sidebar-fill);
 }
 
 .frame-tray patchwork-view {

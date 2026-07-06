@@ -1,6 +1,12 @@
 import {render} from "solid-js/web"
-import {createSignal, createResource, For, Show, onCleanup} from "solid-js"
+import {createSignal, For, Show} from "solid-js"
 import {getRegistry} from "@inkandswitch/patchwork-plugins"
+import {
+	getActiveThemeState,
+	onActiveThemeChange,
+	setThemeForMode,
+	startActiveTheme,
+} from "./active-theme.ts"
 
 async function detectColorScheme(
 	theme: any
@@ -17,10 +23,11 @@ async function detectColorScheme(
 	}
 }
 
-export function ThemePickerTool(handle: any, element: HTMLElement) {
-	const [doc, setDoc] = createSignal(handle.doc())
-	const onChange = () => setDoc(handle.doc())
-	handle.on("change", onChange)
+export function ThemePickerTool(_handle: any, element: HTMLElement) {
+	startActiveTheme(element)
+
+	const [themeState, setThemeState] = createSignal(getActiveThemeState())
+	const unsubscribeThemeState = onActiveThemeChange(setThemeState)
 
 	const [themes, setThemes] = createSignal<any[]>([])
 	const [colorSchemes, setColorSchemes] = createSignal<
@@ -158,20 +165,15 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 	element.appendChild(style)
 
 	const dispose = render(() => {
-		const currentDoc = doc()
-		const lightId = () => doc()?.light || "lychee"
-		const darkId = () => doc()?.dark || "gloom"
+		const lightId = () => themeState().light
+		const darkId = () => themeState().dark
 
 		function selectLight(id: string) {
-			handle.change((d: any) => {
-				d.light = id
-			})
+			setThemeForMode("light", id)
 		}
 
 		function selectDark(id: string) {
-			handle.change((d: any) => {
-				d.dark = id
-			})
+			setThemeForMode("dark", id)
 		}
 
 		return (
@@ -241,7 +243,7 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 	}, element)
 
 	return () => {
-		handle.off("change", onChange)
+		unsubscribeThemeState()
 		mq.removeEventListener("change", onSchemeChange)
 		dispose()
 		style.remove()
