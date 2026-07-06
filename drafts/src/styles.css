@@ -55,6 +55,23 @@
   color: var(--drafts-faint-fg);
 }
 
+/* Drop target for a version dragged out of a history timeline (group row or
+   scrubber sticker); only rendered while such a drag is in flight. Dropping
+   forks a new draft at that version. */
+.drafts-dropzone {
+  align-self: stretch;
+  padding: 0.75rem 0.5rem;
+  border: 1.5px dashed var(--drafts-primary);
+  border-radius: var(--drafts-radius-sm);
+  font-size: 0.75rem;
+  color: var(--drafts-primary);
+  text-align: center;
+}
+
+.drafts-dropzone[data-over] {
+  background: color-mix(in srgb, var(--drafts-primary) 12%, transparent);
+}
+
 .drafts-btn {
   font-family: inherit;
   font-size: 0.875rem;
@@ -262,12 +279,14 @@
   cursor: pointer;
 }
 
+/* Group backgrounds stay semi-transparent so the scrubber lines painted
+   underneath the rows remain visible through them. */
 .draft-group-row:hover {
-  background: var(--drafts-hover-bg);
+  background: color-mix(in srgb, var(--drafts-hover-bg) 60%, transparent);
 }
 
 .draft-group-row[data-selected] {
-  background: var(--drafts-selected-bg);
+  background: color-mix(in srgb, var(--drafts-selected-bg) 60%, transparent);
   box-shadow: inset 0 0 0 1px var(--drafts-primary);
 }
 
@@ -313,9 +332,11 @@
 /* Two-column body inside the scrollable changes area: gutter + group rows,
    with the indicator overlaid across both. Positioned so the rows'
    offsetTop measurements (used to map changes onto the gutter) are relative
-   to this box. */
+   to this box. Isolated so the indicator's negative-z lines paint above the
+   card background yet below the rows (instead of escaping behind the card). */
 .draft-changes-body {
   position: relative;
+  isolation: isolate;
   display: flex;
   align-items: stretch;
   gap: 0.25rem;
@@ -330,32 +351,27 @@
 }
 
 /* The gutter spans the whole history: top = latest change, bottom = first.
-   Click or drag anywhere in it to jump the indicator. */
+   Purely a visual track — scrubbing starts from the indicator's handles. */
 .draft-scrubber {
   position: relative;
   flex: none;
   width: 16px;
   border-radius: var(--drafts-radius-sm);
-  cursor: pointer;
-  touch-action: none;
 }
 
-.draft-scrubber:hover {
-  background: var(--drafts-hover-bg);
-}
-
-/* The indicator overlays the rows like a calendar's now-line: a dot in the
-   gutter plus a line across the rows at the head (the version being looked
-   at). Spread across a range it draws as a bracket instead — top line,
-   spine down the gutter, shorter bottom line at the diff baseline. The box
-   itself ignores pointer events so rows stay clickable; the visible pieces
+/* The indicator sits at the head like a calendar's now-line: a dot in the
+   gutter plus a line across the rows (the version being looked at). Spread
+   across a range it draws as a bracket instead — top line, spine down the
+   gutter, shorter bottom line at the diff baseline. The lines paint *under*
+   the group rows (negative z-index; the rows' backgrounds are
+   semi-transparent), while the handles and the sticker paint above. The box
+   itself ignores pointer events so rows stay clickable; the handles
    re-enable them. */
 .draft-scrubber-token {
   --scrub-color: var(--studio-danger, #dc2626);
   position: absolute;
   left: 0;
   right: 0;
-  z-index: 2;
   pointer-events: none;
 }
 
@@ -382,29 +398,39 @@
   cursor: grabbing;
 }
 
-/* The horizontal lines at the head (top) and diff baseline (bottom); the
-   element is a taller invisible hit area, the visible 2px line is drawn by
-   its ::after. */
-.draft-scrubber-edge {
+/* The visible lines at the head (top) and diff baseline (bottom), spanning
+   into the rows but painted behind them. */
+.draft-scrubber-line {
   position: absolute;
   left: 8px;
-  right: 0;
-  height: 9px;
-  pointer-events: auto;
-  cursor: ns-resize;
-  touch-action: none;
-}
-
-.draft-scrubber-edge::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
   right: 0;
   height: 2px;
   margin-top: -1px;
   border-radius: 1px;
   background: var(--scrub-color);
+  z-index: -1;
+}
+
+.draft-scrubber-line--top {
+  top: 0;
+}
+
+.draft-scrubber-line--bottom {
+  bottom: -1px;
+  /* The baseline line is shorter than the head line, like a bracket. */
+  right: 55%;
+}
+
+/* Invisible grab strips over the lines' gutter ends; dragging only starts
+   from these (or the dot/spine), never from the rows or the bare gutter. */
+.draft-scrubber-edge {
+  position: absolute;
+  left: 0;
+  width: 16px;
+  height: 9px;
+  pointer-events: auto;
+  cursor: ns-resize;
+  touch-action: none;
 }
 
 .draft-scrubber-edge--top {
@@ -413,13 +439,10 @@
 
 .draft-scrubber-edge--bottom {
   bottom: -4.5px;
-  /* The baseline line is shorter than the head line, like a bracket. */
-  right: 55%;
 }
 
-/* Collapsed (no span): the line itself moves the head (raised above the
-   bottom edge where they'd overlap), and the bottom edge becomes an
-   invisible grab strip just below the line for spreading downward. */
+/* Collapsed (no span): the top strip moves the head, and the bottom strip
+   shifts just below it for spreading downward. */
 .draft-scrubber-token:not([data-spread]) .draft-scrubber-edge--top {
   cursor: grab;
   z-index: 1;
@@ -428,10 +451,6 @@
 .draft-scrubber-token:not([data-spread]) .draft-scrubber-edge--bottom {
   bottom: -7.5px;
   height: 6px;
-}
-
-.draft-scrubber-token:not([data-spread]) .draft-scrubber-edge--bottom::after {
-  display: none;
 }
 
 /* The bracket's spine, running down the gutter from head to baseline. */
@@ -448,33 +467,52 @@
   touch-action: none;
 }
 
-/* The magnifier at the right end of the head line: splits the spanned range
-   into smaller time chunks, lit while the split is active. */
-.draft-scrubber-zoom {
+/* While pinned, a chip anchored to the head line overlays the group row's
+   time/summary with the exact change the line sits on. Painted above
+   everything in the changes body (opaque, topmost z-index) so neither the
+   head line nor the row content shows through. Interactive as a drag handle:
+   dragging it out of the timeline forks a new draft at that version (which
+   is why it takes pointer events, shadowing the row beneath it). */
+.draft-scrubber-sticker {
   position: absolute;
-  top: -9px;
-  right: 2px;
-  width: 18px;
-  height: 18px;
+  top: -10px;
+  left: calc(16px + 0.25rem);
+  right: 0;
+  height: 20px;
+  z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
+  gap: 0.375rem;
+  padding: 0 0.375rem;
   border: 1px solid var(--scrub-color);
-  border-radius: 50%;
+  border-radius: var(--drafts-radius-sm);
   background: var(--drafts-bg);
-  color: var(--scrub-color);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  overflow: hidden;
   pointer-events: auto;
-  cursor: pointer;
+  cursor: grab;
 }
 
-.draft-scrubber-zoom:hover {
-  background: var(--drafts-hover-bg);
+.draft-scrubber-sticker:active {
+  cursor: grabbing;
 }
 
-.draft-scrubber-zoom--active {
-  background: var(--scrub-color);
-  color: var(--drafts-bg);
+.draft-sticker-time {
+  flex: none;
+  color: var(--drafts-muted-fg);
+}
+
+.draft-sticker-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.draft-sticker-spacer {
+  flex: 1 1 auto;
 }
 
 /* The per-group diff toggle: hidden until the row is hovered, kept lit while

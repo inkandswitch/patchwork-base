@@ -40,7 +40,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.5";
+const DRAFTS_VERSION = "0.0.8";
 
 // A pause between consecutive changes longer than this starts a new group:
 // bursts of continuous editing read as a single row, however long they run,
@@ -73,6 +73,15 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
   // group highlight, and the eye toggles. Not persisted, so it resets on
   // reload (the pinned view survives).
   const [scrubber, setScrubber] = createSignal<ScrubberState | null>(null);
+
+  // A version being dragged out of a history timeline (from a group row or
+  // the scrubber sticker). While set, the actions area shows a drop zone
+  // that forks a new draft at that version; cleared on drop or dragend.
+  const [dragVersion, setDragVersion] = createSignal<{
+    members: DraftMemberDoc[];
+    head: ChangeRef;
+  } | null>(null);
+  const [dropActive, setDropActive] = createSignal(false);
 
   // The derived drafts list (read-only): main plus each draft with its member
   // docs, recomputed and pushed by the provider.
@@ -202,6 +211,63 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
     return mainDraft;
   };
 
+  // Fork a new top-level draft off a historical version: every member doc is
+  // cloned at the heads it had as of `head` (the dragged-out change), not at
+  // the live latest. Pre-populating `DraftDoc.clones` here means the overlay's
+  // lazy `resolveClone` reuses these entries instead of forking at current
+  // heads. Members with no changes at or before the version (created later)
+  // are left out; the version's docs don't reference them yet, so they are
+  // normally never resolved beneath the draft.
+  const onCreateDraftFromVersion = async (
+    members: DraftMemberDoc[],
+    head: ChangeRef
+  ) => {
+    if (isFolder()) return;
+    const docHandle = hostDocHandle();
+    if (!docHandle) return;
+    const repo = getRepo();
+    if (!repo) {
+      console.warn("[drafts] window.repo is not set");
+      return;
+    }
+
+    // Reuse the scrub machinery to resolve per-doc heads at this version.
+    const checkpoint = await computeCheckpoint(repo, members, head, null);
+
+    const clones: Record<AutomergeUrl, CloneEntry> = {};
+    for (const member of members) {
+      const to = checkpoint[member.url]?.to;
+      if (!to) continue;
+      try {
+        // Clone the doc the timeline read its changes from (the draft's clone
+        // when dragging out of a draft), pinned to the version's heads —
+        // repo.clone of a view-pinned handle clones the doc as of those heads.
+        // Keyed by the original url so baselines and merge-back resolve.
+        const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
+        const clone = repo.clone(handle.view(to));
+        clones[member.url] = { cloneUrl: clone.url, clonedAt: to };
+      } catch (err) {
+        console.warn(
+          "[drafts] failed to fork member at version:",
+          member.url,
+          err
+        );
+      }
+    }
+
+    const mainDraft = await ensureMainDraft(repo, docHandle);
+    const draft = repo.create<DraftDoc>({
+      "@patchwork": { type: "draft" },
+      parent: mainDraft.url,
+      drafts: [],
+      clones,
+    });
+    mainDraft.change((d) => {
+      d.drafts.push(draft.url);
+    });
+    selectDraft(draft.url);
+  };
+
   const onMergeDraft = async () => {
     const draftUrl = selected();
     if (!draftUrl) return;
@@ -232,6 +298,11 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
               onScrub(null, list().main.members, scrub, baseline)
             }
             scrubber={() => (isMainSelected() ? scrubber() : null)}
+            onDragVersion={(head) =>
+              setDragVersion(
+                head ? { members: list().main.members, head } : null
+              )
+            }
           />
           <For each={list().drafts}>
             {(summary) => (
@@ -247,11 +318,42 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
                 scrubber={() =>
                   selected() === summary.url ? scrubber() : null
                 }
+                onDragVersion={(head) =>
+                  setDragVersion(
+                    head ? { members: summary.members, head } : null
+                  )
+                }
               />
             )}
           </For>
         </div>
         <div class="drafts-actions">
+          <Show when={dragVersion()}>
+            <div
+              class="drafts-dropzone"
+              data-over={dropActive() ? "" : undefined}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setDropActive(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+              }}
+              onDragLeave={() => setDropActive(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                const version = dragVersion();
+                setDropActive(false);
+                setDragVersion(null);
+                if (version) {
+                  void onCreateDraftFromVersion(version.members, version.head);
+                }
+              }}
+            >
+              Drop to fork a new draft from this version
+            </div>
+          </Show>
           <Show when={checkedOut()?.at}>
             <button
               class="drafts-btn drafts-btn--ghost"
@@ -331,6 +433,7 @@ function MainCard(props: {
   onSelect: () => void;
   onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
   scrubber: Accessor<ScrubberState | null>;
+  onDragVersion: (head: ChangeRef | null) => void;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -353,6 +456,7 @@ function MainCard(props: {
           mainDocUrl={props.hostDocUrl}
           onScrub={props.onScrub}
           scrubber={props.scrubber}
+          onDragVersion={props.onDragVersion}
         />
       </Show>
     </div>
@@ -367,6 +471,7 @@ function DraftCard(props: {
   onSelect: (url: AutomergeUrl) => void;
   onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
   scrubber: Accessor<ScrubberState | null>;
+  onDragVersion: (head: ChangeRef | null) => void;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -389,6 +494,7 @@ function DraftCard(props: {
           mainDocUrl={props.mainDocUrl}
           onScrub={props.onScrub}
           scrubber={props.scrubber}
+          onDragVersion={props.onDragVersion}
         />
       </Show>
     </div>
@@ -456,31 +562,24 @@ function changeRef(change: DraftChange): ChangeRef {
   return { docUrl: change.docUrl, hash: change.hash, time: change.time };
 }
 
-// A magnified stretch of the timeline: the range the scrubber spanned when
-// the magnifier was clicked (same anchoring as ScrubberState) plus the finer
-// grouping gap to apply inside it. The rest of the timeline keeps the normal
-// INACTIVITY_GAP grouping.
-type ZoomState = {
-  head: ChangeRef;
-  span: number;
-  windowMs: number;
-};
-
 // Renders a draft's (or main's) changes as a timeline of activity groups:
 // every member doc's changes interleaved newest first, then split wherever
-// the editing paused for INACTIVITY_GAP (see `groupChanges`). A
-// gutter on the left spans the whole history (top = latest change, bottom =
-// first); the indicator overlaying the rows — a calendar-style dot + line,
-// drawn as a bracket while it spans a range — marks the version being looked
-// at and how far back the diff baseline reaches, and carries a magnifier
-// that splits the spanned range into smaller time chunks. The member set is
-// passed in (from the card's `DraftSummary`); the effect below keeps the
-// timeline live as those docs edit.
+// the editing paused for INACTIVITY_GAP (see `groupChanges`). A gutter on
+// the left spans the whole history (top = latest change, bottom = first);
+// the indicator — a calendar-style dot + line, drawn as a bracket while it
+// spans a range — marks the version being looked at and how far back the
+// diff baseline reaches. Its lines paint *under* the (semi-transparent)
+// group rows; dragging starts only from its handles in the gutter. While
+// pinned, a sticker overlays the row at the head with the exact change the
+// line sits on. The member set is passed in (from the card's
+// `DraftSummary`); the effect below keeps the timeline live as those docs
+// edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   mainDocUrl: AutomergeUrl | undefined;
   onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
   scrubber: Accessor<ScrubberState | null>;
+  onDragVersion: (head: ChangeRef | null) => void;
 }) {
   const [changes, setChanges] = createSignal<DraftChange[]>([]);
 
@@ -521,74 +620,8 @@ function DraftChangesList(props: {
     });
   });
 
-  // A magnified range: while set, the changes inside it are grouped with a
-  // finer window so one coarse group splits into smaller time chunks.
-  // Client-only. It stays split while the scrubber roams (re-clicking the
-  // magnifier elsewhere re-anchors it) and folds back when the scrubber
-  // unpins entirely.
-  const [zoom, setZoom] = createSignal<ZoomState | null>(null);
-
-  createEffect(() => {
-    if (!props.scrubber()) setZoom(null);
-  });
-
-  // The flat, newest-first history folded into time groups for rendering.
-  // A zoomed range is grouped with its finer window; everything before and
-  // after it keeps the normal window. (A group that would have straddled the
-  // zoom boundary splits there, which is the point.)
-  const timeGroups = createMemo(() => {
-    const list = changes();
-    const z = zoom();
-    if (z) {
-      const start = list.findIndex(
-        (c) => c.hash === z.head.hash && c.docUrl === z.head.docUrl
-      );
-      if (start >= 0) {
-        const end = Math.min(start + z.span, list.length);
-        return [
-          ...groupChanges(list.slice(0, start)),
-          ...groupChanges(list.slice(start, end), z.windowMs),
-          ...groupChanges(list.slice(end)),
-        ];
-      }
-    }
-    return groupChanges(list);
-  });
-
-  // The magnifier is lit while the zoom covers exactly the scrubber's
-  // current range.
-  const zoomActive = createMemo(() => {
-    const z = zoom();
-    const s = props.scrubber();
-    return (
-      !!z &&
-      !!s &&
-      z.head.hash === s.head.hash &&
-      z.head.docUrl === s.head.docUrl &&
-      z.span === s.span
-    );
-  });
-
-  // Toggle the magnifier: split the scrubber's current range into smaller
-  // time chunks (window sized so the range yields a handful of subgroups),
-  // or fold it back to the normal grouping when already split.
-  const toggleZoom = () => {
-    const s = props.scrubber();
-    const hi = headIndex();
-    if (!s || hi === null || s.span === 0) return;
-    if (zoomActive()) {
-      setZoom(null);
-      return;
-    }
-    const list = changes();
-    const end = Math.min(hi + s.span, list.length);
-    const extentMs = (list[hi].time - list[end - 1].time) * 1000;
-    setZoom({
-      head: s.head,
-      span: s.span,
-      windowMs: Math.max(extentMs / 4, 1000),
-    });
-  };
+  // The flat, newest-first history folded into activity groups for rendering.
+  const timeGroups = createMemo(() => groupChanges(changes()));
 
   // Scrub so the head sits at the timeline change at `headIndex` (global,
   // 0 = newest), spanning `span` changes back. Resolves the span's oldest
@@ -764,19 +797,19 @@ function DraftChangesList(props: {
     return ev.clientY - rect.top;
   };
 
-  // Begin an indicator drag. `mode` decides what the pointer moves:
+  // Begin an indicator drag. Scrubbing starts only from the indicator's own
+  // handles (dot, spine, edge lines) — the bare gutter and the rows don't
+  // scrub. `mode` decides what the pointer moves:
   //   - "move":   the whole indicator (dot, spine, or collapsed line); the
   //               head follows the pointer (offset by where it was grabbed),
   //               span preserved.
-  //   - "jump":   like "move" but snaps immediately — a click/drag on the
-  //               bare gutter.
   //   - "bottom": the bottom line; resizes the span (how far back the diff
   //               reaches). Dragging above the head collapses to no diff.
   //   - "top":    the top line while spread; moves the head while the bottom
   //               anchor stays pinned, adjusting head and span together.
   // Every position snaps to an individual change, so the indicator can rest
   // anywhere in history — between groups or in the middle of one.
-  const beginDrag = (ev: PointerEvent, mode: "move" | "jump" | "top" | "bottom") => {
+  const beginDrag = (ev: PointerEvent, mode: "move" | "top" | "bottom") => {
     if (!trackEl || changes().length === 0) return;
     ev.preventDefault();
     ev.stopPropagation();
@@ -798,7 +831,7 @@ function DraftChangesList(props: {
 
     const onMove = (e: PointerEvent) => {
       const y = yInTrack(e);
-      if (mode === "move" || mode === "jump") {
+      if (mode === "move") {
         apply(indexForY(y - grabOffset), last.span);
       } else if (mode === "bottom") {
         apply(last.head, Math.max(0, indexForY(y) - last.head + 1));
@@ -818,8 +851,31 @@ function DraftChangesList(props: {
     target.addEventListener("pointermove", onMove);
     target.addEventListener("pointerup", onUp);
     target.addEventListener("pointercancel", onUp);
-    if (mode === "jump") onMove(ev);
   };
+
+  // Start a native drag carrying a version out of the timeline. The payload
+  // rides in a component signal (source and drop zone share the panel);
+  // dataTransfer is only set so the browser actually starts the drag.
+  const beginVersionDrag = (ev: DragEvent, head: ChangeRef) => {
+    if (!ev.dataTransfer) return;
+    ev.dataTransfer.setData("text/plain", `${head.docUrl}#${head.hash}`);
+    ev.dataTransfer.effectAllowed = "copy";
+    props.onDragVersion(head);
+  };
+
+  // The exact change the scrubber head sits on; feeds the sticker that
+  // overlays the group row with the version being looked at. Suppressed when
+  // the head sits exactly on a group's newest change — the row itself already
+  // shows that version, so the sticker would only duplicate it.
+  const headChange = createMemo<DraftChange | null>(() => {
+    const idx = headIndex();
+    const change = idx === null ? null : (changes()[idx] ?? null);
+    if (!change) return null;
+    const atGroupStart = timeGroups().some(
+      (g) => g.newest.hash === change.hash && g.newest.docUrl === change.docUrl
+    );
+    return atGroupStart ? null : change;
+  });
 
   return (
     <div class="draft-card-changes">
@@ -828,12 +884,7 @@ function DraftChangesList(props: {
         fallback={<div class="draft-changes-empty">No changes yet.</div>}
       >
         <div class="draft-changes-body">
-          <div
-            class="draft-scrubber"
-            ref={trackEl}
-            title="Drag to scrub through history"
-            onPointerDown={(e) => beginDrag(e, "jump")}
-          />
+          <div class="draft-scrubber" ref={trackEl} />
           <div class="draft-changes-rows" ref={setRowsEl}>
             <For each={timeGroups()}>
               {(group) => (
@@ -844,6 +895,10 @@ function DraftChangesList(props: {
                   eyeActive={eyeActive(group)}
                   onSelect={() => scrubToGroup(group, false)}
                   onToggleEye={() => scrubToGroup(group, !eyeActive(group))}
+                  onVersionDragStart={(e) =>
+                    beginVersionDrag(e, changeRef(group.newest))
+                  }
+                  onVersionDragEnd={() => props.onDragVersion(null)}
                 />
               )}
             </For>
@@ -858,6 +913,12 @@ function DraftChangesList(props: {
                 height: `${tokenGeometry()!.height}px`,
               }}
             >
+              {/* Visual lines, painted under the group rows. */}
+              <div class="draft-scrubber-line draft-scrubber-line--top" />
+              <Show when={spread()}>
+                <div class="draft-scrubber-line draft-scrubber-line--bottom" />
+              </Show>
+              {/* Grab handles, confined to the gutter. */}
               <div
                 class="draft-scrubber-edge draft-scrubber-edge--top"
                 title={
@@ -884,22 +945,31 @@ function DraftChangesList(props: {
                 title="Drag to scrub through history"
                 onPointerDown={(e) => beginDrag(e, "move")}
               />
-              <Show when={spread()}>
-                <button
-                  type="button"
-                  class="draft-scrubber-zoom"
-                  classList={{ "draft-scrubber-zoom--active": zoomActive() }}
-                  title="Split this range into smaller time chunks"
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleZoom();
-                  }}
-                >
-                  <MagnifierIcon />
-                </button>
+              {/* Pinned inside a group: overlay the row with the exact
+                  version the head sits on. Draggable — dragging it out forks
+                  a new draft at that version. */}
+              <Show when={headChange()}>
+                {(change) => (
+                  <div
+                    class="draft-scrubber-sticker"
+                    draggable={true}
+                    title="Drag out to fork a new draft from this version"
+                    onDragStart={(e) =>
+                      beginVersionDrag(e, changeRef(change()))
+                    }
+                    onDragEnd={() => props.onDragVersion(null)}
+                  >
+                    <span class="draft-sticker-time">
+                      {formatTime(change().time)}
+                    </span>
+                    <span class="draft-sticker-title">{change().title}</span>
+                    <span class="draft-sticker-spacer" />
+                    <EditCounts
+                      additions={change().additions}
+                      deletions={change().deletions}
+                    />
+                  </div>
+                )}
               </Show>
             </div>
           </Show>
@@ -913,7 +983,10 @@ function DraftChangesList(props: {
 // the group's newest timestamp, an eye toggling the group's diff, and the
 // aggregated +/- counts. Clicking the row parks the scrubber at the top of
 // the group with no diff; the eye expands it across the whole group. The row
-// highlights while the scrubber head sits inside the group.
+// highlights while the scrubber head sits inside the group. Dragging the row
+// out forks a new draft at the group's newest change (the same version
+// clicking pins); dragstart only fires past the movement threshold, so
+// click-to-select is unaffected.
 function TimeGroupRow(props: {
   group: TimeGroup;
   rowRef: (el: HTMLElement) => void;
@@ -921,6 +994,8 @@ function TimeGroupRow(props: {
   eyeActive: boolean;
   onSelect: () => void;
   onToggleEye: () => void;
+  onVersionDragStart: (e: DragEvent) => void;
+  onVersionDragEnd: () => void;
 }) {
   return (
     <button
@@ -928,8 +1003,11 @@ function TimeGroupRow(props: {
       class="draft-group-row"
       ref={props.rowRef}
       data-selected={props.isSelected ? "" : undefined}
-      title="View the draft as of this group"
+      title="View the draft as of this group — drag out to fork a draft from it"
       onClick={props.onSelect}
+      draggable={true}
+      onDragStart={props.onVersionDragStart}
+      onDragEnd={props.onVersionDragEnd}
     >
       <AuthorAvatars actors={props.group.actors} />
       <span class="draft-group-time">{formatTime(props.group.endTime)}</span>
@@ -972,26 +1050,6 @@ function EyeIcon() {
     >
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
       <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-// A magnifying glass for the scrubber's zoom toggle, shown while the
-// indicator spans a range.
-function MagnifierIcon() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="3"
-      stroke-linecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m21 21-4.3-4.3" />
     </svg>
   );
 }
@@ -1039,14 +1097,10 @@ function EditCounts(props: { additions: number; deletions: number }) {
 }
 
 // Fold a flat, newest-first list of changes into activity groups. Consecutive
-// changes stay in the same group while the pause between them is at most the
-// gap (INACTIVITY_GAP unless a magnified range passes a finer one); a longer
-// lull starts a new group. A group can span any stretch of continuous editing
-// — only inactivity splits it.
-function groupChanges(
-  changes: DraftChange[],
-  gapMs: number = INACTIVITY_GAP
-): TimeGroup[] {
+// changes stay in the same group while the pause between them is at most
+// INACTIVITY_GAP; a longer lull starts a new group. A group can span any
+// stretch of continuous editing — only inactivity splits it.
+function groupChanges(changes: DraftChange[]): TimeGroup[] {
   const timeGroups: TimeGroup[] = [];
   let window: DraftChange[] = [];
   let prevTimeMs: number | null = null;
@@ -1061,8 +1115,8 @@ function groupChanges(
   for (const change of changes) {
     const timeMs = change.time * 1000;
     // Rows arrive newest-first, so the previous row is this change's newer
-    // neighbour; a gap larger than `gapMs` between them is a lull.
-    if (prevTimeMs !== null && prevTimeMs - timeMs > gapMs) flush();
+    // neighbour; a gap larger than the threshold between them is a lull.
+    if (prevTimeMs !== null && prevTimeMs - timeMs > INACTIVITY_GAP) flush();
     window.push(change);
     prevTimeMs = timeMs;
   }
