@@ -1,6 +1,7 @@
 import type {Extension} from "@codemirror/state"
 import lycheeCssUrl from "./lychee.css"
 import gloomCssUrl from "./gloom.css"
+;(async function () {(await import("./active-theme.ts")).startActiveTheme()})();
 
 export const plugins = [
 	{
