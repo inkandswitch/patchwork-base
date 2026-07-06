@@ -2,9 +2,9 @@
 :root,
 :host,
 [theme] {
-  --comments-fg: var(--studio-line, black);
+  --comments-fg: var(--text-editor-line, var(--studio-line, black));
   --comments-muted-fg: var(--studio-line-offset-50, #999);
-  --comments-bg: var(--studio-fill, white);
+  --comments-bg: var(--text-editor-fill, var(--studio-fill, white));
   --comments-border: var(--studio-fill-offset-20, #ccc);
   --comments-hover-bg: var(--studio-fill-offset-10, #f5f5f5);
   --comments-font: var(--studio-family-sans, system-ui, sans-serif);
@@ -13,13 +13,20 @@
 }
 
 /* The width:100% boxes below (panel, textarea) also carry padding and a
-   border, so without border-box they extend past the sidebar and overflow it.
-   Scoped to the panel subtree so the injected stylesheet never touches the
-   host page (it may be injected into document.head, not a shadow root). */
+   border, so without border-box they extend past their container and overflow
+   it. Scoped to the panel and the thread card so the injected stylesheet never
+   touches the host page (it may be injected into document.head, not a shadow
+   root). The card is covered on its own because a single thread renders
+   standalone too — e.g. in the editor's comment popover, with no panel around
+   it — and its draft textarea would otherwise spill out of the card. */
 .comments-panel,
 .comments-panel *,
 .comments-panel *::before,
-.comments-panel *::after {
+.comments-panel *::after,
+.comments-thread-card,
+.comments-thread-card *,
+.comments-thread-card *::before,
+.comments-thread-card *::after {
   box-sizing: border-box;
 }
 
@@ -76,7 +83,6 @@
 .comments-thread-card {
   background: var(--comments-bg);
   border: 1px solid var(--comments-border);
-  border-radius: 0.5rem;
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
@@ -188,20 +194,18 @@
   overflow-wrap: break-word;
 }
 
-.comment-draft-textarea {
-  width: 100%;
+/* The draft editor is a cute.txt (CodeMirror) instance; box it like the old
+   textarea. Its inner padding/font come from the injected cute.txt styles. */
+.comment-draft-editor {
   min-height: 6rem;
   border: 1px solid var(--comments-border);
   border-radius: 0.5rem;
-  padding: 0.5rem;
-  font-family: var(--comments-font);
-  font-size: 0.875rem;
   color: var(--comments-fg);
   background: var(--comments-bg);
-  resize: vertical;
+  overflow: hidden;
 }
 
-.comment-draft-textarea:focus {
+.comment-draft-editor:focus-within {
   outline: 2px solid var(--comments-accent);
   outline-offset: 1px;
 }

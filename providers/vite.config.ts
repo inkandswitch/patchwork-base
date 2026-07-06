@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [],
 
   build: {
+    sourcemap: true,
     emptyOutDir: true,
     rollupOptions: {
       external: externals,

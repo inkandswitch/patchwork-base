@@ -27,6 +27,11 @@ export type Comment = {
   draftContent?: string;
   contactUrl: AutomergeUrl;
   timestamp: number;
+  // When present, the comment's `content` is treated as a reference (an
+  // automerge url) to another document, and the comment renders that document
+  // inline via `<patchwork-view>` instead of showing `content` as text. The
+  // `type` picks the default tool/view; the user can switch to another.
+  "@patchwork"?: { type: string; title?: string };
 };
 
 /**

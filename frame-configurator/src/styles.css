@@ -14,6 +14,7 @@
 .configurator {
   container-type: inline-size;
   padding: 1.25rem;
+  padding-bottom: 4rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;

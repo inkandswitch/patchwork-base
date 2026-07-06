@@ -1,6 +1,8 @@
 import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
 import { Show } from "solid-js";
+import { render } from "solid-js/web";
 import { subscribe } from "@inkandswitch/patchwork-providers-solid";
+import type { ToolElement } from "@inkandswitch/patchwork-plugins";
 import { DocHistoryView } from "./components/DocHistoryView";
 import "../styles.css";
 
@@ -36,3 +38,9 @@ export function HistoryTimeline(props: PatchworkToolProps) {
     </div>
   );
 }
+
+export const renderHistoryTimeline = (element: ToolElement) =>
+  render(
+    () => <HistoryTimeline repo={element.repo} element={element} />,
+    element
+  );

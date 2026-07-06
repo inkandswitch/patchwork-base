@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import './index.css';
 import { useRepo, useDocument, useDocHandle } from '@automerge/automerge-repo-react-hooks';
 import type { AutomergeUrl, DocHandle } from '@automerge/automerge-repo';
 import { RepoContext } from '@automerge/automerge-repo-react-hooks';

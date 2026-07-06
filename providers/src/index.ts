@@ -37,4 +37,13 @@ export const plugins: Plugin<any>[] = [
       return SelectedDocProvider;
     },
   },
+  {
+    type: "patchwork:component",
+    id: "patchwork-tool-storage-provider",
+    name: "Tool Storage Provider",
+    async load() {
+      const { ToolStorageProvider } = await import("./ToolStorageProvider.js");
+      return ToolStorageProvider;
+    },
+  },
 ];

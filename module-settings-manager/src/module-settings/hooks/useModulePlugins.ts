@@ -2,7 +2,9 @@ import {
   createEffect,
   createMemo,
   createResource,
+  createSignal,
   mapArray,
+  onCleanup,
   type Accessor,
 } from "solid-js";
 import {
@@ -10,10 +12,7 @@ import {
   type AutomergeUrl,
   type Repo,
 } from "@automerge/automerge-repo";
-import {
-  importModuleFromFolderDocUrl,
-  automergeUrlToServiceWorkerUrl,
-} from "@inkandswitch/patchwork-filesystem";
+import { automergeUrlToServiceWorkerUrl } from "@inkandswitch/patchwork-filesystem";
 import {
   extractUniqueDatatypes,
   matchesDatatype,
@@ -25,6 +24,7 @@ import {
   type ModuleEntry,
   type ModuleSettingsDocWithBranches,
 } from "../utils/module-types.ts";
+import { importModuleDescriptorsViaWorker } from "../workers/module-loader-client.ts";
 import type {
   Plugin,
   PluginDescription,
@@ -97,6 +97,13 @@ export function useModulePlugins(params: UseModulePluginsParams) {
   const moduleStateAccessors = mapArray(
     () => modules,
     (url) => {
+      // Bumped whenever the entry doc or its resolved folder doc changes heads.
+      // sourceKey below only tracks the entry URL and branch *selection*, so
+      // without this a new package version (new heads) — or a branches doc
+      // retargeting a branch — would never re-run discovery. See the effect
+      // below that subscribes to the underlying handles.
+      const [refetchToken, setRefetchToken] = createSignal(0);
+
       const sourceKey = () => {
         const branchKey = isValidAutomergeUrl(url)
           ? (url as AutomergeUrl)
@@ -107,12 +114,14 @@ export function useModulePlugins(params: UseModulePluginsParams) {
         const viewedBranch = branchKey
           ? (settingsDoc.branches?.[branchKey] ?? "")
           : "";
-        return `${url}|${userBranch}|${viewedBranch}`;
+        return `${url}|${userBranch}|${viewedBranch}|${refetchToken()}`;
       };
       const [resource] = createResource<ModulePayload, string>(
         sourceKey,
         async () => {
           const validAutomergeUrl = isValidAutomergeUrl(url);
+          // The bare folder URL drives live subscriptions and plugin-status
+          // matching; discovery and metadata are always pinned to heads (below).
           const folderUrl = validAutomergeUrl
             ? await resolveModuleEntryToFolderUrl(
                 repo,
@@ -124,19 +133,33 @@ export function useModulePlugins(params: UseModulePluginsParams) {
             throw new Error("Could not resolve module entry to a folder URL");
           }
 
-          const module = validAutomergeUrl
-            ? await importModuleFromFolderDocUrl(folderUrl!)
-            : await import(/* @vite-ignore */ url);
-          const plugins = (module?.plugins ||
-            []) as Plugin<PluginDescription>[];
+          // Pin the folder doc to its current heads so descriptor discovery
+          // (and the service-worker / ES-module cache the worker's import hits)
+          // key on this exact version. A bare URL would be served from cache and
+          // keep returning the first version imported this session.
+          let folderUrlAtHeads: AutomergeUrl | undefined;
+          if (folderUrl) {
+            const folderHandle = await repo.find(folderUrl);
+            folderUrlAtHeads = folderHandle.view(folderHandle.heads()).url;
+          }
+
+          // For an Automerge package, discover its plugins' descriptions in
+          // a worker instead of importing (and running) the package here —
+          // see module-loader-client.ts. Non-Automerge URLs have no worker
+          // counterpart and are imported directly.
+          const plugins = validAutomergeUrl
+            ? ((await importModuleDescriptorsViaWorker(folderUrlAtHeads!))
+                .plugins as unknown as Plugin<PluginDescription>[])
+            : (((await import(/* @vite-ignore */ url))?.plugins ??
+                []) as Plugin<PluginDescription>[]);
 
           let pkgInfo: PackageInfo | undefined;
-          if (folderUrl) {
+          if (folderUrlAtHeads) {
             try {
               const pkgJsonUrl = new URL(
                 "package.json",
                 new URL(
-                  automergeUrlToServiceWorkerUrl(folderUrl),
+                  automergeUrlToServiceWorkerUrl(folderUrlAtHeads),
                   window.location.origin
                 )
               ).href;
@@ -172,6 +195,40 @@ export function useModulePlugins(params: UseModulePluginsParams) {
           return { folderUrl, pkgInfo, plugins: enriched };
         }
       );
+
+      // Re-run discovery when the underlying docs actually change. Watch the
+      // entry doc (always) and, for a branches entry, the resolved folder doc
+      // — a folder doc's content update never touches the branches doc, so the
+      // branches doc's own "change" events can't stand in for it. We subscribe
+      // to the *bare* (live) folder URL; a heads-pinned handle is a frozen
+      // snapshot and wouldn't emit changes past its heads.
+      createEffect(() => {
+        if (!isValidAutomergeUrl(url)) return;
+        // Depend on the current resolution so we re-subscribe if a branch is
+        // retargeted to a different folder doc.
+        const folderUrl = resource.latest?.folderUrl;
+        let disposed = false;
+        const cleanups: Array<() => void> = [];
+        const bump = () => {
+          if (!disposed) setRefetchToken((n) => n + 1);
+        };
+        void (async () => {
+          const entryHandle = await repo.find(url as AutomergeUrl);
+          if (disposed) return;
+          entryHandle.on("change", bump);
+          cleanups.push(() => entryHandle.off("change", bump));
+          if (folderUrl && folderUrl !== url) {
+            const folderHandle = await repo.find(folderUrl);
+            if (disposed) return;
+            folderHandle.on("change", bump);
+            cleanups.push(() => folderHandle.off("change", bump));
+          }
+        })();
+        onCleanup(() => {
+          disposed = true;
+          for (const off of cleanups) off();
+        });
+      });
 
       createEffect(() => {
         if (resource.error) {

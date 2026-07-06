@@ -29,6 +29,8 @@ import {
   copyMode,
   setCopyMode,
   isNewDocDrag,
+  setDragOriginView,
+  isSameDragOriginView,
 } from "../dnd/dnd.ts";
 import { setPendingNewDoc } from "../state.ts";
 import {
@@ -37,11 +39,50 @@ import {
   type DocHandle,
   type Repo,
 } from "@automerge/automerge-repo";
-import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
-import { executeDrop } from "../dnd/operations.ts";
+import {
+  type FolderDoc,
+  getImportableUrlFromAutomergeUrl,
+} from "@inkandswitch/patchwork-filesystem";
+import { executeDrop, removeItemsByUrl } from "../dnd/operations.ts";
 import { getDndPayload } from "../dnd/payload.ts";
 import { handleFilesDrop } from "./file-drop.ts";
 import { log } from "../dnd/debug.ts";
+
+// ── OS drag-out ─────────────────────────────────────────────────────────────
+// A best-effort extension→MIME map so a single dragged `file` doc can be exposed
+// as a real OS file via the Chromium `DownloadURL` format. The bytes are served
+// (with the doc's stored mime) by the patchwork service worker; the OS keys off
+// the filename extension, so this hint only needs to be reasonable. Duplicated
+// on purpose for now — a shared DnD package is a later step.
+const EXT_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  bmp: "image/bmp",
+  tiff: "image/tiff",
+  svg: "image/svg+xml",
+  pdf: "application/pdf",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  html: "text/html",
+  zip: "application/zip",
+};
+
+function mimeForName(name: string): string | undefined {
+  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+  return ext ? EXT_MIME[ext] : undefined;
+}
 
 export default function Item(props: {
   "aria-label": string;
@@ -72,6 +113,38 @@ export default function Item(props: {
   const datatypes = useFilteredDatatypes((item) => !item.unlisted);
   const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
 
+  // Metadata for OS drag-out, prefetched (once, on mouse-down) for `file` docs
+  // so dragstart can synchronously expose an accurate `DownloadURL`. If the doc
+  // hasn't resolved yet we fall back to the DocLink name + extension-derived
+  // mime, which is good enough (the OS keys off the filename extension anyway).
+  const [fileMeta, setFileMeta] = createSignal<{
+    mime: string;
+    filename: string;
+  } | null>(null);
+  let filePrefetched = false;
+  function prefetchFileMeta() {
+    if (filePrefetched || props.type !== "file") return;
+    filePrefetched = true;
+    props.repo
+      .find(props.url)
+      .then((handle) => {
+        const doc = handle?.doc() as
+          | { name?: string; extension?: string; mimeType?: string }
+          | undefined;
+        if (!doc) return;
+        const base = String(doc.name ?? props.name ?? "file");
+        const ext = doc.extension
+          ? `.${String(doc.extension).replace(/^\.+/, "")}`
+          : "";
+        const filename = ext && !base.endsWith(ext) ? `${base}${ext}` : base;
+        const mime = String(
+          doc.mimeType || mimeForName(filename) || "application/octet-stream"
+        );
+        setFileMeta({ mime, filename });
+      })
+      .catch(() => {});
+  }
+
   createEffect((prev) => {
     if (props.pressed && !prev) {
       const el = untrack(trigger);
@@ -91,21 +164,43 @@ export default function Item(props: {
     source: props.element.toolId!,
   });
 
+  // Remove from the context menu. When this item is part of a multi-selection
+  // (cmd-click or cmd-drag marquee), remove the whole selection — with a
+  // confirmation prompt, since removing several at once is easy to fat-finger.
+  // A lone item removes without a prompt, matching the old behaviour.
+  async function handleRemove() {
+    const multi = dragstack.has(props.id) && dragstack.size > 1;
+    if (!multi) {
+      props.remove();
+      return;
+    }
+    const urls = [...dragstack.values()].map((item) => item.url);
+    if (!confirm(`Remove ${urls.length} items from the sidebar?`)) return;
+    clearDragstack();
+    await removeItemsByUrl(props.repo, props.rootFolderHandle, urls);
+  }
+
   async function handleDrop(
     event: DragEvent,
     targetId: string,
-    position: "above" | "below"
+    position: "above" | "below" | "inside"
   ) {
     log("Item drop handler called for:", targetId, position);
 
-    // Handle file drops from OS - add to parent folder at correct position
+    // Handle file drops from OS. Above/below go into this item's parent; inside
+    // goes into the target folder itself.
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      const folderHandle =
+        position === "inside" && props.type === "folder"
+          ? await props.repo.find<FolderDoc>(props.url)
+          : props.parentFolderHandle ?? props.rootFolderHandle;
+
       await handleFilesDrop(
         event.dataTransfer.files,
-        props.parentFolderHandle,
+        folderHandle,
         props.repo,
         position,
-        props.itemIndex
+        position === "inside" ? 0 : props.itemIndex ?? 0
       );
       return;
     }
@@ -131,7 +226,7 @@ export default function Item(props: {
       },
       props.repo,
       props.rootFolderHandle,
-      props.element.toolId!
+      isSameDragOriginView(props.element)
     );
   }
 
@@ -190,7 +285,9 @@ export default function Item(props: {
             "text/x-patchwork-urls"
           );
 
-          // Add structured data with source tracking
+          // Add structured data with source tracking. The move-vs-copy decision
+          // keys off the origin *element* (setDragOriginView below), not this
+          // toolId, which is null for the fallback-mounted sideboard.
           event.dataTransfer?.items.add(
             JSON.stringify({
               source: props.element.toolId,
@@ -198,6 +295,29 @@ export default function Item(props: {
             }),
             "text/x-patchwork-dnd"
           );
+
+          // OS drag-out: a single `file` doc can be dragged straight to the
+          // desktop/Finder as a real file (Chromium `DownloadURL`). Served as
+          // raw content by the patchwork service worker at `/<encoded url>/`.
+          // Single-item only — the format carries one entry.
+          if (dragstack.size === 1 && props.type === "file") {
+            const meta = fileMeta();
+            const filename = meta?.filename ?? props.name;
+            const mime =
+              meta?.mime ?? mimeForName(filename) ?? "application/octet-stream";
+            try {
+              const swUrl = new URL(
+                getImportableUrlFromAutomergeUrl(props.url),
+                location.origin
+              ).href;
+              event.dataTransfer?.setData(
+                "DownloadURL",
+                `${mime}:${filename}:${swUrl}`
+              );
+            } catch {
+              // location unavailable in exotic embeds — skip OS export.
+            }
+          }
 
           // Create drag preview
           const preview = document.createElement("div");
@@ -224,6 +344,7 @@ export default function Item(props: {
           setTimeout(() => preview.remove(), 0);
 
           setDragSourceItems([...dragstack.keys()]);
+          setDragOriginView(props.element);
           setDragging(true);
         }}
         ondrag={(event: DragEvent) => {
@@ -236,6 +357,7 @@ export default function Item(props: {
           clearDragSourceItems();
           clearDragstack();
           setCopyMode(false);
+          setDragOriginView(null);
           setDragging(false);
         }}
         ondragover={(event: DragEvent) => {
@@ -295,11 +417,24 @@ export default function Item(props: {
             target
           );
 
-          // For folders with "inside" position, let the container handle it
+          // For folder rows, handle "inside" directly. Relying on bubbling from
+          // the row button to the folder wrapper is fragile and can make a
+          // folder-name drop do nothing in some browsers/components.
           if (props.type === "folder" && target?.position === "inside") {
-            console.log(
-              "[DnD] Folder inside position, letting container handle"
-            );
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (isNewDocDrag(event)) {
+              setPendingNewDoc({
+                containerUrl: props.url,
+                index: 0,
+              });
+              clearDropTarget();
+              return;
+            }
+
+            handleDrop(event, target.id, "inside");
+            clearDropTarget();
             return;
           }
 
@@ -335,6 +470,7 @@ export default function Item(props: {
         draggable
         data-dnd-item={props.id}
         data-doc-url={props.url}
+        data-doc-type={props.type}
         aria-label={props["aria-label"]}
         aria-haspopup="menu"
         as="button"
@@ -342,6 +478,8 @@ export default function Item(props: {
         role="treeitem"
         aria-selected={props.pressed ? "true" : undefined}
         onMouseDown={(event: MouseEvent) => {
+          // Warm up file metadata so a subsequent drag can export to the OS.
+          prefetchFileMeta();
           if (event.ctrlKey || event.metaKey) {
             if (dragstack.has(props.id)) {
               removeFromDragstack(props.id);
@@ -536,9 +674,11 @@ export default function Item(props: {
           </ContextMenu.Item>
           <ContextMenu.Item
             class="popmenu__item"
-            onSelect={() => props.remove()}
+            onSelect={() => handleRemove()}
           >
-            Remove
+            {dragstack.has(props.id) && dragstack.size > 1
+              ? `Remove ${dragstack.size} items`
+              : "Remove"}
           </ContextMenu.Item>
           <Show when={props.share}>
             <ContextMenu.Item

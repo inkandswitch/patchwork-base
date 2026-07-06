@@ -19,9 +19,19 @@ export function ImageFileViewer(props: {doc: FileDoc}) {
 		<img
 			src={imgUrl()}
 			alt={props.doc.name}
-			class="max-w-full max-h-full object-contain"
+			style={{
+				"max-width": "100%",
+				"max-height": "100%",
+				"object-fit": "contain",
+			}}
 		/>
 	) : (
-		<div class="text-gray-500">No image to display</div>
+		<div
+			style={{
+				background: "var(--editor-fill)",
+				color: "var(--editor-line)",
+			}}>
+			No image to display
+		</div>
 	)
 }

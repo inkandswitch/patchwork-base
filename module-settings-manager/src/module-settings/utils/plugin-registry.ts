@@ -1,5 +1,6 @@
 import {
   createEffect,
+  createMemo,
   createSignal,
   onCleanup,
   type Accessor,
@@ -91,4 +92,29 @@ export function useActiveImportUrl(
     onCleanup(off);
   });
   return active;
+}
+
+export type PluginStatus = "active" | "shadowed" | "inactive" | "unknown";
+
+/**
+ * Reactive activation status of a (type, id) plugin relative to `sourceUrl`:
+ * "active" if it's the live registration, "shadowed" if something else is
+ * live but this source could take over, "inactive" if nothing is registered.
+ */
+export function usePluginStatus(
+  type: Accessor<string | undefined>,
+  id: Accessor<string | undefined>,
+  sourceUrl: Accessor<string | undefined>
+): Accessor<PluginStatus> {
+  const activeImportUrl = useActiveImportUrl(type, id);
+  return createMemo<PluginStatus>(() => {
+    if (!id()) return "unknown";
+    const active = activeImportUrl();
+    if (!active) return "inactive";
+    const source = sourceUrl();
+    if (active === source || sameAutomergeDoc(active, source)) {
+      return "active";
+    }
+    return "shadowed";
+  });
 }

@@ -1,23 +1,11 @@
 import { Plugin, ToolImplementation } from "@inkandswitch/patchwork-plugins";
-import { render } from "solid-js/web";
 import type { AccountDoc } from "./types";
 
 async function loadFrame(
   isolation?: boolean
 ): Promise<ToolImplementation<AccountDoc>> {
-  const { PatchworkFrame } = await import("./PatchworkFrame");
-  return (handle, element) => {
-    return render(
-      () => (
-        <PatchworkFrame
-          handle={handle}
-          repo={element.repo}
-          isolation={isolation}
-        />
-      ),
-      element
-    );
-  };
+  const { renderPatchworkFrame } = await import("./PatchworkFrame");
+  return renderPatchworkFrame(isolation);
 }
 
 export const plugins: Plugin<any>[] = [

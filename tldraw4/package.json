@@ -32,7 +32,7 @@
     "@inkandswitch/patchwork-bootloader": "^0.2.8",
     "@inkandswitch/patchwork-filesystem": "^0.0.3",
     "@inkandswitch/patchwork-plugins": "^0.0.5",
-    "@inkandswitch/patchwork-providers": "0.2.2",
+    "@inkandswitch/patchwork-providers": "0.3.0",
     "@inkandswitch/patchwork-providers-react": "0.2.2",
     "@tldraw/tldraw": "4.3.1",
     "@types/lodash": "^4.17.20",

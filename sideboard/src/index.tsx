@@ -1,5 +1,7 @@
+// Static (not lazy): the only reference that makes esbuild emit dist/index.css
+// as a build artifact. It's plain CSS text (not a JS runtime), so — unlike
+// solid-js/web below — it's fine for the entry to reference it directly.
 import "./index.css";
-import { render } from "solid-js/web";
 import { type ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import type { SideboardAccountDoc } from "./types.ts";
@@ -25,22 +27,13 @@ const doclist = {
   icon: "FolderOpen",
   unlisted: true,
   async load(): Promise<ToolImplementation<FolderDoc>> {
-    const [{ DocumentListPanel }, styles] = await Promise.all([
+    const [{ renderDocumentListPanel }, styles] = await Promise.all([
       import("./sideboard/document-list-panel.tsx"),
       loadStyles(),
     ]);
     return (handle, element) => {
       addStyles(styles);
-      return render(
-        () => (
-          <DocumentListPanel
-            folderUrl={handle.url}
-            repo={element.repo}
-            element={element}
-          />
-        ),
-        element
-      );
+      return renderDocumentListPanel(handle.url, element);
     };
   },
 };
@@ -61,18 +54,13 @@ export const plugins = [
     icon: "UserCircle",
     unlisted: true,
     async load(): Promise<ToolImplementation<SideboardAccountDoc>> {
-      const [{ AccountBar }, styles] = await Promise.all([
+      const [{ renderAccountBar }, styles] = await Promise.all([
         import("./sideboard/account-bar.tsx"),
         loadStyles(),
       ]);
       return (handle, element) => {
         addStyles(styles);
-        return render(
-          () => (
-            <AccountBar handle={handle} repo={element.repo} element={element} />
-          ),
-          element
-        );
+        return renderAccountBar(handle, element);
       };
     },
   },
@@ -85,18 +73,13 @@ export const plugins = [
     icon: "FolderOpen",
     unlisted: true,
     async load(): Promise<ToolImplementation<SideboardAccountDoc>> {
-      const [{ Sideboard }, styles] = await Promise.all([
+      const [{ renderSideboard }, styles] = await Promise.all([
         import("./sideboard/sideboard.tsx"),
         loadStyles(),
       ]);
       return (handle, element) => {
         addStyles(styles);
-        return render(
-          () => (
-            <Sideboard handle={handle} repo={element.repo} element={element} />
-          ),
-          element
-        );
+        return renderSideboard(handle, element);
       };
     },
   },

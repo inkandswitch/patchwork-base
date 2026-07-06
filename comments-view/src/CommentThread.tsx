@@ -19,7 +19,13 @@ import {
   type Repo,
 } from "@automerge/automerge-repo";
 import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
-import type { ToolElement } from "@inkandswitch/patchwork-plugins";
+import { type ToolElement } from "@inkandswitch/patchwork-plugins";
+import {
+  createCuteEditor,
+  defaultSchema,
+  defaultAutocompletes,
+} from "cute.txt";
+import { CuteText } from "cute.txt/solid";
 import { createReply, type Comment, type CommentThread } from "./comments";
 
 // A standalone tool rendering a single comment thread from its subdocument
@@ -297,12 +303,6 @@ function CommentView(props: {
     return ct?.type === "registered" ? ct.name : "Anonymous";
   };
 
-  const onChangeDraft = (newDraftContent: string) => {
-    props.commentHandle.change((c: Comment) => {
-      c.draftContent = newDraftContent;
-    });
-  };
-
   return (
     <Show when={shouldRender() && comment()}>
       <div class="comment-card" data-id={props.commentHandle.url}>
@@ -323,18 +323,76 @@ function CommentView(props: {
         <Show
           when={isDraft()}
           fallback={
-            <div class="comment-content">{comment()!.content}</div>
+            <div class="comment-content">
+              <CuteText text={() => comment()?.content ?? ""} />
+            </div>
           }
         >
-          <textarea
-            class="comment-draft-textarea"
-            value={comment()!.draftContent ?? ""}
-            onInput={(e) => onChangeDraft(e.currentTarget.value)}
+          <CuteDraftEditor
+            commentHandle={props.commentHandle}
+            repo={props.repo}
           />
         </Show>
       </div>
     </Show>
   );
+}
+
+// A cute.txt editor bound to the comment's `draftContent`. Replaces the plain
+// textarea so drafts get the same rich plain-text (marks, emoji, embeds) that
+// chat and notes use — the default cute.txt schema, no comments-specific
+// plugins. The editor edits the field in place via `am.splice`, so it must
+// already be a string; a freshly-created draft has no `draftContent` yet, so we
+// seed it to "" before mounting. Lives inside the `isDraft()` branch, so Solid
+// unmounts it (and `onCleanup` destroys the editor) the moment the draft is
+// saved or cancelled.
+function CuteDraftEditor(props: {
+  commentHandle: DocHandle<Comment>;
+  repo: Repo;
+}) {
+  let parent!: HTMLDivElement;
+  onMount(() => {
+    const handle = props.commentHandle;
+    if (typeof handle.doc()?.draftContent !== "string") {
+      handle.change((c: Comment) => {
+        if (typeof c.draftContent !== "string") c.draftContent = "";
+      });
+    }
+    const editor = createCuteEditor({
+      handle,
+      path: ["draftContent"],
+      schema: defaultSchema,
+      // `defaultAutocompletes` is a map keyed by id; the editor wants the specs
+      // as a flat array (e.g. the built-in emoji `:` completer).
+      autocompletes: Object.values(defaultAutocompletes),
+      parent,
+      repo: props.repo,
+    });
+    editor.view.focus();
+
+    // Cmd/Ctrl+Space sends the draft — the same commit the Save button does
+    // (`draftContent` → `content`). Capture-phase so it wins before CodeMirror
+    // treats the Space as text input.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.code !== "Space") return;
+      event.preventDefault();
+      event.stopPropagation();
+      const draft = handle.doc()?.draftContent ?? "";
+      if (!draft.trim()) return;
+      handle.change((c: Comment) => {
+        c.content = c.draftContent;
+        c.timestamp = Date.now();
+        delete c.draftContent;
+      });
+    };
+    parent.addEventListener("keydown", onKeyDown, true);
+
+    onCleanup(() => {
+      parent.removeEventListener("keydown", onKeyDown, true);
+      editor.destroy();
+    });
+  });
+  return <div class="cutetxt-editor comment-draft-editor" ref={parent} />;
 }
 
 // Reactively track a single attribute on `element`, seeded from its current

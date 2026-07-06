@@ -1,16 +1,19 @@
 import { createSignal, createMemo, createEffect, For, Show } from "solid-js";
+import { render } from "solid-js/web";
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { makeDocumentProjection } from "@automerge/automerge-repo-solid-primitives";
 import { OpenDocumentEvent } from "@inkandswitch/patchwork-elements";
 import {
   getRegistry,
   type ToolDescription,
+  type ToolImplementation,
 } from "@inkandswitch/patchwork-plugins";
 import {
   type PatchworkToolProps,
   type HistoryDoc,
   type HistoryEntry,
 } from "./types.ts";
+import "./index.css";
 
 type GroupingMode = "date" | "document";
 type DocumentSortMode = "recent" | "visits";
@@ -412,3 +415,8 @@ export function HistoryViewer(props: PatchworkToolProps<HistoryDoc>) {
     </div>
   );
 }
+
+export const renderHistoryViewer: ToolImplementation<HistoryDoc> = (
+  handle,
+  element
+) => render(() => <HistoryViewer handle={handle} repo={element.repo} element={element} />, element);

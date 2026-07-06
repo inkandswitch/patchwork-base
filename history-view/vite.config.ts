@@ -5,14 +5,11 @@ import external from "@inkandswitch/patchwork-bootloader/externals";
 
 export default defineConfig({
   base: "./",
-  plugins: [
-    solid(),
-    cssInjectedByJsPlugin({
-      jsAssetsFilterFunction: (chunk) => chunk.fileName === "index.js",
-    }),
-  ],
+  plugins: [solid(), cssInjectedByJsPlugin({ relativeCSSInjection: true })],
 
   build: {
+    sourcemap: true,
+    cssCodeSplit: true,
     minify: false,
     rollupOptions: {
       external,

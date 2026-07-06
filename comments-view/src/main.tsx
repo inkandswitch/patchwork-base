@@ -1,9 +1,24 @@
 import { render } from "solid-js/web";
 import { RepoContext } from "@automerge/automerge-repo-solid-primitives";
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
+import { STYLE as CUTE_STYLE } from "cute.txt/style";
 import { CommentsView } from "./CommentsView";
 import { CommentThreadView } from "./CommentThread";
 import type { CommentThread } from "./comments";
+
+// cute.txt is bundleless (no CSS import) and ships its styles as a string; the
+// editor/rendered marks need them. Inject once into the document head — guarded
+// so the two tools in this package (which both pull in this module) don't
+// double it.
+function ensureCuteStyle() {
+  const id = "cute-txt-style";
+  if (typeof document === "undefined" || document.getElementById(id)) return;
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = CUTE_STYLE;
+  document.head.append(style);
+}
+ensureCuteStyle();
 
 export const renderCommentsView: ToolImplementation = (_handle, element) => {
   return render(

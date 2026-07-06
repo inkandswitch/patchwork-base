@@ -9,8 +9,8 @@ export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
   init(doc) {
     doc.frameToolId = "threepane";
     // The left pane is now a widget list (migrated into the threepane config
-    // doc); no default account sidebar tool. These seed the migration.
-    doc.contextToolIds = ["comments-view", "history-view"];
+    // doc); no default account sidebar tool. The context sidebar is
+    // registry-driven now, so there's nothing to seed for it.
     // Title + spacer are rendered intrinsically by the frame's top bar; only the
     // right-hand doctitle tools are configured here.
     doc.documentToolbarToolIds = [
@@ -23,14 +23,12 @@ export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
   getTitle: () => "Patchwork Account",
 };
 
-/** The threepane layout config doc (sidebar widgets, context tabs, doctitle tools). */
+/** The threepane layout config doc (sidebar widgets, doctitle tools). */
 export const ThreepaneConfigDatatype: DatatypeImplementation<ThreepaneConfigDoc> =
   {
     init(doc) {
       doc.sidebar = { widgets: [] };
-      doc.contextbar = { tabs: [] };
       doc.doctitle = { tools: [] };
-      doc.tray = { tools: [] };
     },
     getTitle: () => "Threepane Config",
   };

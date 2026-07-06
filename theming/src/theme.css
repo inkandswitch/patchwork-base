@@ -5,6 +5,10 @@
 	color-scheme: light;
 	color: var(--studio-line);
 	accent-color: var(--studio-primary);
+	font-family: var(--studio-family);
+	font-size: var(--studio-font-size);
+	font-weight: var(--studio-font-weight);
+	line-height: var(--studio-line-height);
 	--default-tab-size: 2;
 
 	/* a plain fill<->line mix drifts to neutral gray in the middle of the
@@ -159,6 +163,82 @@
 	--studio-link: #36e;
 	--studio-danger: #ff6a90;
 	--studio-warning: #f8c43b;
+
+	/* Accent surfaces. Each accent (primary/secondary/danger/warning) ships as a
+	   Bulma-style contrast pair — the same fill/line shape as --studio-chrome:
+
+	   --studio-{accent}-fill  the accent used AS A SURFACE (button/pill background).
+	   --studio-{accent}-line  the INVERT: ink placed ON that fill. Legibility must hold
+	                           for ANY accent (themes ship everything from near-white to
+	                           near-black accents), so it can't be tied to --studio-line
+	                           (that tracks the page, not the accent). Instead it's
+	                           luminance-adaptive: read the accent's own oklch lightness and
+	                           snap the ink to black for light accents / white for dark ones.
+	                           clamp(0,(0.62 - l)*1000,1) is a hard step at L≈0.62 — the
+	                           perceptual black/white flip point — with chroma & hue zeroed
+	                           for a neutral ink. A theme can still override -line to taste.
+	   --studio-{accent}-fill-offset-10..50  a hover/border ramp, fill mixed toward the
+	                           invert. offset-10 == the fill itself (matches the chrome
+	                           numbering); the first visible step is -20. No offset-tint:
+	                           an accent→dark-ink mix stays in-hue and never drifts gray,
+	                           so the neutralising tint the other ramps use isn't needed.
+
+	   Distinct from the -text tokens below: -line is for ink ON the accent; -text is the
+	   accent used AS ink on the ambient background. */
+	--studio-primary-fill: var(--studio-primary);
+	--studio-primary-line: oklch(from var(--studio-primary) clamp(0, (0.62 - l) * 1000, 1) 0 0);
+	--studio-primary-fill-offset-10: color-mix(in oklch, var(--studio-primary-fill), var(--studio-primary-line) 0%);
+	--studio-primary-fill-offset-20: color-mix(in oklch, var(--studio-primary-fill), var(--studio-primary-line) 7%);
+	--studio-primary-fill-offset-30: color-mix(in oklch, var(--studio-primary-fill), var(--studio-primary-line) 18%);
+	--studio-primary-fill-offset-40: color-mix(in oklch, var(--studio-primary-fill), var(--studio-primary-line) 32%);
+	--studio-primary-fill-offset-50: color-mix(in oklch, var(--studio-primary-fill), var(--studio-primary-line) 50%);
+
+	--studio-secondary-fill: var(--studio-secondary);
+	--studio-secondary-line: oklch(from var(--studio-secondary) clamp(0, (0.62 - l) * 1000, 1) 0 0);
+	--studio-secondary-fill-offset-10: color-mix(in oklch, var(--studio-secondary-fill), var(--studio-secondary-line) 0%);
+	--studio-secondary-fill-offset-20: color-mix(in oklch, var(--studio-secondary-fill), var(--studio-secondary-line) 7%);
+	--studio-secondary-fill-offset-30: color-mix(in oklch, var(--studio-secondary-fill), var(--studio-secondary-line) 18%);
+	--studio-secondary-fill-offset-40: color-mix(in oklch, var(--studio-secondary-fill), var(--studio-secondary-line) 32%);
+	--studio-secondary-fill-offset-50: color-mix(in oklch, var(--studio-secondary-fill), var(--studio-secondary-line) 50%);
+
+	--studio-danger-fill: var(--studio-danger);
+	--studio-danger-line: oklch(from var(--studio-danger) clamp(0, (0.62 - l) * 1000, 1) 0 0);
+	--studio-danger-fill-offset-10: color-mix(in oklch, var(--studio-danger-fill), var(--studio-danger-line) 0%);
+	--studio-danger-fill-offset-20: color-mix(in oklch, var(--studio-danger-fill), var(--studio-danger-line) 7%);
+	--studio-danger-fill-offset-30: color-mix(in oklch, var(--studio-danger-fill), var(--studio-danger-line) 18%);
+	--studio-danger-fill-offset-40: color-mix(in oklch, var(--studio-danger-fill), var(--studio-danger-line) 32%);
+	--studio-danger-fill-offset-50: color-mix(in oklch, var(--studio-danger-fill), var(--studio-danger-line) 50%);
+
+	--studio-warning-fill: var(--studio-warning);
+	--studio-warning-line: oklch(from var(--studio-warning) clamp(0, (0.62 - l) * 1000, 1) 0 0);
+	--studio-warning-fill-offset-10: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 0%);
+	--studio-warning-fill-offset-20: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 7%);
+	--studio-warning-fill-offset-30: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 18%);
+	--studio-warning-fill-offset-40: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 32%);
+	--studio-warning-fill-offset-50: color-mix(in oklch, var(--studio-warning-fill), var(--studio-warning-line) 50%);
+
+	/* The link accent is built on the --studio-link color. Everything else derives
+	   from --studio-link-fill — the invert ink, hover/border ramp, and all three
+	   -text variants — so retinting links is a single override of --studio-link. */
+	--studio-link-fill: var(--studio-link);
+	--studio-link-line: oklch(from var(--studio-link-fill) clamp(0, (0.62 - l) * 1000, 1) 0 0);
+	--studio-link-fill-offset-10: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 0%);
+	--studio-link-fill-offset-20: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 7%);
+	--studio-link-fill-offset-30: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 18%);
+	--studio-link-fill-offset-40: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 32%);
+	--studio-link-fill-offset-50: color-mix(in oklch, var(--studio-link-fill), var(--studio-link-line) 50%);
+
+	/* Accent AS ink on the ambient background. Legibility depends on which surface
+	   the text sits on, so there's one per surface family — each mixes the accent
+	   toward that surface's own line, which rides the theme automatically (darkened
+	   on light fills, lightened on dark ones). The --editor-*/--text-editor-* ones
+	   are defined alongside those surfaces below. */
+	--studio-primary-text: color-mix(in oklch, var(--studio-primary), var(--studio-line) 35%);
+	--studio-secondary-text: color-mix(in oklch, var(--studio-secondary), var(--studio-line) 35%);
+	--studio-danger-text: color-mix(in oklch, var(--studio-danger), var(--studio-line) 35%);
+	--studio-warning-text: color-mix(in oklch, var(--studio-warning), var(--studio-line) 35%);
+	--studio-link-text: color-mix(in oklch, var(--studio-link-fill), var(--studio-line) 35%);
+
 	--studio-family-sans: "Jost*", "Jost", system-ui, -apple-system, sans-serif;
 	--studio-family-code:
 		"Fantasque Sans Mono", "IBM Plex Mono", "Fira Code", "Iosevka",
@@ -271,6 +351,13 @@
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
 
+	/* accents as ink on the editor surface — mixed toward --editor-line */
+	--editor-primary-text: color-mix(in oklch, var(--studio-primary), var(--editor-line) 35%);
+	--editor-secondary-text: color-mix(in oklch, var(--studio-secondary), var(--editor-line) 35%);
+	--editor-danger-text: color-mix(in oklch, var(--studio-danger), var(--editor-line) 35%);
+	--editor-warning-text: color-mix(in oklch, var(--studio-warning), var(--editor-line) 35%);
+	--editor-link-text: color-mix(in oklch, var(--studio-link-fill), var(--editor-line) 35%);
+
 	--editor-family-code: var(--studio-family-code);
 	--editor-family-sans: var(--studio-family-sans);
 	--editor-family: var(--editor-family-sans);
@@ -337,6 +424,13 @@
 		color-mix(in oklch, var(--text-editor-line), var(--text-editor-fill) 50%),
 		var(--studio-offset-tint) var(--studio-offset-tint-amount)
 	);
+	/* accents as ink on the text-editor surface — mixed toward --text-editor-line */
+	--text-editor-primary-text: color-mix(in oklch, var(--studio-primary), var(--text-editor-line) 35%);
+	--text-editor-secondary-text: color-mix(in oklch, var(--studio-secondary), var(--text-editor-line) 35%);
+	--text-editor-danger-text: color-mix(in oklch, var(--studio-danger), var(--text-editor-line) 35%);
+	--text-editor-warning-text: color-mix(in oklch, var(--studio-warning), var(--text-editor-line) 35%);
+	--text-editor-link-text: color-mix(in oklch, var(--studio-link-fill), var(--text-editor-line) 35%);
+
 	--text-editor-family-code: var(--editor-family-code);
 	--text-editor-family-sans: var(--editor-family-sans);
 	--text-editor-family: var(--text-editor-family-code);
@@ -576,6 +670,10 @@
 	--syntax-weight-content-separator: var(--text-editor-text-weight);
 }
 
+:root {
+	background-color: var(--studio-chrome-fill);
+}
+
 ::selection {
 	background: var(--studio-selection-fill);
 	color: var(--studio-selection-line);
@@ -583,5 +681,11 @@
 
 body {
 	margin: 0;
+}
+
+input, button, select, textarea, optgroup {
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
 }
 }

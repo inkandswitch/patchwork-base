@@ -82,8 +82,46 @@ export function useAutomergeStore({
     /* Automerge to TLDraw */
     const syncAutomergeDocChangesToStore = ({
       patches,
+      scopeReplaced,
     }: DocHandleChangePayload<any>) => {
       if (preventPatchApplications) return;
+
+      // A wholesale scope replacement (e.g. the draft overlay re-pointing
+      // this handle at a different clone) carries no patch stream connecting
+      // the old doc to the new one. Diff the new doc's *document*-scope
+      // records into the store rather than `loadStoreSnapshot`: that would
+      // `clear()` the session-scope records too (camera/zoom, current page,
+      // selection), which should survive a draft switch. Drafts are forks of
+      // each other, so most records are identical and `put` skips them.
+      if (scopeReplaced) {
+        const doc = handle.doc();
+        if (!doc?.store) return;
+        const migrated = store.schema.migrateStoreSnapshot({
+          store: JSON.parse(JSON.stringify(doc.store)),
+          schema: JSON.parse(JSON.stringify(doc.schema)),
+        });
+        if (migrated.type === "error") {
+          console.error(
+            "[tldraw4] failed to migrate swapped-in snapshot:",
+            migrated.reason
+          );
+          return;
+        }
+        const next = migrated.value;
+        store.mergeRemoteChanges(() => {
+          const toRemove = store
+            .allRecords()
+            .filter(
+              (record) =>
+                store.scopedTypes.document.has(record.typeName) &&
+                !(record.id in next)
+            )
+            .map((record) => record.id);
+          if (toRemove.length) store.remove(toRemove);
+          store.put(Object.values(next));
+        });
+        return;
+      }
 
       applyAutomergePatchesToTLStore(patches, store);
     };

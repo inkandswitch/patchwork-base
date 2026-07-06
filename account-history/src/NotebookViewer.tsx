@@ -1,13 +1,16 @@
 import { createSignal, createMemo, createEffect, Show, For, onCleanup } from "solid-js";
+import { render } from "solid-js/web";
 import type { AutomergeUrl } from "@automerge/automerge-repo";
 import { makeDocumentProjection } from "@automerge/automerge-repo-solid-primitives";
 import { OpenDocumentEvent } from "@inkandswitch/patchwork-elements";
+import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import {
   type PatchworkToolProps,
   type HistoryDoc,
   type HistoryEntry,
 } from "./types.ts";
 import "./NotebookViewer.css";
+import "./index.css";
 
 const LS_INDEX_KEY = "notebook-viewer-current-index";
 const LS_STEP_KEY = "notebook-viewer-step-size";
@@ -594,3 +597,8 @@ export function NotebookViewer(props: PatchworkToolProps<HistoryDoc>) {
     </div>
   );
 }
+
+export const renderNotebookViewer: ToolImplementation<HistoryDoc> = (
+  handle,
+  element
+) => render(() => <NotebookViewer handle={handle} repo={element.repo} element={element} />, element);

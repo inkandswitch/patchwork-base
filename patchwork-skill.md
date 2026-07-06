@@ -4,9 +4,10 @@ description: >-
   Build, scaffold, or modify a Patchwork tool, datatype, or action in this repo.
   Use whenever creating a new tool from scratch, porting something into Patchwork,
   adding a datatype/tool/action plugin, wiring an automerge document model, or
-  setting up the build/sync (vite + pushwork). House style: write tools in plain
-  vanilla JavaScript with NO TypeScript; if a reactive framework is truly needed,
-  use Solid (never React). Covers the plugin registration shape, the
+  setting up the build/sync (vite + pushwork). House style: default to small, simple
+  tools written in plain vanilla JavaScript, but TypeScript, npm dependencies, and a
+  bundled build are all fine (pushwork handles them). If a
+  reactive framework is needed, use Solid (never React). Covers the plugin registration shape, the
   (handle, element) => cleanup render contract, the datatype lifecycle, bundleless
   vs bundled builds, multiplayer/ephemeral messaging, the importmap, and the common
   gotchas (undefined assignment, Solid click delegation, light-DOM CSS).
@@ -27,37 +28,36 @@ Namespace your CSS class names and inject styles with the JS bundle (see Build).
 These are the defaults for **new** tools in this repo. Follow them unless the user says
 otherwise.
 
-- **Write plain vanilla JavaScript. No TypeScript.** No `.ts`/`.tsx`, no type annotations, no
-  `tsconfig`. Document shapes with a JSDoc `@typedef` comment if you want a schema note (see
-  `tic-tac-toe.js`) — that's all the typing a tool needs.
-- **Default to no framework and no build step.** A single hand-written `.js` file that
-  re-renders the DOM on `handle.on("change", …)` is the preferred shape (see §4). It's the
-  simplest thing that works and it syncs with just `pushwork sync`.
-- **If — and only if — you genuinely need fine-grained reactivity, use Solid. Never React.**
-  Solid is already in the importmap and you can use it **without JSX or a build** via
-  `solid-js/html` tagged templates, so you stay in plain JS. Reach for it when the UI has
-  enough independent live-updating pieces that hand-diffing the DOM gets painful.
-- **React is legacy here.** Several existing tools use React + TS; do not start new tools that
-  way, and when editing a React tool, match its existing style rather than rewriting it.
+- **Default to small and simple: plain vanilla JavaScript.** A file that re-renders the DOM on
+  `handle.on("change", …)` is the preferred shape (see §4) — it's the simplest thing that works.
+  Document shapes with a JSDoc `@typedef` comment if you want a schema note (see `tic-tac-toe.js`).
+- **TypeScript, npm dependencies, and a bundled build are fine when you want them.** pushwork
+  builds and syncs `.ts`/`.tsx` + vite tools like anything else — no need to avoid them. Reach for
+  a bundle when the tool has a multi-file source tree, JSX, or npm deps.
+- **If you need fine-grained reactivity, use Solid — never React.** Solid is in the importmap:
+  use `solid-js` with JSX (via a vite bundle) or `solid-js/html` tagged templates. Reach for it
+  when the UI has enough independent live-updating pieces that hand-diffing the DOM gets painful.
+- **React is legacy here.** Several existing tools use React; do not start new tools that way, and
+  when editing a React tool, match its existing style rather than rewriting it.
 
-Rule of thumb: **vanilla JS first → Solid (via `solid-js/html`) if you need reactivity →
-React only when modifying a tool that already uses it.**
+Rule of thumb: **vanilla JS first → Solid if you need reactivity → React only when modifying a
+tool that already uses it.**
 
 ## 1. Pick a flavor
 
-| | Bundleless (single `.js`) — **default** | Bundled (vite) — only if needed |
+| | Bundleless (single `.js`) | Bundled (vite) |
 |---|---|---|
-| Use when | almost always: vanilla JS, Web Components, or Solid via `solid-js/html` | you need JSX, or many source files, or you're editing an existing React tool |
+| Use when | small tools: vanilla JS, Web Components, or Solid via `solid-js/html` | Solid with JSX, TypeScript, npm deps, or a multi-file source tree |
 | Source | one hand-written `.js` (e.g. `walkies.js`, `catclock.js`, `tic-tac-toe.js`) | `src/` compiled to `dist/index.js` |
 | Imports | bare specifiers via Patchwork's **importmap**; assets via `import.meta.url` | same, but bundled; deps marked external |
 | Build | none — `pushwork sync` directly | `pnpm build` then `pushwork sync` |
 | `package.json main` | the `.js` file | `./dist/index.js` |
 
-Both flavors export the **same** `plugins` array. **Strongly prefer bundleless** — there's
-nothing to build, no TypeScript, no toolchain, and the importmap already covers automerge,
-solid-js, codemirror, and the patchwork packages. You can write a fully reactive Solid tool
-bundleless using `solid-js/html` (§4), so most tools never need vite at all. Reach for the
-bundled flavor only when JSX or a multi-file source tree genuinely earns its keep.
+Both flavors export the **same** `plugins` array. The importmap already covers automerge,
+solid-js, codemirror, and the patchwork packages, so a bundleless tool has nothing to build. You
+can write a fully reactive Solid tool bundleless using `solid-js/html` (§4). Reach for the bundled
+flavor (Solid+JSX, TypeScript, npm deps, or a multi-file source tree) whenever you want it —
+pushwork builds and syncs it fine.
 
 ## 2. Plugin registration — `export const plugins`
 
@@ -124,6 +124,46 @@ export const plugins = [
 - A package can register **many** plugins (a datatype + its tool, or several datatypes). See
   `file/src/index.ts` (file + new-file) and `bento/main.js` (datatype + tool).
 
+### ⚠ The entry module runs in a worker — every plugin field must be serializable
+
+Patchwork loads the module that exports `plugins` **inside a Web Worker**, reads the array,
+and **`structuredClone`s each plugin entry to the main thread**. Two hard consequences:
+
+1. **No functions as top-level plugin fields (except `load`).** The host clones every field of
+   a plugin *except* `load` (which it strips and reconstructs on the main side). Any other
+   function-valued field throws `DataCloneError: (…) => … could not be cloned` and the whole
+   module fails to import. So a plugin entry may only carry **JSON-ish metadata** at the top
+   level (`type`, `id`, `name`, `icon`, `tier`, strings, numbers, arrays, plain objects, and
+   `RegExp`/`Date`/`Map`/`Set` — all clone-safe). **All "fancy code" — every function, and any
+   behaviour object — must live behind `async load()`**, which returns it (the registry exposes
+   the loaded result under the plugin's `.module`). This is exactly why the `patchwork:tool`
+   render function and the datatype object go behind `load()`, and it applies equally to any
+   **custom-typed** plugins you register (e.g. `chat:slash`, `chat:messageaction`,
+   `sketchy:*`). If you have an array of behaviour-bearing descriptors, register them as
+   metadata-only descriptions and defer the code:
+
+   ```js
+   // WRONG — `transform` is a top-level function → DataCloneError in the worker
+   { type: "chat:slash", id: "me", cmd: "/me", transform: (arg) => ({ text: arg }) }
+
+   // RIGHT — metadata only at the top level; the fn is returned by load()
+   { type: "chat:slash", id: "me", cmd: "/me",
+     async load() { return { transform: (arg) => ({ text: arg }) } } }
+   ```
+
+   (A tool can still keep the inline-function version in a *separate* module it imports on the
+   main thread for its own use — that copy is never cloned. Only what goes into the exported
+   `plugins` array crosses the worker boundary.)
+
+2. **No bare external imports in the entry module's static graph.** The worker has **no
+   importmap**, so a top-level `import … from "@inkandswitch/patchwork-plugins"` (or any other
+   importmap-provided / bootloader-external specifier) fails with *"Failed to resolve module
+   specifier"* — even transitively, and even if the imported binding is unused (marked-external
+   modules can't be tree-shaken, so bundlers keep a bare side-effect `import`). Keep such
+   imports **inside `load()`** (dynamic `import()`), which runs on the main thread where the
+   importmap exists. If a data-only helper module (e.g. your plugin metadata) accidentally pulls
+   in an external via one stray import, split that import out so the entry graph stays clean.
+
 ## 3. The datatype contract
 
 A datatype object describes a document type and how to title it:
@@ -157,8 +197,7 @@ export const TicTacToeDatatype = {
 A tool's `load()` resolves to a **render function**. It receives the document `DocHandle` and
 the host `element`, mounts UI into `element`, and **returns a cleanup function**.
 
-**Vanilla / Web Components — the default.** Re-render on every change. This is the right
-shape for the large majority of tools:
+**Vanilla / Web Components.** Re-render on every change:
 
 ```js
 function Tool(handle, element) {
@@ -182,10 +221,11 @@ function Tool(handle, element) {
 }
 ```
 
-**Solid (when you need reactivity) — use `solid-js/html`, no JSX, no build.** Tagged-template
-markup keeps you in plain vanilla JS while getting fine-grained updates. Wrap the doc in a
-signal you push to from the `change` event; write dynamic expressions as functions so they
-stay reactive. `render()` returns a disposer — return it from cleanup:
+**Solid (when you need reactivity).** Use `solid-js` with JSX if you're bundling, or `solid-js/html`
+tagged templates without a build step — both give the same fine-grained updates. The
+`solid-js/html` version is shown here: wrap the doc in a signal you push to from the `change`
+event; write dynamic expressions as functions so they stay reactive. `render()` returns a disposer
+— return it from cleanup:
 
 ```js
 import { render } from "solid-js/web"
@@ -394,8 +434,10 @@ The theme exposes two families of surface variables:
 Rule of thumb: if you're building a tool, derive fill/line/typography from `--editor-*`. Reach
 for `--studio-*` only when you're styling the studio frame itself.
 
-Accent colours (`--studio-primary` etc.), spacing, radius, shadow, and transition tokens have
-**no `--editor-*` equivalent** — use the `--studio-*` versions everywhere.
+Accent colours (`--studio-primary` etc.), spacing, radius, shadow, and transition tokens are
+**studio-global** — the accent itself has no `--editor-*` equivalent, so use `--studio-*`
+everywhere. The one exception is the accent `-text` variant (accent used *as ink on a
+surface*), which does fan out per surface — see the accent section below.
 
 ### CSS variables
 
@@ -407,9 +449,26 @@ Use these variables (with fallbacks) instead of hardcoded values:
 - `var(--editor-line-offset-10)` through `-50` — muted text (mix of line + fill)
 - `var(--editor-selection-fill)` / `var(--editor-selection-line)`, `var(--editor-cursor-fill)`
 
-**Accent colors (studio-only — no editor equivalent):**
+**Accent colors:**
 - `var(--studio-primary, #35f7ca)`, `--studio-secondary`, `--studio-danger`, `--studio-warning`
 - `var(--studio-added)`, `--studio-deleted`, `--studio-modified`, `--studio-link`
+
+Each of `primary`/`secondary`/`danger`/`warning` also ships as a **Bulma-style contrast pair**
+plus a text variant — pick by how you're using the accent:
+
+- **`--studio-{accent}-fill`** — the accent used as a *surface* (a button/pill/badge
+  background). Same value as the bare `--studio-{accent}`, but says "I'm a surface".
+- **`--studio-{accent}-line`** — the *invert*: ink (text/icons) placed **on** that fill, e.g.
+  the label inside a primary button. Legible on the accent regardless of light/dark theme.
+- **`--studio-{accent}-fill-offset-10..50`** — a hover/border ramp for the fill (like
+  `--studio-chrome-fill-offset-*`). `-10` == the fill itself; the first visible step is `-20`.
+- **`--studio-{accent}-text`** — the accent used **as ink on the ambient background** (a
+  primary-coloured heading/link on the normal page). This is the one that fans out per surface:
+  use **`--editor-{accent}-text`** on the editor surface and **`--text-editor-{accent}-text`**
+  in a text editor, since legibility depends on which background the text sits on.
+
+Rule of thumb: painting a surface the accent → `-fill` (+ `-line` for text on it, `-fill-offset-*`
+for its hover). Writing text *in* the accent on a normal background → `-text` (surface-matched).
 
 **Typography (derive from `--editor-*` in tools):**
 - `var(--editor-family-sans, system-ui, sans-serif)` — UI text
@@ -433,26 +492,33 @@ Use these variables (with fallbacks) instead of hardcoded values:
 
 Every tool's CSS follows this structure:
 
-1. **Define local variables in `:root, :host, [theme]`** so they re-evaluate when a theme is
-   applied (the theme system sets a `[theme]` attribute on `<html>`):
+1. **Define local variables in a `@layer package` block targeting `:root, :host, [theme]`** so
+   they re-evaluate when a theme is applied (the theme system sets a `[theme]` attribute on
+   `<html>`) and sit at the right cascade priority (see "CSS cascade layers" below). The
+   `@layer package { … }` wrapper is **required** — do NOT define these variables in your
+   top-level/root rule or any other unlayered block:
 
 ```css
-:root,
-:host,
-[theme] {
-  --my-tool-bg: var(--editor-fill, white);
-  --my-tool-fg: var(--editor-line, black);
-  --my-tool-muted: var(--editor-line-offset-50, #999);
-  --my-tool-border: var(--editor-fill-offset-20, #ccc);
-  --my-tool-accent: var(--studio-primary, #35f7ca);
-  --my-tool-hover: color-mix(in oklch, var(--editor-fill), var(--editor-line) 5%);
-  --my-tool-family: var(--editor-family-sans, system-ui, sans-serif);
-  --my-tool-family-code: var(--editor-family-code, ui-monospace, monospace);
+@layer package {
+  :root,
+  :host,
+  [theme] {
+    --my-tool-bg: var(--editor-fill, white);
+    --my-tool-fg: var(--editor-line, black);
+    --my-tool-muted: var(--editor-line-offset-50, #999);
+    --my-tool-border: var(--editor-fill-offset-20, #ccc);
+    --my-tool-accent: var(--studio-primary, #35f7ca);
+    --my-tool-hover: color-mix(in oklch, var(--editor-fill), var(--editor-line) 5%);
+    --my-tool-family: var(--editor-family-sans, system-ui, sans-serif);
+    --my-tool-family-code: var(--editor-family-code, ui-monospace, monospace);
+  }
 }
 ```
 
 Note fill/line/typography derive from `--editor-*` (this is a tool), while the accent comes from
-`--studio-primary` (accents have no editor equivalent).
+`--studio-primary` (accents have no editor equivalent). The `@layer package` wrapper is the one
+place every host var your tool consumes is mapped to a `--my-tool-*` token; style rules below
+reference only those tokens.
 
 **Important:** Global `--editor-*` and `--studio-*` variables must NEVER be used directly in CSS
 rules. They should ONLY appear inside `:root, :host, [theme]` derivation blocks. The derived
@@ -593,17 +659,17 @@ layer — they stay unlayered so they reliably override everything.
 
 ## 12. Build & sync
 
-**Bundleless (default):** no build, no TypeScript, no toolchain. From the tool dir:
+**Bundleless:** no build step or toolchain. From the tool dir:
 `pushwork sync`. `package.json` is minimal:
 
 ```json
 { "type": "module", "main": "tic-tac-toe.js" }
 ```
 
-**Bundled (only when you truly need JSX or a multi-file tree):** mark Patchwork deps external
-via the bootloader, output a single ES entry, and inject CSS into the JS (because there's no
-shadow DOM, styles must ship with the bundle). Keep the config and source in **plain JS** —
-`vite.config.js`, a `.jsx`/`.js` entry, no `tsconfig`:
+**Bundled (when you want Solid+JSX, TypeScript, npm deps, or a multi-file tree):** mark Patchwork
+deps external via the bootloader, output a single ES entry, and inject CSS into the JS (because
+there's no shadow DOM, styles must ship with the bundle). A `.jsx`/`.js` or `.tsx`/`.ts` entry
+both work — vite compiles them:
 
 ```js
 // vite.config.js (Solid)
@@ -628,8 +694,8 @@ export default defineConfig({
 ```
 
 The essentials are `format: es`, `external` from the bootloader, and CSS-in-JS. (Some existing
-tools use `vite-plugin-react` and `.tsx` — that's the legacy path; don't replicate it for new
-tools.)
+tools use `vite-plugin-react` — that's the legacy React path; don't reach for React in new tools,
+though a Solid or TypeScript bundle is fine.)
 
 `package.json`: `"main": "./dist/index.js"`, scripts `"build": "vite build"` and
 `"push": "pnpm build && pushwork sync"`. After ANY change to a bundled tool:
@@ -641,6 +707,16 @@ tools.)
 
 - **No shadow DOM.** Tools render into the light DOM. Namespace CSS classes; don't rely on
   scoped styles. Bundle CSS into the JS (`vite-plugin-css-injected-by-js`).
+- **Scope all CSS under a root class.** Put a unique-enough class (the tool id is ideal,
+  e.g. `class="my-tool-id"`) on your root element, and nest every selector under it (e.g.
+  `.my-tool-id .message { ... }`). Otherwise your styles leak into the rest of Patchwork and
+  other tools' styles bleed into yours, since everything shares the light DOM.
+- **Size your outermost container; handle scrolling internally.** The host renders tools
+  with `layout: contain`, so your tool is a bounded box that won't grow the page or scroll
+  itself. Give the outermost container you mount `height: 100%`, then make whichever part
+  should scroll handle its own overflow (`overflow: auto`) — that may be the root, or just
+  an inner pane (e.g. a message list under a fixed header). Without this the tool clips or
+  overflows instead of scrolling within its pane.
 - **Never `stopPropagation()` on `click`.** Solid (and other frameworks) delegate `click` to
   `document`; stopping it kills their `onClick`. Only stop propagation on
   `pointerdown`/`pointerup` (what tldraw uses).
@@ -648,13 +724,17 @@ tools.)
 - **`repo.find`/`repo.create2` return Promises** that resolve to ready handles — no
   `whenReady()`.
 - **Pin id === tool id.** Mismatched ids mean the pin won't resolve to the tool.
+- **The `plugins` entry module runs in a worker and each entry is `structuredClone`d.** So a
+  plugin may carry only serializable metadata at the top level — **all functions/behaviour go
+  behind `async load()`** (the host strips `load` before cloning; any other top-level function
+  throws `DataCloneError`). And **no bare external imports in that module's static graph** (the
+  worker has no importmap) — keep them inside `load()`'s dynamic `import()`. See §2.
 - **Always return a cleanup function** from the render function and actually tear down
   (listeners, roots, intervals, rAF, AudioContext, workers).
-- **New tools: vanilla JS, no TypeScript.** No `.ts`/`.tsx`, no type annotations, no
-  `tsconfig` — use a JSDoc `@typedef` for the doc shape if you want a note. If you need
-  reactivity, use **Solid via `solid-js/html`** (no JSX/build); never React. Existing tools may
-  be React/Solid/Svelte/TS — match the existing tool's style when editing one, but don't start
-  new tools that way.
+- **New tools: default to vanilla JS for simplicity.** TypeScript, npm deps, and a vite bundle
+  are all fine when you want them — pushwork builds them. If you need reactivity, use **Solid**
+  (`solid-js` with JSX, or `solid-js/html`); never React. Existing tools may be React/Solid/Svelte/TS
+  — match the existing tool's style when editing one, and don't start new tools with React.
 
 ## 14. Minimal complete example (bundleless)
 
@@ -695,15 +775,15 @@ Then from the tool's directory: `pushwork sync`. Done.
 
 ## 15. Reference tools in this repo
 
-**Copy these patterns (vanilla JS, bundleless — the house style):**
+**Copy these patterns (vanilla JS — the house style):**
 - **Bundleless / vanilla:** `tic-tac-toe`, `catclock`, `walkies`, `sparkles`, `webtile`
 - **Web Components + audio/wasm:** `bento`, `call`, `sound`
-- **Headless actions:** `actions` (note: this one is TS — the shape is what matters)
+- **Headless actions:** `actions` (written in TypeScript)
 
-**Reach for Solid only if you need reactivity:** `cache-browser`, `file`, `chat`, `paper`
-(these use JSX + a bundle; for a new tool prefer `solid-js/html` bundleless instead).
+**Reach for Solid if you need reactivity:** `cache-browser`, `file`, `chat`, `paper` (these use
+JSX + a bundle; `solid-js/html` is a bundleless alternative).
 
-**Legacy — reference for behavior, NOT for style (React/TS, don't copy the approach):**
+**Legacy React — reference for behavior, NOT for style (don't copy the React approach):**
 `datagrid`, `boardgame`, `datalog`, `doc-copy-history`.
 
 - **CodeMirror extension:** `codemirror-latex`, `file`

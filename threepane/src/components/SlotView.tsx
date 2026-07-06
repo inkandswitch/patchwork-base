@@ -12,7 +12,7 @@ export const slotId = (slot: ToolSlot): string =>
   Array.isArray(slot) ? String(slot[0]) : String(slot);
 
 /**
- * Render one configured tool-lane slot (doctitle / sidebar / tray / contextbar).
+ * Render one configured tool-lane slot (doctitle / sidebar).
  *
  * A bare string is a `patchwork:component` id, loaded and rendered with no
  * document. A `[toolId, docId]` tuple renders that tool against the doc the

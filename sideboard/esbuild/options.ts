@@ -16,9 +16,9 @@ export default {
   bundle: true,
   platform: "browser",
   format: "esm",
-  splitting: false,
+  splitting: true,
   logLevel: "debug",
-  sourcemap: false,
+  sourcemap: true,
   external: externals,
   minify: true,
   plugins: [

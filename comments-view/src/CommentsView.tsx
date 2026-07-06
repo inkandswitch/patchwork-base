@@ -198,7 +198,10 @@ export function CommentsView(props: { element: HTMLElement }) {
   // controls (its buttons / draft textarea) so they don't also select.
   const onClickThreadCard = (e: MouseEvent, threadUrl: AutomergeUrl) => {
     const target = e.target as HTMLElement | null;
-    if (target?.closest("textarea, button, input, a, select")) return;
+    if (
+      target?.closest("textarea, button, input, a, select, .cm-editor")
+    )
+      return;
     onSelectThread(threadUrl, threadTargetUrlMap().get(threadUrl) ?? []);
   };
 

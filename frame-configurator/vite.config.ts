@@ -5,10 +5,12 @@ import externals from "@inkandswitch/patchwork-bootloader/externals";
 
 export default defineConfig({
   base: "./",
-  plugins: [solid(), cssInjectedByJsPlugin()],
+  plugins: [solid(), cssInjectedByJsPlugin({ relativeCSSInjection: true })],
 
   build: {
+    sourcemap: true,
     emptyOutDir: true,
+    cssCodeSplit: true,
     rollupOptions: {
       external: (id) =>
         externals.some((e: string) => id === e || id.startsWith(e + "/")) ||

@@ -4,6 +4,7 @@ import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import type { FolderDoc } from "@inkandswitch/patchwork-filesystem";
 import { createEffect, createSignal, onCleanup, Show, Suspense } from "solid-js";
+import { render } from "solid-js/web";
 
 import {
   filter,
@@ -19,9 +20,10 @@ import { DocumentList } from "./document-list/document-list.tsx";
 import { LoadingRows } from "./document-list/loading-row.tsx";
 import { subscribe } from "@inkandswitch/patchwork-providers-solid";
 import { handleFilesDrop } from "./document-list/file-drop.ts";
-import { copyMode, isNewDocDrag } from "./dnd/dnd.ts";
+import { copyMode, isNewDocDrag, isSameDragOriginView } from "./dnd/dnd.ts";
 import { executeDrop } from "./dnd/operations.ts";
 import { getDndPayload, hasDocumentDrag } from "./dnd/payload.ts";
+import { createMarquee } from "./document-list/marquee.ts";
 
 /**
  * The document-list panel: a sticky toolbar (new-doc button + filter) over a
@@ -89,9 +91,24 @@ export function DocumentListPanel(props: {
 
   const [isDraggingFile, setIsDraggingFile] = createSignal(false);
 
+  // cmd/ctrl-drag rubber-band multi-select over the list. Attached in the
+  // capture phase because an item's own mousedown handler stops propagation for
+  // cmd-clicks, which would otherwise swallow a band that starts on a row.
+  let navEl: HTMLElement | undefined;
+  const marquee = createMarquee({
+    container: () => navEl,
+    source: () => props.element.toolId ?? "",
+  });
+  const attachMarquee = (el: HTMLElement) => {
+    navEl = el;
+    el.addEventListener("mousedown", marquee.onMouseDown, true);
+    onCleanup(() => el.removeEventListener("mousedown", marquee.onMouseDown, true));
+  };
+
   return (
     <aside class="document-list">
       <nav
+        ref={attachMarquee}
         class="document-list__doclist document-list-widget"
         classList={{
           "document-list__doclist--drag-over": isDraggingFile(),
@@ -169,7 +186,7 @@ export function DocumentListPanel(props: {
             },
             props.repo,
             folderHandle.latest!,
-            props.element.toolId!
+            isSameDragOriginView(props.element)
           );
         }}
       >
@@ -210,5 +227,20 @@ export function DocumentListPanel(props: {
         </Show>
       </nav>
     </aside>
+  );
+}
+
+// Kept here (rather than index.tsx) so the entry point never statically
+// imports solid-js/web — the doc-list tool shouldn't load Solid until it's
+// actually mounted for a folder document.
+export function renderDocumentListPanel(
+  folderUrl: AutomergeUrl,
+  element: PatchworkViewElement & { repo: Repo }
+) {
+  return render(
+    () => (
+      <DocumentListPanel folderUrl={folderUrl} repo={element.repo} element={element} />
+    ),
+    element
   );
 }

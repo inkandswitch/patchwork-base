@@ -34,14 +34,22 @@ export function HTMLFileViewer(props: {doc: FileDoc}) {
 	})
 
 	return (
-		<div class="overflow-auto h-full">
+		<div style={{overflow: "auto", height: "100%"}}>
 			{textData() ? (
 				<iframe
 					src={blobUrl()}
 					style={{width: "100%", height: "100%", border: "none"}}
 				/>
 			) : (
-				<div class="flex items-center justify-center h-full text-gray-500">
+				<div
+					style={{
+						display: "flex",
+						"align-items": "center",
+						"justify-content": "center",
+						height: "100%",
+						background: "var(--editor-fill)",
+						color: "var(--editor-line)",
+					}}>
 					Loading...
 				</div>
 			)}

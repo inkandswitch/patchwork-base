@@ -3,7 +3,9 @@ import type {FileDoc} from "../types"
 import {isBinaryFileDoc} from "../datatype"
 
 export const isAudioFile = (doc: FileDoc) => {
-	return doc.mimeType?.startsWith("audio/")
+	// Require binary content: audio is inherently binary, so a string-backed doc
+	// (e.g. a text file with a misdetected media mimeType) is never really audio.
+	return isBinaryFileDoc(doc) && doc.mimeType?.startsWith("audio/")
 }
 
 export function AudioFileViewer(props: {doc: FileDoc}) {
@@ -17,11 +19,23 @@ export function AudioFileViewer(props: {doc: FileDoc}) {
 	})
 
 	return (
-		<div class="flex items-center justify-center h-full">
+		<div
+			style={{
+				display: "flex",
+				"align-items": "center",
+				"justify-content": "center",
+				height: "100%",
+			}}>
 			{audioUrl() ? (
 				<audio src={audioUrl()} controls />
 			) : (
-				<div class="text-gray-500">No audio to play</div>
+				<div
+					style={{
+						background: "var(--editor-fill)",
+						color: "var(--editor-line)",
+					}}>
+					No audio to play
+				</div>
 			)}
 		</div>
 	)

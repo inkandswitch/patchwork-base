@@ -8,13 +8,14 @@ import {
 } from "@codemirror/view";
 import { Range } from "@codemirror/state";
 import {
+  type AutomergeUrl,
   type DocumentId,
   isValidDocumentId,
   parseAutomergeUrl,
 } from "@automerge/automerge-repo";
 import { embedTheme } from "../themes/embed.ts";
 import { openLinkIcon } from "./icons.ts";
-import { hasDocumentDrag, getDocumentDragPayload } from "./dnd.ts";
+import { getDocumentDragPayload } from "./dnd.ts";
 
 /**
  * Widget to render an embedded <patchwork-view> element in a CodeMirror editor.
@@ -59,6 +60,7 @@ class EmbedWidget extends WidgetType {
       e.stopPropagation();
       const params = new URLSearchParams();
       params.set("doc", this.docId);
+      // Tool-less embeds open with the datatype's default tool.
       if (this.toolId) params.set("tool", this.toolId);
       window.location.hash = params.toString();
     };
@@ -157,12 +159,95 @@ function getEmbedLinks(view: EditorView) {
   return Decoration.set(widgets, true);
 }
 
+// Drag MIME types that unambiguously identify a patchwork document drag, safe
+// to claim during `dragover`. Deliberately narrower than the payload types
+// `getDocumentDragPayload` reads on drop: plain `text/uri-list`/`text/plain`
+// can be an ordinary in-editor text drag, which we must not swallow. (`Files`
+// covers OS drags, whose `dt.files` is empty until drop.)
+const UNAMBIGUOUS_DRAG_TYPES = [
+  "Files",
+  "text/x-patchwork-dnd",
+  "text/x-patchwork-urls",
+];
+
 /**
- * Drop handler that turns documents dragged from the sideboard (or any other
- * patchwork drag source) into embeds. Reads the drag payload following the
- * drag-and-drop recipe — `text/x-patchwork-dnd`, `text/x-patchwork-urls`,
- * `text/uri-list`, then `text/plain` — and inserts a `[patchwork:docId]`
- * embed per document at the drop position.
+ * Import each OS file dropped from the desktop as a Patchwork `file` document,
+ * returning the ids to embed. Uses the realm-local `window.repo` (the
+ * documented global) — fine for creating brand-new docs, which aren't subject
+ * to draft remapping.
+ */
+async function fileDropDocIds(files: FileList): Promise<DocumentId[]> {
+  const repo = (window as unknown as { repo?: any }).repo;
+  if (!repo) {
+    console.warn(
+      "[codemirror-embed] window.repo unavailable; ignoring dropped files"
+    );
+    return [];
+  }
+  const docIds: DocumentId[] = [];
+  for (const file of Array.from(files)) {
+    try {
+      const mimeType = file.type || "application/octet-stream";
+      const isText =
+        mimeType.startsWith("text/") || mimeType === "application/json";
+      const content = isText
+        ? await file.text()
+        : new Uint8Array(await file.arrayBuffer());
+      const parts = file.name.split(".");
+      const extension = parts.length > 1 ? parts.pop()! : "";
+      const handle = repo.create();
+      handle.change((d: any) => {
+        d["@patchwork"] = { type: "file" };
+        d.content = content;
+        d.mimeType = mimeType;
+        d.extension = extension;
+        d.name = file.name;
+      });
+      const { documentId } = parseAutomergeUrl(handle.url as AutomergeUrl);
+      if (isValidDocumentId(documentId)) {
+        docIds.push(documentId as DocumentId);
+      }
+    } catch (err) {
+      console.warn(
+        "[codemirror-embed] failed to import dropped file",
+        file.name,
+        err
+      );
+    }
+  }
+  return docIds;
+}
+
+// Insert `[patchwork:docId]` embeds at `pos`, on their own line(s), leaving
+// the cursor on a fresh line *after* them. The trailing newline is essential:
+// if the cursor stays adjacent to an embed, `getEmbedLinks` treats it as
+// "being edited" and shows the raw `[patchwork:…]` text instead of the widget.
+function insertEmbeds(
+  view: EditorView,
+  pos: number,
+  docIds: readonly DocumentId[]
+): void {
+  if (docIds.length === 0) return;
+  const inserts = docIds.map((docId) => `[patchwork:${docId}]`);
+  const line = view.state.doc.lineAt(pos);
+  const beforeOnLine = line.text.slice(0, pos - line.from);
+  const prefix = beforeOnLine.trim() === "" ? "" : "\n";
+  const text = `${prefix}${inserts.join("\n\n")}\n`;
+  view.dispatch({
+    changes: { from: pos, insert: text },
+    selection: { anchor: pos + text.length },
+    scrollIntoView: true,
+  });
+}
+
+/**
+ * Drop handler that accepts:
+ *  - documents dragged from the sideboard (or any other patchwork drag
+ *    source), read following the drag-and-drop recipe via
+ *    `getDocumentDragPayload` — `text/x-patchwork-dnd`,
+ *    `text/x-patchwork-urls`, `text/uri-list`, then `text/plain` — and
+ *  - files dragged in from the operating system (imported as `file` docs).
+ * Inserts a `[patchwork:docId]` embed per document at the drop position.
  *
  * The tool id is intentionally omitted: the drag payload's `type` is a
  * datatype rather than a tool id, so the embed falls back to the datatype's
@@ -172,43 +257,46 @@ function embedDropHandlers() {
   return EditorView.domEventHandlers({
     dragover(event) {
       // dragover only exposes the data *types*, not their values, so we can
-      // only check presence here — the actual payload is read on drop.
-      if (!hasDocumentDrag(event.dataTransfer)) return false;
+      // only check presence here — the actual payload is read on drop. Claim
+      // only unambiguous drags so ordinary text drags stay with the editor.
+      const dt = event.dataTransfer;
+      if (!dt || !UNAMBIGUOUS_DRAG_TYPES.some((t) => dt.types.includes(t))) {
+        return false;
+      }
       event.preventDefault(); // REQUIRED, or the browser refuses the drop
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      dt.dropEffect = "copy";
       return true;
     },
     drop(event, view) {
-      if (!hasDocumentDrag(event.dataTransfer)) return false;
-      const items = getDocumentDragPayload(event.dataTransfer);
-      if (!items || items.length === 0) return false;
-
+      const dt = event.dataTransfer;
+      if (!dt) return false;
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
       if (pos == null) return false;
 
-      const inserts: string[] = [];
+      // OS files import asynchronously; insert once the docs exist.
+      if (dt.files && dt.files.length > 0) {
+        event.preventDefault();
+        void fileDropDocIds(dt.files).then((docIds) =>
+          insertEmbeds(view, pos, docIds)
+        );
+        return true;
+      }
+
+      // Otherwise only handle the drop if it actually resolves to patchwork
+      // docs (dnd/urls always do; uri-list/plain only for patchwork links).
+      // If not, let CodeMirror handle it as a normal text drop.
+      const items = getDocumentDragPayload(dt);
+      if (!items || items.length === 0) return false;
+
+      const docIds: DocumentId[] = [];
       for (const item of items) {
         const { documentId } = parseAutomergeUrl(item.url);
-        if (!isValidDocumentId(documentId)) continue;
-        inserts.push(`[patchwork:${documentId}]`);
+        if (isValidDocumentId(documentId)) docIds.push(documentId);
       }
-      if (inserts.length === 0) return false;
+      if (docIds.length === 0) return false;
 
       event.preventDefault();
-
-      // Place the embeds on their own line(s) and leave the cursor on a fresh
-      // line *after* them. The trailing newline is essential: if the cursor
-      // stays adjacent to an embed, `getEmbedLinks` treats it as "being
-      // edited" and shows the raw `[patchwork:…]` text instead of the widget.
-      const line = view.state.doc.lineAt(pos);
-      const beforeOnLine = line.text.slice(0, pos - line.from);
-      const prefix = beforeOnLine.trim() === "" ? "" : "\n";
-      const text = `${prefix}${inserts.join("\n\n")}\n`;
-      view.dispatch({
-        changes: { from: pos, insert: text },
-        selection: { anchor: pos + text.length },
-        scrollIntoView: true,
-      });
+      insertEmbeds(view, pos, docIds);
       return true;
     },
   });

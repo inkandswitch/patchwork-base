@@ -1,5 +1,4 @@
 import { Plugin } from '@inkandswitch/patchwork-plugins';
-import './index.css';
 
 export const plugins: Plugin<any>[] = [
   {

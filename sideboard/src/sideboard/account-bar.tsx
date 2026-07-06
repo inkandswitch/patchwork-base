@@ -1,6 +1,8 @@
 import { makeDocumentProjection } from "@automerge/automerge-repo-solid-primitives";
 import { Show } from "solid-js";
-import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
+import { render } from "solid-js/web";
+import type { DocHandle, Repo } from "@automerge/automerge-repo";
+import type { OpenDocumentEventDetail, PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 
 import type { PatchworkToolProps, SideboardAccountDoc } from "../types.ts";
 import { createOpenEvent } from "./events.ts";
@@ -52,5 +54,18 @@ export function AccountBar(props: PatchworkToolProps<SideboardAccountDoc>) {
         Settings
       </button>
     </footer>
+  );
+}
+
+// Kept here (rather than index.tsx) so the entry point never statically
+// imports solid-js/web — the account bar shouldn't load Solid until it's
+// actually mounted.
+export function renderAccountBar(
+  handle: DocHandle<SideboardAccountDoc>,
+  element: PatchworkViewElement & { repo: Repo }
+) {
+  return render(
+    () => <AccountBar handle={handle} repo={element.repo} element={element} />,
+    element
   );
 }

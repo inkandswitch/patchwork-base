@@ -21,6 +21,7 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import type { AutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
 import { NEW_DOC_DND_TYPE, setNewDocDragging, clearDropTarget } from "./dnd/dnd.ts";
+import { setFilter } from "./state.ts";
 
 export async function createNew(
   repo: Repo,
@@ -119,10 +120,14 @@ function DatatypeMenuContent(props: {
               e.stopPropagation();
             }}
             onPaste={(e) => {
+              // Pasting an automerge url should *offer* to add it (revealing the
+              // "Add by URL" item) rather than silently adding it. Drop the
+              // pasted text into the query; isUrl() then shows the button.
               const text = e.clipboardData?.getData("text/plain") ?? "";
               if (isValidAutomergeUrl(text.trim())) {
                 e.preventDefault();
-                props.onSubmitUrl(text);
+                setQuery(text.trim());
+                setHighlightIndex(0);
               }
             }}
             ref={(el) => {
@@ -182,6 +187,8 @@ export default function CreateNew(props: CreateNewProps) {
     props.changeFolder((doc) => {
       doc.docs.push(freshy);
     });
+    // Clear the filter so the just-created doc is actually visible in the list.
+    setFilter("");
     props.open(freshy);
     setOpen(false);
   }
@@ -193,6 +200,8 @@ export default function CreateNew(props: CreateNewProps) {
     props.changeFolder((doc) => {
       doc.docs.push(docLink);
     });
+    // Clear the filter so the freshly added doc is visible.
+    setFilter("");
     props.open(docLink);
     setOpen(false);
   }
@@ -295,6 +304,7 @@ export function NewDocPlaceholder(props: {
 
   async function pickDatatype(datatype: Plugin<DatatypeDescription>) {
     const freshy = await createNew(props.repo, datatype, props.hive);
+    setFilter("");
     props.onCreate(freshy);
   }
 
@@ -302,6 +312,7 @@ export function NewDocPlaceholder(props: {
     const trimmed = url.trim();
     if (!isValidAutomergeUrl(trimmed)) return;
     const docLink = await docLinkFromUrl(props.repo, trimmed as AutomergeUrl);
+    setFilter("");
     props.onCreate(docLink);
   }
 

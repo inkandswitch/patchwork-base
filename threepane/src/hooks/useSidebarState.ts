@@ -11,6 +11,7 @@ export const SIDEBAR_KEYS = {
   rightCollapsed: "patchwork:rightSidebarCollapsed",
   leftWidth: "patchwork:leftSidebarWidth",
   rightWidth: "patchwork:rightSidebarWidth",
+  contextToolId: "patchwork:contextSidebarToolId",
 } as const;
 
 /** Default sidebar width (px) when nothing is persisted. */

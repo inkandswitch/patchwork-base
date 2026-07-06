@@ -24,6 +24,7 @@ import {
   filterMatches,
   setRenaming,
   setPendingNewDoc,
+  setFilter,
   autoExpandedFolders,
 } from "../state.ts";
 import { DocumentList } from "./document-list.tsx";
@@ -42,6 +43,7 @@ import {
   clearDropTarget,
   copyMode,
   isNewDocDrag,
+  isSameDragOriginView,
 } from "../dnd/dnd.ts";
 import { executeDrop } from "../dnd/operations.ts";
 import { getDndPayload } from "../dnd/payload.ts";
@@ -127,6 +129,7 @@ export default function Folder(props: {
       folder.docs.push(freshy);
       newIndex = folder.docs.length - 1;
     });
+    setFilter("");
     setExpanded(true);
     props.open(freshy);
     setRenaming(h.url + "/" + newIndex);
@@ -171,7 +174,7 @@ export default function Folder(props: {
       },
       props.repo,
       props.rootFolderHandle,
-      props.element.toolId!
+      isSameDragOriginView(props.element)
     );
   }
 

@@ -7,7 +7,7 @@
   "exports": {
     ".": {
       "import": "./dist/main.js",
-      "source": "./src/main.tsx"
+      "source": "./src/main.ts"
     },
     "./markdown": {
       "import": "./dist/extensions/markdown.js",

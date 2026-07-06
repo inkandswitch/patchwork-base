@@ -33,13 +33,17 @@ export type Comment = {
   timestamp: number;
 };
 
+// Creates a thread (with one empty, unfilled comment) targeting [from, to] and
+// returns the thread's url so the caller can open it — e.g. in a popover — for
+// the author to fill in. An abandoned, never-filled comment should be cleaned
+// up by the caller (see the comment UI's `onClose`).
 export function createCommentForRange(
   handle: DocHandle<unknown>,
   path: readonly string[],
   from: number,
   to: number,
   contactUrl: AutomergeUrl
-): void {
+): AutomergeUrl {
   const targetUrl = handle.sub(...path, cursor(from, to)).url;
   const threadId = crypto.randomUUID();
   const commentId = crypto.randomUUID();
@@ -60,4 +64,6 @@ export function createCommentForRange(
       "@patchwork": { type: COMMENT_THREAD_TYPE },
     });
   });
+
+  return handle.sub("@comments", "threads", { id: threadId }).url;
 }

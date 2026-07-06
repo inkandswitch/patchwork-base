@@ -54,6 +54,24 @@ function updateDropTargetDOM(
   }
 }
 
+// Identity for the "did this drag start and end in the same view?" question.
+// The answer decides move (→ in-view) vs add-link (→ cross-view or external).
+//
+// The tool id can't answer it: the sideboard is shown through patchwork-view's
+// *fallback* path, which never sets the `tool-id` attribute, so element.toolId
+// is null — and even when set it names the tool *type*, not the instance, so
+// two side-by-side views would collide. The <patchwork-view> element itself is
+// the instance identity. We're single-context on the web (dragstart and drop
+// run in the same window), so plain reference equality is all we need: remember
+// the origin element on dragstart, compare it on drop, clear it on dragend.
+let dragOriginView: object | null = null;
+export function setDragOriginView(element: object | null) {
+  dragOriginView = element;
+}
+export function isSameDragOriginView(element: object): boolean {
+  return dragOriginView != null && dragOriginView === element;
+}
+
 export type SideboardDragAndDropItem = {
   id: string;
   url: AutomergeUrl;

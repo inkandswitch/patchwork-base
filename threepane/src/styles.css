@@ -424,14 +424,16 @@
   box-shadow: inset 0 1px 0 0 var(--context-sidebar-tab-active-accent);
 }
 
-/* The close (collapse) button. */
+/* The close (collapse) button. Centred vertically in the tab header (the header
+   is otherwise flex-end for the tabs) so it lands at the same height as the
+   reopen toggle in the top bar when the sidebar is collapsed. */
 .context-sidebar__close {
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   flex-shrink: 0;
   padding-inline: var(--threepane-space-sm);
-  margin-bottom: var(--threepane-space-xs);
   margin-right: var(--threepane-space-2xs);
   border: none;
   background: transparent;
@@ -794,11 +796,12 @@
   align-self: stretch;
   height: 100%;
   padding: 0;
-  /* 2px wide but pulled in 1px each side, so it reserves *no* layout column
-     (content stays flush against the view's border - no offset-bg seam) yet
-     still paints a full-height glow line straddling the boundary on hover. */
-  width: 2px;
-  margin-inline: -1px;
+  /* 1px wide, overlapping the divider border while reserving no layout column
+     (content stays flush against the view's border - no offset-bg seam). The
+     divider border is painted inside the following column, so a centered 2px
+     strip reads half a pixel left of the line. */
+  width: 1px;
+  margin-inline: 0 -1px;
   margin-block: 0;
   border: 0;
   z-index: 1;
@@ -807,23 +810,21 @@
      handle lights up (full-height glow + pill) on hover to signal resize. */
   background: transparent;
   transition: background-color var(--studio-transition, 0.15s ease);
-  /* invisible hit target: an equal 5px grab margin on each side of the 1px
-     line. Uses symmetric insets (not left:50% + translateX on a 1px box, whose
-     percentage/transform rounding drifted it sideways) so it's provably centred. */
+  /* invisible hit target straddling the divider. The toggle sits on opposite
+     edges of the two sidebars (right edge of the left pane, left edge of the
+     right pane), so the asymmetric grab margin is mirrored per side to stay
+     centred over the divider line. */
   &::before {
     content: "";
     position: absolute;
     inset-block: 0;
-    inset-inline: -5px;
   }
-  /* Things-3 style grab pill: invisible at rest; fades + grows in on hover,
-     vertically centred (~halfway down). */
   &::after {
     content: "";
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 4px;
+    width: 5px;
     height: 44px;
     border-radius: var(--threepane-radius-round);
     background: var(--threepane-resize-pill);

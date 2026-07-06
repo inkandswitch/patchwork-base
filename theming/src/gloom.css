@@ -25,7 +25,6 @@
 	--text-editor-gutter-fill: var(--text-editor-fill-offset-30);
 	--text-editor-gutter-line: var(--text-editor-line);
 	--text-editor-gutter-border: var(--text-editor-fill-offset-40);
-	--text-editor-gutter-fill--line-numbers: var(--text-editor-fill-offset-50);
 	--text-editor-gutter-line--line-numbers: var(--text-editor-line);
 
 	--text-editor-tooltip-fill: var(--text-editor-fill-offset-20);

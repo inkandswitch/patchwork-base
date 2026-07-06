@@ -1,3 +1,24 @@
+---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    configDependencies:
+      pnpm-plugin-patchwork:
+        specifier: 0.4.0
+        version: 0.4.0
+
+packages:
+
+  pnpm-plugin-patchwork@0.4.0:
+    resolution: {integrity: sha512-ppHlw5UOoMCzseTp0X1vmMnWen/AsDPLf0Ft9YMLERPItErfZVyeM1pWefKY0onXZrD43afyB2ZJx1ztLteMkA==}
+
+snapshots:
+
+  pnpm-plugin-patchwork@0.4.0: {}
+
+---
 lockfileVersion: '9.0'
 
 settings:
@@ -13,6 +34,12 @@ importers:
       '@automerge/automerge-repo-solid-primitives':
         specifier: 2.5.2
         version: 2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-providers':
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
+      '@inkandswitch/patchwork-providers-solid':
+        specifier: 0.2.3
+        version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)
     devDependencies:
       '@automerge/automerge':
         specifier: ^3.2.5
@@ -124,6 +151,55 @@ importers:
         specifier: ^0.0.6
         version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))
 
+  chat:
+    dependencies:
+      '@automerge/automerge':
+        specifier: ^3.2.1
+        version: 3.2.6
+      '@automerge/automerge-repo':
+        specifier: ^2.5.0
+        version: 2.5.6(supports-color@5.5.0)
+      '@automerge/automerge-repo-solid-primitives':
+        specifier: ^2.5.1
+        version: 2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+      '@chee/patchwork-llm':
+        specifier: automerge:HaCFnBBADdADqJm4Bu5Sc4abQyE#26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3
+        version: automerge:HaCFnBBADdADqJm4Bu5Sc4abQyE#26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3@26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))
+      '@chee/patchwork-transcript':
+        specifier: automerge:2AdvAyQ85NfazBA4TtDyRYCqfvYb#RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n
+        version: automerge:2AdvAyQ85NfazBA4TtDyRYCqfvYb#RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n@RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))
+      '@inkandswitch/patchwork-elements':
+        specifier: ^0.0.5
+        version: 0.0.5
+      '@inkandswitch/patchwork-filesystem':
+        specifier: ^0.1.2
+        version: 0.1.2(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))(@automerge/automerge@3.2.6)(supports-color@5.5.0)
+      cute.txt:
+        specifier: ^0.0.6
+        version: 0.0.6(@automerge/automerge@3.2.6)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)(solid-js@1.9.13)
+      solid-js:
+        specifier: ^1.9.11
+        version: 1.9.13
+    devDependencies:
+      '@chee/patchwork-bundles':
+        specifier: ^0.2.0
+        version: 0.2.0(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-bootloader':
+        specifier: ^0.0.3
+        version: 0.0.3(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))(@automerge/automerge@3.2.6)(@keyhive/keyhive@0.0.0-alpha.40)(supports-color@5.5.0)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.19
+        version: 5.4.21(@types/node@24.13.2)
+      vite-plugin-css-injected-by-js:
+        specifier: ^3.5.2
+        version: 3.5.2(vite@5.4.21(@types/node@24.13.2))
+      vite-plugin-solid:
+        specifier: ^2.10.0
+        version: 2.11.12(solid-js@1.9.13)(vite@5.4.21(@types/node@24.13.2))
+
   codemirror-base:
     dependencies:
       '@automerge/automerge-codemirror':
@@ -148,8 +224,8 @@ importers:
         specifier: ^0.0.11
         version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(supports-color@5.5.0))(supports-color@5.5.0)
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       '@inkandswitch/patchwork-providers-solid':
         specifier: 0.2.3
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.34(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
@@ -234,7 +310,7 @@ importers:
         version: 0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)(supports-color@5.5.0)
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.6
-        version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))
+        version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
@@ -305,7 +381,7 @@ importers:
         version: 2.6.0-subduction.34(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13)
       '@inkandswitch/patchwork-elements':
         specifier: 1.0.0
-        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
+        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-filesystem':
         specifier: ^0.0.8
         version: 0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(supports-color@5.5.0)
@@ -313,11 +389,14 @@ importers:
         specifier: ^0.0.11
         version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       '@inkandswitch/patchwork-providers-solid':
         specifier: 0.2.3
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.34(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+      cute.txt:
+        specifier: ^0.0.7
+        version: 0.0.7(@automerge/automerge@3.3.0-fragments.1)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)(solid-js@1.9.13)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -428,13 +507,13 @@ importers:
         version: 2.6.0-subduction.34(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13)
       '@inkandswitch/patchwork-elements':
         specifier: 1.0.0
-        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
+        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.11
         version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       '@inkandswitch/patchwork-providers-solid':
         specifier: 0.2.3
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.34(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
@@ -484,6 +563,9 @@ importers:
       '@automerge/automerge-repo-solid-primitives':
         specifier: ^2.5.1
         version: 2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+      '@codemirror/autocomplete':
+        specifier: ^6.20.3
+        version: 6.20.3
       '@codemirror/commands':
         specifier: ^6.10.3
         version: 6.10.4
@@ -532,6 +614,9 @@ importers:
       '@codemirror/language':
         specifier: ^6.12.2
         version: 6.12.3
+      '@codemirror/lint':
+        specifier: ^6.9.7
+        version: 6.9.7
       '@codemirror/search':
         specifier: ^6.6.0
         version: 6.7.1
@@ -546,10 +631,16 @@ importers:
         version: 0.0.5
       '@inkandswitch/patchwork-filesystem':
         specifier: ^0.0.3
-        version: 0.0.3(supports-color@5.5.0)
+        version: 0.0.3
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
+      '@typescript/vfs':
+        specifier: ^1.6.4
+        version: 1.6.4(supports-color@5.5.0)(typescript@5.9.3)
+      '@valtown/codemirror-ts':
+        specifier: ^2.3.1
+        version: 2.3.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)
       codemirror:
         specifier: ^6.0.0
         version: 6.0.2
@@ -559,7 +650,7 @@ importers:
     devDependencies:
       '@inkandswitch/patchwork-bootloader':
         specifier: ^0.0.4
-        version: 0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)
+        version: 0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.5.6)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -718,7 +809,7 @@ importers:
         version: 2.6.0-subduction.34(supports-color@5.5.0)
       '@inkandswitch/patchwork-elements':
         specifier: 1.0.0
-        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
+        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-filesystem':
         specifier: ^0.0.8
         version: 0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(supports-color@5.5.0)
@@ -726,8 +817,8 @@ importers:
         specifier: ^0.0.11
         version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       debug:
         specifier: ^4.4.3
         version: 4.4.3(supports-color@5.5.0)
@@ -803,14 +894,14 @@ importers:
   module-settings-manager:
     dependencies:
       '@inkandswitch/patchwork-bootloader':
-        specifier: ^0.0.8
-        version: 0.0.8(@automerge/automerge-repo-keyhive@0.2.0-alpha.1d)(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.15)(supports-color@5.5.0)
+        specifier: ^0.3.1
+        version: 0.3.1(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.8b(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.39)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-elements':
         specifier: ^0.0.6
         version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)))
       solid-automerge:
-        specifier: ^1.1.0
-        version: 1.1.0(solid-js@1.9.13)(supports-color@5.5.0)
+        specifier: ^2.0.0
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)(supports-color@5.5.0)
     devDependencies:
       '@automerge/automerge':
         specifier: ^3.2.5
@@ -856,13 +947,13 @@ importers:
         version: 0.1.2(@automerge/automerge-repo@2.6.0-subduction.34)
       '@inkandswitch/patchwork-elements':
         specifier: 1.0.0
-        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
+        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.11
         version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
     devDependencies:
       '@eslint/js':
         specifier: ^9.37.0
@@ -961,20 +1052,23 @@ importers:
   sync-indicator:
     dependencies:
       '@automerge/automerge':
-        specifier: ^3.2.5
-        version: 3.2.6
+        specifier: 3.3.0-fragments.1
+        version: 3.3.0-fragments.1
       '@automerge/automerge-repo':
-        specifier: ^2.6.0-subduction.9
-        version: 2.6.0-subduction.34(supports-color@5.5.0)
+        specifier: 2.6.0-subduction.39
+        version: 2.6.0-subduction.39
       '@automerge/automerge-repo-solid-primitives':
-        specifier: ^2.5.2
-        version: 2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+        specifier: 2.6.0-subduction.39
+        version: 2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13)
       '@inkandswitch/patchwork-bootloader':
-        specifier: ^0.0.4
-        version: 0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)(supports-color@5.5.0)
+        specifier: ^0.3.2
+        version: 0.3.2(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.8b(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@automerge/vanillajs@2.6.0-subduction.39)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.6
-        version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))
+        version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))
+      '@inkandswitch/patchwork-providers-solid':
+        specifier: ^0.2.3
+        version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.39)(solid-js@1.9.13)
       '@types/debug':
         specifier: ^4.1.12
         version: 4.1.13
@@ -1084,10 +1178,10 @@ importers:
         version: 6.43.2
       '@inkandswitch/patchwork-bootloader':
         specifier: ^0.2.4
-        version: 0.2.8(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.1c(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@automerge/vanillajs@2.6.0-subduction.29)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)
+        version: 0.2.8(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.1c(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@automerge/vanillajs@2.6.0-subduction.29)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.11
-        version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
+        version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.2))
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
@@ -1130,7 +1224,7 @@ importers:
         version: 2.6.0-subduction.34(supports-color@5.5.0)
       '@inkandswitch/patchwork-elements':
         specifier: 1.0.0
-        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
+        version: 1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)
       '@inkandswitch/patchwork-filesystem':
         specifier: ^0.0.8
         version: 0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(supports-color@5.5.0)
@@ -1138,11 +1232,14 @@ importers:
         specifier: ^0.0.11
         version: 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       '@inkandswitch/patchwork-providers-solid':
         specifier: 0.2.3
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.34(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+      '@solid-primitives/storage':
+        specifier: ^4.3.5
+        version: 4.3.5(solid-js@1.9.13)
       solid-js:
         specifier: ^1.9.10
         version: 1.9.13
@@ -1188,13 +1285,13 @@ importers:
         version: 0.2.8(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.1c(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.29)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)
       '@inkandswitch/patchwork-filesystem':
         specifier: ^0.0.3
-        version: 0.0.3(supports-color@5.5.0)
+        version: 0.0.3
       '@inkandswitch/patchwork-plugins':
         specifier: ^0.0.5
         version: 0.0.5
       '@inkandswitch/patchwork-providers':
-        specifier: 0.2.2
-        version: 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+        specifier: 0.3.0
+        version: 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       '@inkandswitch/patchwork-providers-react':
         specifier: 0.2.2
         version: 0.2.2(@automerge/automerge-repo-react-hooks@2.6.0-subduction.20(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@automerge/automerge-repo@2.6.0-subduction.34)(react@18.3.1)
@@ -1286,11 +1383,11 @@ packages:
   '@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.1c':
     resolution: {integrity: sha512-VM1tL9G+qQZ+0s0CM7DxBFkldwv5/GwqwZsW9U33qIU4LJES4MLc8QNeTtg9EJ7n7Pv0aovghRBaro2RdQHk8g==}
 
+  '@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.8b':
+    resolution: {integrity: sha512-Ld97PHH3fn9i0vnctjobaQV61BYjhmDZloSpfrFmXl6ynOfe8VUG4b0AyMJjmrpT9Fwz51An4u8ICoUpDsyUJg==}
+
   '@automerge/automerge-repo-network-broadcastchannel@2.5.0':
     resolution: {integrity: sha512-57rUTYf0W6kL9DXwjRtyGLqeyz65tDIpiNQdc1nXHnN4VkNMvNo0xzb37nyFKWHEqPWA0DGCcBA8HRlbVHHyHw==}
-
-  '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.15':
-    resolution: {integrity: sha512-KqhWYmSkdDqNcVhrHWI07GH9IwJaYGimrpJW5yBdEy7YeIcEK9DwYprUHXifxpmpE+Pn7HZtAcFHA9NDicG30w==}
 
   '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.20':
     resolution: {integrity: sha512-L9fOFGaCG5ry4L7Ya223QaRAd16w743N4U23f4mOKzhC7M3FFXqseHqnhYIyjF1g6xs7y0JHghfV2C54cvY+uw==}
@@ -1300,6 +1397,10 @@ packages:
 
   '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.34':
     resolution: {integrity: sha512-3YLCrzZZoBecmdyvP3Kw3+/et36EfrNvv4N3zHVjcIklRrcMII0kjF3x3XNBExd155pHOiwn0BGo1lbD00xHfA==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.39':
+    resolution: {integrity: sha512-yBUrWKLGHAe9D7nfvO2rVdA6CIgvcy7MD6sQt60M8INb9b8eoxDuNYDTraQPnusidQH6r8+/E67h8YIGF7uhPQ==}
     engines: {node: '>=22.13'}
 
   '@automerge/automerge-repo-network-messagechannel@2.5.0':
@@ -1316,6 +1417,10 @@ packages:
 
   '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.34':
     resolution: {integrity: sha512-C0G5ut1C1luIaNJPym0mFuKb8a1V4E0sjSHB9Flwd8AxCYR8SYhWI4PLZb1z/0kg/Qqx277Ik2x9Y94rACz66Q==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.39':
+    resolution: {integrity: sha512-fW1/75QNhYtuAGey/KhlZksxcFNksYNzAi/S4aU5tgLqHqQkWXPp2ndvbUC7t3cYPKxlf6M/TsnPbmmoO60dRw==}
     engines: {node: '>=22.13'}
 
   '@automerge/automerge-repo-network-websocket@2.5.0':
@@ -1346,6 +1451,14 @@ packages:
     resolution: {integrity: sha512-m+e46/+T74SnV39FCHaujyH5lKL85/Q35vdPv1D7tg7uSB68+0UVDShdLX7e7jcK0xBhYxuxQoksDz3ky2TjBQ==}
     engines: {node: '>=22.13'}
 
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.37':
+    resolution: {integrity: sha512-BgxKPgnnEnNgQYUvzinhfnYYNRP0eWhTVgg/ut3JYZdjq7h+OyYrIEiy6eGIkKBn/8USIZKQnvhJH1TXwyfyGg==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.39':
+    resolution: {integrity: sha512-SVx/jA19+tCB1jCoXao+rC8v4TrYPQBgKcRcSgW3KXiVhFfIjQlk19AzZH9siKaIxo9RcnAF0+cdymYh/pMVlg==}
+    engines: {node: '>=22.13'}
+
   '@automerge/automerge-repo-react-hooks@2.6.0-subduction.20':
     resolution: {integrity: sha512-eX0n1uW6Of/RD7k5H6MsvbLP79l6xhaE7qdKdk2LbnYkr0CqnKOxeTOQUFOVKMyvQw330OPGm1NeD604RJ91EA==}
     peerDependencies:
@@ -1372,6 +1485,13 @@ packages:
       '@automerge/automerge': ^3.0.0
       solid-js: ^1.9.4
 
+  '@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39':
+    resolution: {integrity: sha512-sRavtjkD5B/FDxeeCOFiUI2XKa4rtjmDb/2VXR/Fof3gjjeiysR4P/gxMvF6HnmN+31nCDqv1bn2Sk8jUp6Zfg==}
+    engines: {node: '>=22.13'}
+    peerDependencies:
+      '@automerge/automerge': ^3.0.0
+      solid-js: ^1.9.4
+
   '@automerge/automerge-repo-storage-indexeddb@2.5.0':
     resolution: {integrity: sha512-7MJYJ5S6K7dHlbvs5/u/v9iexqOeprU/qQonup28r2IoVqwzjuN5ezaoVk6JRBMDI/ZxWfU4rNrqVrVlB49yXA==}
 
@@ -1386,6 +1506,10 @@ packages:
 
   '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.34':
     resolution: {integrity: sha512-ajLxo5iBQjI4EWyyrDFklksYlFfq5wSVESSld1Udl94iD5lEeRJrqnct4w5El4lhCkHLB65f5mDibv1DPB5TEg==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.39':
+    resolution: {integrity: sha512-/teyLHObHm21E5HX0/xg6q+GZKHW7mR6sdRXjMXhfAf2rFTRNOAxhWN+tGXarub9bhpNjgPAcuumPgaNKhSCLQ==}
     engines: {node: '>=22.13'}
 
   '@automerge/automerge-repo@2.5.0':
@@ -1419,6 +1543,18 @@ packages:
     resolution: {integrity: sha512-haobq94PQ1Z74DsXMfMFfWAowR6cdoTAjfUAqJQQIevzuOVn2oioTctPp7t0FvVsdGHR5L3Im107L57WYOtJCA==}
     engines: {node: '>=22.13'}
 
+  '@automerge/automerge-repo@2.6.0-subduction.37':
+    resolution: {integrity: sha512-YEnO34sMOKfXkyW0paqfa5BFehXT/VnwMhpxGcLrVLQbGzvXk14uT1vGp//u1wmrFw+iVj++W0E+owA615SbdA==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/automerge-repo@2.6.0-subduction.39':
+    resolution: {integrity: sha512-YREc25rNf/AE1d90rPTLQJEKPORDdBthKw8siu1VjkAGs5eJL6IgQK6U1mytVR/ex7MukBpmzwNa19tnGHsGcw==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/automerge-repo@2.6.0-subduction.40':
+    resolution: {integrity: sha512-9r3GS8FtZKoIJOtJqkQR0ukF7HSu+IyV5Iqf7MP3ELDz/TEaUbZV8ysyl5Ju4fVZjmagI/n3oH2h4ySk4FdEFQ==}
+    engines: {node: '>=22.13'}
+
   '@automerge/automerge-subduction@0.12.1':
     resolution: {integrity: sha512-s1s40RTozkqExIk1LYdogKPzpCMFfe/7KBS0ccAlwsy4JwdcUGG9NQO2Pm3kZq8vD3OPw7DcIOSPG+bnLESQFg==}
 
@@ -1449,6 +1585,9 @@ packages:
   '@automerge/automerge@3.3.0-fragments.1':
     resolution: {integrity: sha512-Im2n3qcYSuIsLDSjofTRo7CZyyvFn5pKLSCCO5sjWzESw+9q9G25ZIrL2mczDX43cXtyzi+w/4b9VUaiNdY56Q==}
 
+  '@automerge/automerge@3.3.0-fragments.2':
+    resolution: {integrity: sha512-F5KL+YXD0GMFH/as0/kJ3+lotpuJsH1SSrhhKdYSGtR+S9ytBNTw+s3pAjF2Vr0+ZdTMHxsGjqj5SRkJiSNokQ==}
+
   '@automerge/react@2.6.0-subduction.34':
     resolution: {integrity: sha512-CKB65u1gSHXTwkyro1/8UmDcNlR4UMHdqrXgbtLgvYff3U0Guptvh1jW8n0+ZIIwJDDTtktSiaBN6TzCpALViw==}
     engines: {node: '>=22.13'}
@@ -1458,9 +1597,6 @@ packages:
   '@automerge/vanillajs@2.5.0':
     resolution: {integrity: sha512-18Z179fBkRYhfJOvzcz5NU+TSJOfOBez1ZQqjNnRlmHB0xwaC9P/MFuuc9ujWtJSiRAh6jzB3HxUZpCIjEfXFw==}
 
-  '@automerge/vanillajs@2.6.0-subduction.15':
-    resolution: {integrity: sha512-uWihD9tgjzLR5OpqTmJ55RgWYbwqmpbd8hI0pezH80gR4Sv7aYNkp5ytGXtIYnndxzfC58bXeuIhttKFfQTyMg==}
-
   '@automerge/vanillajs@2.6.0-subduction.20':
     resolution: {integrity: sha512-oZZa8AKAgjphiVw1NUPBtqUO2gCHR+FUhr4usbIA46WuxsbZFauLHyZsAyHowzKDS0FUB1DY6ZvGk45WKRWh+A==}
 
@@ -1469,6 +1605,10 @@ packages:
 
   '@automerge/vanillajs@2.6.0-subduction.34':
     resolution: {integrity: sha512-Hi147n/zzTd7k8FmRqM8QlwBZbBZIkyNL1IW+rdzWp+Z4IfU8lGeQXKPtcz7r3IEXLSBocUtrbyTPanCwHAUnQ==}
+    engines: {node: '>=22.13'}
+
+  '@automerge/vanillajs@2.6.0-subduction.39':
+    resolution: {integrity: sha512-oUHeZpH6MbppXSiezel7LaXbI5VLZXZ77fWrLE4YojgdOgJRG91htAaFX+GsdH4OBSKlHwICRyjLLczxnjEfZA==}
     engines: {node: '>=22.13'}
 
   '@awarth/tasklib@0.0.10':
@@ -1611,6 +1751,21 @@ packages:
     resolution: {integrity: sha512-dI+9P7cfWxkTQ+oE+7Aa6onEn92PHgfWXZivjNheCRmTBDBf2fx6RyTi0cmgpYLnD1KLZK9ZYrMxaPZ4oiXhGA==}
     cpu: [x64]
     os: [win32]
+
+  '@chee/patchwork-bundles@0.2.0':
+    resolution: {integrity: sha512-Hc8YhdYM1s/6ij08wMFFBa0+LUyPyW7EBh8yrIsWtBzurWcsHnCtdF7ObZtWVqslkLjlgLqcvpDHYpWhfg6I0g==}
+
+  '@chee/patchwork-llm@automerge:HaCFnBBADdADqJm4Bu5Sc4abQyE#26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3@26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3':
+    resolution: {automergeUrl: automerge:HaCFnBBADdADqJm4Bu5Sc4abQyE#26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3, type: custom:automerge}
+    version: 0.1.1
+    peerDependencies:
+      '@automerge/automerge-repo': ^2.5.6
+
+  '@chee/patchwork-transcript@automerge:2AdvAyQ85NfazBA4TtDyRYCqfvYb#RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n@RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n':
+    resolution: {automergeUrl: automerge:2AdvAyQ85NfazBA4TtDyRYCqfvYb#RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n, type: custom:automerge}
+    version: 0.1.0
+    peerDependencies:
+      '@automerge/automerge-repo': ^2.5.6
 
   '@codemirror/autocomplete@6.20.3':
     resolution: {integrity: sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==}
@@ -2374,6 +2529,15 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
+  '@inkandswitch/patchwork-bootloader@0.0.3':
+    resolution: {integrity: sha512-FPVsH+ncVw4gPWUvOweotcTdL421Dg+/KcYBOUVyqZ3PxpWoLwLPw1jevZVMuGrIURR2MNkLCQqVPd5tlZ2qsA==}
+    peerDependencies:
+      '@automerge/automerge': 3.2.1
+      '@automerge/automerge-repo': 2.5.0
+      '@automerge/automerge-repo-keyhive': 0.0.0-alpha.71
+      '@automerge/vanillajs': 2.5.0
+      '@keyhive/keyhive': 0.0.0-alpha.40
+
   '@inkandswitch/patchwork-bootloader@0.0.4':
     resolution: {integrity: sha512-3VWkDYPTiY4H2+877tYHptRGQcCg22uoa0NG+7cgwbmETcBhnXheoLh/cv3clPf2mcMiglhY1Htt7ezkgKa17g==}
     peerDependencies:
@@ -2382,14 +2546,6 @@ packages:
       '@automerge/automerge-repo-keyhive': 0.0.0-alpha.71
       '@automerge/vanillajs': 2.5.0
       '@keyhive/keyhive': 0.0.0-alpha.40
-
-  '@inkandswitch/patchwork-bootloader@0.0.8':
-    resolution: {integrity: sha512-h+bIsrubExDDFltf2q1InQMF37ltLfmzCF6cyyW+Q42LnpJzJQFED3UaId8RDzMAQDyQFabrgNp4oJJIYAB0lw==}
-    peerDependencies:
-      '@automerge/automerge': 3.2.5
-      '@automerge/automerge-repo': 2.6.0-subduction.15
-      '@automerge/automerge-repo-keyhive': 0.2.0-alpha.1d
-      '@automerge/vanillajs': 2.6.0-subduction.15
 
   '@inkandswitch/patchwork-bootloader@0.0.9':
     resolution: {integrity: sha512-MhiU/4H7pI35mIGcLnLV+9u3gmKIoi+uVo+QyEC7cO7K4nNTPi/VO8PWquFN+JPcYFZgy+TxScuS2dE7sjJzjQ==}
@@ -2406,6 +2562,22 @@ packages:
       '@automerge/automerge-repo': 2.6.0-subduction.29
       '@automerge/automerge-repo-keyhive': 0.3.0-alpha.sub.1c
       '@automerge/vanillajs': 2.6.0-subduction.29
+
+  '@inkandswitch/patchwork-bootloader@0.3.1':
+    resolution: {integrity: sha512-rlo7uwlFDr27rtEBzhE7ybBFd/QEleo3JjdvLfRmDZiST6K8h/NY1HZ3MoFl0bEdCen4pk+xYAAqNXInm7Fmxw==}
+    peerDependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@automerge/automerge-repo-keyhive': 0.3.0-alpha.sub.8b
+      '@automerge/vanillajs': 2.6.0-subduction.39
+
+  '@inkandswitch/patchwork-bootloader@0.3.2':
+    resolution: {integrity: sha512-90qdRiXFMWhBBr7xAGtAnvA9CUbCQajfzpinmsdw5FFnM9EoCzEOvgGsZDVVsKKMqIHNAVcZOG8yMIkP/PPSpg==}
+    peerDependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@automerge/automerge-repo-keyhive': 0.3.0-alpha.sub.8b
+      '@automerge/vanillajs': 2.6.0-subduction.39
 
   '@inkandswitch/patchwork-comments@0.1.2':
     resolution: {integrity: sha512-hROMr5IZ2lpnl5mF3ge53/0h3YzaRc95ph+KPvxPIRF2vaAJ9Xs1p+WRC5XIVaMZNUtgnrPcpZwypNyZIWVdNg==}
@@ -2510,6 +2682,18 @@ packages:
       '@automerge/automerge': '*'
       '@automerge/automerge-repo': '*'
 
+  '@inkandswitch/patchwork-filesystem@0.1.1':
+    resolution: {integrity: sha512-lGzp58TtEpZcO707rqAzgJlQnFx6EPw4p3lt+gQkqu+iiVXwVslH0nqjJYQsGCdC6GTFyVwQUolX5BicSr0FsQ==}
+    peerDependencies:
+      '@automerge/automerge': '*'
+      '@automerge/automerge-repo': '*'
+
+  '@inkandswitch/patchwork-filesystem@0.1.2':
+    resolution: {integrity: sha512-xmx5nmXgURlma1mEhyviOEWuU7FWtIFEsST5daCyyTXtRmhiPKGPdilfnltEyGVOQfDo4wNnXCkNmUgoH9xs0w==}
+    peerDependencies:
+      '@automerge/automerge': '*'
+      '@automerge/automerge-repo': '*'
+
   '@inkandswitch/patchwork-plugins@0.0.11':
     resolution: {integrity: sha512-ElwDEixpZN64gdoE7EU8QFz4WzvyJt6j4Zn0pTezsW6SzGlx+Rc6Ox+7POK7gqEzQEcl3Iqo8+QdYRucYllRFw==}
     peerDependencies:
@@ -2595,6 +2779,9 @@ packages:
   '@keyhive/keyhive@0.0.0-alpha.57g':
     resolution: {integrity: sha512-o8u0emy+vQQPmYKS8HqyjAUw9hXEApXv3tt+G9ZUJUPMVTuaor17N4BKFmNdAiH2Jt/TTX7Vsr8QaRNRf0FOIA==}
 
+  '@keyhive/keyhive@0.1.0-alpha.5':
+    resolution: {integrity: sha512-RoFimLwO91OR4/794pVT0SyTA4Gn3Jk9KL64ONrLe1UYLBdIPhrqeeQgY6i0FBcS1/zSeIFeK3AJZ8GzCRTRmA==}
+
   '@kobalte/core@0.13.11':
     resolution: {integrity: sha512-hK7TYpdib/XDb/r/4XDBFaO9O+3ZHz4ZWryV4/3BfES+tSQVgg2IJupDnztKXB0BqbSRy/aWlHKw1SPtNPYCFQ==}
     peerDependencies:
@@ -2662,6 +2849,10 @@ packages:
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@2.2.0':
+    resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
+    engines: {node: '>= 20.19.0'}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -3596,6 +3787,18 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
+  '@solid-primitives/storage@4.3.5':
+    resolution: {integrity: sha512-uvgj2HoqPw6RlDRiwVm4LQM6WHUJ+SsCvXtvGLbWVnIjGqrrNyFxdbKQFYUkSw6QsVO/esm7Ok0VeDpO0ioRlA==}
+    peerDependencies:
+      '@tauri-apps/plugin-store': '*'
+      solid-js: ^1.6.12
+      solid-start: '*'
+    peerDependenciesMeta:
+      '@tauri-apps/plugin-store':
+        optional: true
+      solid-start:
+        optional: true
+
   '@solid-primitives/styles@0.1.3':
     resolution: {integrity: sha512-7YdA21prMeCX+oOF/1RAn02+cGz/pG4dyPWtHBC2H8aZvnC7IfThBt80mP+TioejrdfE7Lc54Uh18f7Pig+gRQ==}
     peerDependencies:
@@ -3608,6 +3811,11 @@ packages:
 
   '@solid-primitives/utils@6.4.0':
     resolution: {integrity: sha512-AeGTBg8Wtkh/0s+evyLtP8piQoS4wyqqQaAFs2HJcFMMjYAtUgo+ZPduRXLjPlqKVc2ejeR544oeqpbn8Egn8A==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
+  '@solid-primitives/utils@6.4.1':
+    resolution: {integrity: sha512-ISSB5QX1qP2ynrheIpYwc4oKR5Ny4siNuUyf1qZniy+Il+p/PtDB0QK1Dnle8noiHpwRD3gpPdubOC3qI/Zamg==}
     peerDependencies:
       solid-js: ^1.6.12
 
@@ -4082,6 +4290,11 @@ packages:
     resolution: {integrity: sha512-CY3uyFSRbcQv3nnSv8S0+lDftMVz6P963PoRlxrV7ew/Md564g9ut60PYzdLM5qW4jFn93GBF+Soi90ISAN+GQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@typescript/vfs@1.6.4':
+    resolution: {integrity: sha512-PJFXFS4ZJKiJ9Qiuix6Dz/OwEIqHD7Dme1UwZhTK11vR+5dqW2ACbdndWQexBzCx+CPuMe5WBYQWCsFyGlQLlQ==}
+    peerDependencies:
+      typescript: '*'
+
   '@use-gesture/core@10.3.1':
     resolution: {integrity: sha512-WcINiDt8WjqBdUXye25anHiNxPc0VOrlT8F6LLkU6cycrOGUDyY/yyFmsg3k8i5OLvv25llc0QC45GhR/C8llw==}
 
@@ -4089,6 +4302,14 @@ packages:
     resolution: {integrity: sha512-Yy19y6O2GJq8f7CHf7L0nxL8bf4PZCPaVOCgJrusOeFHY1LvHgYXnmnXg6N5iwAnbgbZCDjo60SiM6IPJi9C5g==}
     peerDependencies:
       react: '>= 16.8.0'
+
+  '@valtown/codemirror-ts@2.3.1':
+    resolution: {integrity: sha512-v5XiI4WA+bUy0XDgkrqZksqBWgIUeyLZuC94Px/rhXBph8ASmVXaimlGDtt0vH/9t8aDdIZYdr59r9H3oKMFOg==}
+    peerDependencies:
+      '@codemirror/autocomplete': ^6
+      '@codemirror/lint': ^6
+      '@codemirror/state': ^6
+      '@codemirror/view': ^6
 
   '@vitejs/plugin-react@4.7.0':
     resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
@@ -4280,6 +4501,40 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
+  cute.txt@0.0.6:
+    resolution: {integrity: sha512-X6nmLFh4oIllqv0l6fdx1Y+qa273S0F8TwkLXvUEqfYsWWtpGjDosWo1u01zMKrWYNlX64sUnYxMeWa/ppw9lg==}
+    peerDependencies:
+      '@automerge/automerge': '*'
+      '@codemirror/state': '*'
+      '@codemirror/view': '*'
+      solid-js: '*'
+    peerDependenciesMeta:
+      '@automerge/automerge':
+        optional: true
+      '@codemirror/state':
+        optional: true
+      '@codemirror/view':
+        optional: true
+      solid-js:
+        optional: true
+
+  cute.txt@0.0.7:
+    resolution: {integrity: sha512-PCbiSA7fbwHTb2Ozu5c9MEgszQxRHUjotTUES4XrZtITqk+XweBVoqOG7Su7hl+6KRGcx0rc1waEOb705sgsOA==}
+    peerDependencies:
+      '@automerge/automerge': '*'
+      '@codemirror/state': '*'
+      '@codemirror/view': '*'
+      solid-js: '*'
+    peerDependenciesMeta:
+      '@automerge/automerge':
+        optional: true
+      '@codemirror/state':
+        optional: true
+      '@codemirror/view':
+        optional: true
+      solid-js:
+        optional: true
+
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
     engines: {node: '>=6.0'}
@@ -4309,6 +4564,9 @@ packages:
   entities@6.0.1:
     resolution: {integrity: sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==}
     engines: {node: '>=0.12'}
+
+  es-module-lexer@2.3.0:
+    resolution: {integrity: sha512-KLdwQm2NvGLDkQDCGvmiQrhkd0JbMzXthwQAUgWjQuQdBLFa3eiBP5arXZyA+f8x+x7OXgud6bq2rxjGtHV2tw==}
 
   es-module-shims@2.8.1:
     resolution: {integrity: sha512-Ztg5TxFCT/ffzmSf/ginHIvSbsneH60X9tpaMBD/jWXHQZT1JJNj8tOO3mRmUT3ar7Qn3YK4EbM1SjJpN5dPBA==}
@@ -4940,11 +5198,11 @@ packages:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
 
-  solid-automerge@1.1.0:
-    resolution: {integrity: sha512-30dT8rknfyAJTvnl55Wr/seImwAy9mwup7IuI28byLDih/pMObLbMx2Ey2EPh6/KUniahzu6hpY/fBFMZ0D+cA==}
-    deprecated: 'wonderful news! this is now an official part of automerge-repo: @automerge/automerge-repo-solid-primitives'
+  solid-automerge@2.0.0:
+    resolution: {integrity: sha512-tjW2s1b/er3d+9OZtonzkuonAZA2+gwoxr++eqlVU5/LebaMQIuXWwum/SsZyQ5VEh040/8EQJqBi7ys25psMw==}
     peerDependencies:
-      solid-js: ^1.9.4
+      '@automerge/automerge-repo': ^2.6.0-subduction.34
+      solid-js: ^1.9.13
 
   solid-devtools@0.34.5:
     resolution: {integrity: sha512-KNVdS9MQzzeVS++Vmg4JeU0fM6ZMuBEmkBA7SmqPS2s5UHpRjv1PNH8gShmlN9L/tki6OUAzJP3H1aKq2AcOSg==}
@@ -5059,6 +5317,10 @@ packages:
 
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
+
+  unplugin@2.3.11:
+    resolution: {integrity: sha512-5uKD0nqiYVzlmCRs01Fhs2BdkEgBS3SAVP6ndrBsuK42iC2+JHyxM05Rm9G8+5mkmRtzMZGY8Ct5+mliZxU/Ww==}
+    engines: {node: '>=18.12.0'}
 
   update-browserslist-db@1.2.3:
     resolution: {integrity: sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w==}
@@ -5215,6 +5477,9 @@ packages:
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
+  webpack-virtual-modules@0.6.2:
+    resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
+
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
     engines: {node: '>= 8'}
@@ -5313,19 +5578,27 @@ snapshots:
       - utf-8-validate
       - ws
 
+  '@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.8b(ws@8.21.0)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.37
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.37
+      '@automerge/automerge-subduction': 0.16.0
+      '@keyhive/keyhive': 0.1.0-alpha.5
+      '@noble/hashes': 2.2.0
+      cbor-x: 1.6.4
+      eventemitter3: 5.0.4
+      isomorphic-ws: 5.0.0(ws@8.21.0)
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+
   '@automerge/automerge-repo-network-broadcastchannel@2.5.0':
     dependencies:
       '@automerge/automerge-repo': 2.5.0
     transitivePeerDependencies:
       - supports-color
-
-  '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.15':
-    dependencies:
-      '@automerge/automerge-repo': 2.6.0-subduction.15
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
 
   '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.20':
     dependencies:
@@ -5351,6 +5624,14 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@automerge/automerge-repo-network-broadcastchannel@2.6.0-subduction.39':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
   '@automerge/automerge-repo-network-messagechannel@2.5.0':
     dependencies:
       '@automerge/automerge-repo': 2.5.0
@@ -5359,9 +5640,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.15':
+  '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.15(supports-color@5.5.0)':
     dependencies:
-      '@automerge/automerge-repo': 2.6.0-subduction.15
+      '@automerge/automerge-repo': 2.6.0-subduction.15(supports-color@5.5.0)
       debug: 4.4.3(supports-color@5.5.0)
       eventemitter3: 5.0.4
     transitivePeerDependencies:
@@ -5392,6 +5673,16 @@ snapshots:
   '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.34(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/automerge-repo-network-messagechannel@2.6.0-subduction.39':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
       debug: 4.4.3(supports-color@5.5.0)
       eventemitter3: 5.0.4
     transitivePeerDependencies:
@@ -5451,9 +5742,9 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.15':
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.15(supports-color@5.5.0)':
     dependencies:
-      '@automerge/automerge-repo': 2.6.0-subduction.15
+      '@automerge/automerge-repo': 2.6.0-subduction.15(supports-color@5.5.0)
       cbor-x: 1.6.4
       debug: 4.4.3(supports-color@5.5.0)
       eventemitter3: 5.0.4
@@ -5514,6 +5805,30 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.37':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.37
+      cbor-x: 1.6.4
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/automerge-repo-network-websocket@2.6.0-subduction.39':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      cbor-x: 1.6.4
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
   '@automerge/automerge-repo-react-hooks@2.6.0-subduction.20(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@automerge/automerge': 3.2.6
@@ -5554,6 +5869,11 @@ snapshots:
       '@automerge/automerge': 3.3.0-fragments.1
       solid-js: 1.9.13
 
+  '@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      solid-js: 1.9.13
+
   '@automerge/automerge-repo-storage-indexeddb@2.5.0':
     dependencies:
       '@automerge/automerge-repo': 2.5.0
@@ -5562,7 +5882,7 @@ snapshots:
 
   '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.15':
     dependencies:
-      '@automerge/automerge-repo': 2.6.0-subduction.15
+      '@automerge/automerge-repo': 2.6.0-subduction.15(supports-color@5.5.0)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -5587,6 +5907,14 @@ snapshots:
   '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.34':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/automerge-repo-storage-indexeddb@2.6.0-subduction.39':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -5662,7 +5990,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@automerge/automerge-repo@2.6.0-subduction.15':
+  '@automerge/automerge-repo@2.6.0-subduction.15(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-subduction': 0.8.1
@@ -5752,6 +6080,60 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@automerge/automerge-repo@2.6.0-subduction.37':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-subduction': 0.16.0
+      bs58check: 4.0.0
+      cbor-x: 1.6.4
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      fast-sha256: 1.3.0
+      isomorphic-ws: 5.0.0(ws@8.21.0)
+      uuid: 14.0.1
+      ws: 8.21.0
+      xstate: 5.32.2
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/automerge-repo@2.6.0-subduction.39':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-subduction': 0.16.0
+      bs58check: 4.0.0
+      cbor-x: 1.6.4
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      fast-sha256: 1.3.0
+      isomorphic-ws: 5.0.0(ws@8.21.0)
+      uuid: 14.0.1
+      ws: 8.21.0
+      xstate: 5.32.2
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/automerge-repo@2.6.0-subduction.40':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.2
+      '@automerge/automerge-subduction': 0.16.0
+      bs58check: 4.0.0
+      cbor-x: 1.6.4
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      fast-sha256: 1.3.0
+      isomorphic-ws: 5.0.0(ws@8.21.0)
+      uuid: 14.0.1
+      ws: 8.21.0
+      xstate: 5.32.2
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
   '@automerge/automerge-subduction@0.12.1': {}
 
   '@automerge/automerge-subduction@0.13.0': {}
@@ -5773,6 +6155,8 @@ snapshots:
   '@automerge/automerge@3.2.6': {}
 
   '@automerge/automerge@3.3.0-fragments.1': {}
+
+  '@automerge/automerge@3.3.0-fragments.2': {}
 
   '@automerge/react@2.6.0-subduction.34(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -5796,18 +6180,6 @@ snapshots:
       '@automerge/automerge-repo-network-messagechannel': 2.5.0
       '@automerge/automerge-repo-network-websocket': 2.5.0
       '@automerge/automerge-repo-storage-indexeddb': 2.5.0
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
-  '@automerge/vanillajs@2.6.0-subduction.15':
-    dependencies:
-      '@automerge/automerge-repo': 2.6.0-subduction.15
-      '@automerge/automerge-repo-network-broadcastchannel': 2.6.0-subduction.15
-      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.15
-      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.15
-      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.15
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -5844,6 +6216,18 @@ snapshots:
       '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.34(supports-color@5.5.0)
       '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.34(supports-color@5.5.0)
       '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.34
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  '@automerge/vanillajs@2.6.0-subduction.39':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@automerge/automerge-repo-network-broadcastchannel': 2.6.0-subduction.39
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.39
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.39
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.39
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -6051,6 +6435,35 @@ snapshots:
 
   '@cbor-extract/cbor-extract-win32-x64@2.2.2':
     optional: true
+
+  '@chee/patchwork-bundles@0.2.0(@automerge/automerge@3.2.6)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@inkandswitch/patchwork-bootloader': 0.3.2(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)
+      es-module-lexer: 2.3.0
+      resolve.exports: 2.0.3
+      unplugin: 2.3.11
+    transitivePeerDependencies:
+      - '@automerge/automerge'
+      - '@automerge/automerge-repo-keyhive'
+      - '@automerge/vanillajs'
+      - '@types/react'
+      - bufferutil
+      - react
+      - solid-js
+      - supports-color
+      - utf-8-validate
+
+  '@chee/patchwork-llm@automerge:HaCFnBBADdADqJm4Bu5Sc4abQyE#26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3@26oUrk4Jj3kBUbJjGEr1SuQLskBBxxihaWGWL4g7jTPvwM9TM3(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))':
+    dependencies:
+      '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
+      '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))
+
+  '@chee/patchwork-transcript@automerge:2AdvAyQ85NfazBA4TtDyRYCqfvYb#RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n@RUCqgHPjqB8fwhZczav5rwJ9J7rBLj3rSfQ9ykaCkR3HrEN2n(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))':
+    dependencies:
+      '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
+      '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))
 
   '@codemirror/autocomplete@6.20.3':
     dependencies:
@@ -6689,7 +7102,20 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@inkandswitch/patchwork-bootloader@0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)':
+  '@inkandswitch/patchwork-bootloader@0.0.3(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))(@automerge/automerge@3.2.6)(@keyhive/keyhive@0.0.0-alpha.40)(supports-color@5.5.0)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
+      '@keyhive/keyhive': 0.0.0-alpha.40
+      '@types/debug': 4.1.13
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+      service-worker-types: '@types/serviceworker@0.0.153'
+      tinyargs: 0.1.4
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-bootloader@0.0.4(@automerge/automerge-repo-keyhive@0.0.0-alpha.71)(@automerge/automerge-repo@2.5.6)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.5.0)(@keyhive/keyhive@0.0.0-alpha.40)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
@@ -6749,42 +7175,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-bootloader@0.0.8(@automerge/automerge-repo-keyhive@0.2.0-alpha.1d)(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.15)(supports-color@5.5.0)':
-    dependencies:
-      '@automerge/automerge': 3.2.6
-      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
-      '@automerge/automerge-repo-keyhive': 0.2.0-alpha.1d
-      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.15
-      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.15
-      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.15
-      '@automerge/automerge-subduction': 0.8.1
-      '@automerge/vanillajs': 2.6.0-subduction.15
-      '@inkandswitch/patchwork-elements': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0))(supports-color@5.5.0)
-      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
-      '@inkandswitch/patchwork-plugins': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0)
-      '@types/debug': 4.1.13
-      debug: 4.4.3(supports-color@5.5.0)
-      resolve.exports: 2.0.3
-      service-worker-types: '@types/serviceworker@0.0.153'
-      tinyargs: 0.1.4
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
   '@inkandswitch/patchwork-bootloader@0.0.9(@automerge/automerge-repo-keyhive@0.2.0-alpha.1d)(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.20(supports-color@5.5.0))(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.20
       '@automerge/automerge-repo-keyhive': 0.2.0-alpha.1d
-      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.15
-      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.15
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.15(supports-color@5.5.0)
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.15(supports-color@5.5.0)
       '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.15
       '@automerge/automerge-subduction': 0.8.1
       '@automerge/vanillajs': 2.6.0-subduction.20(supports-color@5.5.0)
-      '@inkandswitch/patchwork-elements': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)))
-      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)
-      '@inkandswitch/patchwork-plugins': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6))
+      '@inkandswitch/patchwork-elements': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0))(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
+      '@inkandswitch/patchwork-plugins': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0)
       '@types/debug': 4.1.13
       debug: 4.4.3(supports-color@5.5.0)
       resolve.exports: 2.0.3
@@ -6907,6 +7310,116 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@inkandswitch/patchwork-bootloader@0.2.8(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.1c(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@automerge/vanillajs@2.6.0-subduction.29)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@automerge/automerge-repo-keyhive': 0.3.0-alpha.sub.1c(ws@8.21.0)
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.29
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.29
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.29
+      '@automerge/automerge-subduction': 0.15.0
+      '@automerge/vanillajs': 2.6.0-subduction.29
+      '@inkandswitch/patchwork-elements': 2.0.0(@automerge/automerge-repo@2.6.0-subduction.40)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.40))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.40)
+      '@keyhive/keyhive': 0.0.0-alpha.56
+      '@types/debug': 4.1.13
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+      service-worker-types: '@types/serviceworker@0.0.153'
+      tinyargs: 0.1.4
+    transitivePeerDependencies:
+      - '@types/react'
+      - bufferutil
+      - react
+      - solid-js
+      - supports-color
+      - utf-8-validate
+
+  '@inkandswitch/patchwork-bootloader@0.3.1(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.8b(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@automerge/vanillajs@2.6.0-subduction.39)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      '@automerge/automerge-repo-keyhive': 0.3.0-alpha.sub.8b(ws@8.21.0)
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.39
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.39
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.39
+      '@automerge/automerge-subduction': 0.16.0
+      '@automerge/vanillajs': 2.6.0-subduction.39
+      '@inkandswitch/patchwork-elements': 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
+      '@keyhive/keyhive': 0.1.0-alpha.5
+      '@types/debug': 4.1.13
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+      service-worker-types: '@types/serviceworker@0.0.153'
+      tinyargs: 0.1.4
+    transitivePeerDependencies:
+      - '@types/react'
+      - bufferutil
+      - react
+      - solid-js
+      - supports-color
+      - utf-8-validate
+
+  '@inkandswitch/patchwork-bootloader@0.3.2(@automerge/automerge-repo-keyhive@0.3.0-alpha.sub.8b(ws@8.21.0))(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@automerge/vanillajs@2.6.0-subduction.39)(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@automerge/automerge-repo-keyhive': 0.3.0-alpha.sub.8b(ws@8.21.0)
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.39
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.39
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.39
+      '@automerge/automerge-subduction': 0.16.0
+      '@automerge/vanillajs': 2.6.0-subduction.39
+      '@inkandswitch/patchwork-elements': 2.0.0(@automerge/automerge-repo@2.6.0-subduction.39)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.39))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.39)
+      '@keyhive/keyhive': 0.1.0-alpha.5
+      '@types/debug': 4.1.13
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+      service-worker-types: '@types/serviceworker@0.0.153'
+      tinyargs: 0.1.4
+    transitivePeerDependencies:
+      - '@types/react'
+      - bufferutil
+      - react
+      - solid-js
+      - supports-color
+      - utf-8-validate
+
+  '@inkandswitch/patchwork-bootloader@0.3.2(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@automerge/automerge-repo-network-messagechannel': 2.6.0-subduction.39
+      '@automerge/automerge-repo-network-websocket': 2.6.0-subduction.39
+      '@automerge/automerge-repo-storage-indexeddb': 2.6.0-subduction.39
+      '@automerge/automerge-subduction': 0.16.0
+      '@inkandswitch/patchwork-elements': 2.0.0(@automerge/automerge-repo@2.6.0-subduction.40)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.40))(solid-js@1.9.13)
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.40)
+      '@keyhive/keyhive': 0.1.0-alpha.5
+      '@types/debug': 4.1.13
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+      service-worker-types: '@types/serviceworker@0.0.153'
+      tinyargs: 0.1.4
+    transitivePeerDependencies:
+      - '@types/react'
+      - bufferutil
+      - react
+      - solid-js
+      - supports-color
+      - utf-8-validate
+
   '@inkandswitch/patchwork-comments@0.1.2(@automerge/automerge-repo@2.6.0-subduction.34)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
@@ -6914,7 +7427,7 @@ snapshots:
   '@inkandswitch/patchwork-elements@0.0.3(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge-repo': 2.5.0
-      '@inkandswitch/patchwork-filesystem': 0.0.3(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.3
       '@inkandswitch/patchwork-plugins': 0.0.3(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
@@ -6922,7 +7435,7 @@ snapshots:
   '@inkandswitch/patchwork-elements@0.0.5':
     dependencies:
       '@automerge/automerge-repo': 2.5.0
-      '@inkandswitch/patchwork-filesystem': 0.0.3(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.3
       '@inkandswitch/patchwork-plugins': 0.0.5
     transitivePeerDependencies:
       - supports-color
@@ -6954,20 +7467,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-elements@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)))':
+  '@inkandswitch/patchwork-elements@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0))(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.20
-      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)
-      '@inkandswitch/patchwork-plugins': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6))
-      debug: 4.4.3(supports-color@5.5.0)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@inkandswitch/patchwork-elements@0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0))(supports-color@5.5.0)':
-    dependencies:
-      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
-      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
-      '@inkandswitch/patchwork-plugins': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
+      '@inkandswitch/patchwork-plugins': 0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0)
       debug: 4.4.3(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
@@ -6986,12 +7490,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-elements@1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)':
+  '@inkandswitch/patchwork-elements@1.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
       '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(supports-color@5.5.0)
       '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.3.0-fragments.1))
-      '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
       debug: 4.4.3(supports-color@5.5.0)
     optionalDependencies:
       '@types/react': 18.3.31
@@ -7042,6 +7546,60 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@inkandswitch/patchwork-elements@2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)
+      debug: 4.4.3(supports-color@5.5.0)
+    optionalDependencies:
+      '@types/react': 18.3.31
+      react: 18.3.1
+      solid-js: 1.9.13
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-elements@2.0.0(@automerge/automerge-repo@2.6.0-subduction.39)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.39))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.39)
+      debug: 4.4.3(supports-color@5.5.0)
+    optionalDependencies:
+      '@types/react': 18.3.31
+      react: 18.3.1
+      solid-js: 1.9.13
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-elements@2.0.0(@automerge/automerge-repo@2.6.0-subduction.40)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.40))(@types/react@18.3.31)(react@18.3.1)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.40)
+      debug: 4.4.3(supports-color@5.5.0)
+    optionalDependencies:
+      '@types/react': 18.3.31
+      react: 18.3.1
+      solid-js: 1.9.13
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-elements@2.0.0(@automerge/automerge-repo@2.6.0-subduction.40)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)))(@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.40))(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)
+      '@inkandswitch/patchwork-plugins': 0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6))
+      '@inkandswitch/patchwork-providers': 0.3.0(@automerge/automerge-repo@2.6.0-subduction.40)
+      debug: 4.4.3(supports-color@5.5.0)
+    optionalDependencies:
+      solid-js: 1.9.13
+    transitivePeerDependencies:
+      - supports-color
+
   '@inkandswitch/patchwork-filesystem@0.0.1(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge': 3.2.1
@@ -7053,7 +7611,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-filesystem@0.0.3(supports-color@5.5.0)':
+  '@inkandswitch/patchwork-filesystem@0.0.3':
     dependencies:
       '@automerge/automerge': 3.2.1
       '@automerge/automerge-repo': 2.5.0
@@ -7097,21 +7655,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)':
+  '@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.20
-      '@types/debug': 4.1.13
-      '@types/node': 20.19.43
-      debug: 4.4.3(supports-color@5.5.0)
-      resolve.exports: 2.0.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)':
-    dependencies:
-      '@automerge/automerge': 3.2.6
-      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
       '@types/debug': 4.1.13
       '@types/node': 20.19.43
       debug: 4.4.3(supports-color@5.5.0)
@@ -7141,11 +7688,123 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))(@automerge/automerge@3.2.6)(supports-color@5.5.0)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.2)':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.2
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
       '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
       '@types/debug': 4.1.13
       '@types/node': 20.19.43
       debug: 4.4.3(supports-color@5.5.0)
@@ -7180,6 +7839,58 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.2))':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@inkandswitch/patchwork-filesystem': 0.1.2(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.2)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6))':
+    dependencies:
+      '@automerge/automerge': 3.2.6
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@inkandswitch/patchwork-filesystem': 0.1.1(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.2.6)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-plugins@0.0.11(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1))':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.40
+      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.40)(@automerge/automerge@3.3.0-fragments.1)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@inkandswitch/patchwork-plugins@0.0.2(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge': 3.2.1
@@ -7197,7 +7908,7 @@ snapshots:
     dependencies:
       '@automerge/automerge': 3.2.1
       '@automerge/automerge-repo': 2.5.0
-      '@inkandswitch/patchwork-filesystem': 0.0.3(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.3
       '@types/debug': 4.1.13
       '@types/node': 20.19.43
       debug: 4.4.3(supports-color@5.5.0)
@@ -7210,7 +7921,7 @@ snapshots:
     dependencies:
       '@automerge/automerge': 3.2.1
       '@automerge/automerge-repo': 2.5.0
-      '@inkandswitch/patchwork-filesystem': 0.0.3(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.3
       '@types/debug': 4.1.13
       '@types/node': 20.19.43
       debug: 4.4.3(supports-color@5.5.0)
@@ -7258,11 +7969,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))':
+  '@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
-      '@inkandswitch/patchwork-filesystem': 0.0.8(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)
+      '@inkandswitch/patchwork-filesystem': 0.1.2(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)
       '@types/debug': 4.1.13
       '@types/node': 20.19.43
       debug: 4.4.3(supports-color@5.5.0)
@@ -7271,24 +7982,24 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6))':
+  '@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)(@inkandswitch/patchwork-filesystem@0.1.2(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1))':
+    dependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@inkandswitch/patchwork-filesystem': 0.1.2(@automerge/automerge-repo@2.6.0-subduction.39)(@automerge/automerge@3.3.0-fragments.1)
+      '@types/debug': 4.1.13
+      '@types/node': 20.19.43
+      debug: 4.4.3(supports-color@5.5.0)
+      eventemitter3: 5.0.4
+      resolve.exports: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0)':
     dependencies:
       '@automerge/automerge': 3.2.6
       '@automerge/automerge-repo': 2.6.0-subduction.20
-      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)
-      '@types/debug': 4.1.13
-      '@types/node': 20.19.43
-      debug: 4.4.3(supports-color@5.5.0)
-      eventemitter3: 5.0.4
-      resolve.exports: 2.0.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@inkandswitch/patchwork-plugins@0.0.7(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0))(supports-color@5.5.0)':
-    dependencies:
-      '@automerge/automerge': 3.2.6
-      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
-      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
+      '@inkandswitch/patchwork-filesystem': 0.0.5(@automerge/automerge-repo@2.6.0-subduction.20)(@automerge/automerge@3.2.6)(supports-color@5.5.0)
       '@types/debug': 4.1.13
       '@types/node': 20.19.43
       debug: 4.4.3(supports-color@5.5.0)
@@ -7304,6 +8015,13 @@ snapshots:
       '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
       react: 18.3.1
 
+  '@inkandswitch/patchwork-providers-solid@0.2.3(@automerge/automerge-repo-solid-primitives@2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+      '@automerge/automerge-repo-solid-primitives': 2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))
+      solid-js: 1.9.13
+
   '@inkandswitch/patchwork-providers-solid@0.2.3(@automerge/automerge-repo-solid-primitives@2.5.2(@automerge/automerge@3.2.6)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
@@ -7318,13 +8036,40 @@ snapshots:
       '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)
       solid-js: 1.9.13
 
+  '@inkandswitch/patchwork-providers-solid@0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.39)(solid-js@1.9.13)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+      '@automerge/automerge-repo-solid-primitives': 2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13)
+      '@inkandswitch/patchwork-providers': 0.2.2(@automerge/automerge-repo@2.6.0-subduction.39)
+      solid-js: 1.9.13
+
+  '@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.5.6(supports-color@5.5.0))':
+    dependencies:
+      '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
+
+  '@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+
   '@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.34)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
 
+  '@inkandswitch/patchwork-providers@0.2.2(@automerge/automerge-repo@2.6.0-subduction.39)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+
   '@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.34)':
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
+
+  '@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.39)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.39
+
+  '@inkandswitch/patchwork-providers@0.3.0(@automerge/automerge-repo@2.6.0-subduction.40)':
+    dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.40
 
   '@internationalized/date@3.12.2':
     dependencies:
@@ -7358,6 +8103,8 @@ snapshots:
   '@keyhive/keyhive@0.0.0-alpha.56': {}
 
   '@keyhive/keyhive@0.0.0-alpha.57g': {}
+
+  '@keyhive/keyhive@0.1.0-alpha.5': {}
 
   '@kobalte/core@0.13.11(solid-js@1.9.13)':
     dependencies:
@@ -7478,6 +8225,8 @@ snapshots:
   '@marijn/find-cluster-break@1.0.2': {}
 
   '@noble/hashes@1.8.0': {}
+
+  '@noble/hashes@2.2.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -8442,6 +9191,11 @@ snapshots:
       '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
       solid-js: 1.9.13
 
+  '@solid-primitives/storage@4.3.5(solid-js@1.9.13)':
+    dependencies:
+      '@solid-primitives/utils': 6.4.1(solid-js@1.9.13)
+      solid-js: 1.9.13
+
   '@solid-primitives/styles@0.1.3(solid-js@1.9.13)':
     dependencies:
       '@solid-primitives/rootless': 1.5.3(solid-js@1.9.13)
@@ -8454,6 +9208,10 @@ snapshots:
       solid-js: 1.9.13
 
   '@solid-primitives/utils@6.4.0(solid-js@1.9.13)':
+    dependencies:
+      solid-js: 1.9.13
+
+  '@solid-primitives/utils@6.4.1(solid-js@1.9.13)':
     dependencies:
       solid-js: 1.9.13
 
@@ -9079,12 +9837,26 @@ snapshots:
       '@typescript-eslint/types': 8.62.0
       eslint-visitor-keys: 5.0.1
 
+  '@typescript/vfs@1.6.4(supports-color@5.5.0)(typescript@5.9.3)':
+    dependencies:
+      debug: 4.4.3(supports-color@5.5.0)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@use-gesture/core@10.3.1': {}
 
   '@use-gesture/react@10.3.1(react@18.3.1)':
     dependencies:
       '@use-gesture/core': 10.3.1
       react: 18.3.1
+
+  '@valtown/codemirror-ts@2.3.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)':
+    dependencies:
+      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/lint': 6.9.7
+      '@codemirror/state': 6.7.0
+      '@codemirror/view': 6.43.2
 
   '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@24.13.2))':
     dependencies:
@@ -9354,6 +10126,20 @@ snapshots:
 
   csstype@3.2.3: {}
 
+  cute.txt@0.0.6(@automerge/automerge@3.2.6)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)(solid-js@1.9.13):
+    optionalDependencies:
+      '@automerge/automerge': 3.2.6
+      '@codemirror/state': 6.7.0
+      '@codemirror/view': 6.43.2
+      solid-js: 1.9.13
+
+  cute.txt@0.0.7(@automerge/automerge@3.3.0-fragments.1)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)(solid-js@1.9.13):
+    optionalDependencies:
+      '@automerge/automerge': 3.3.0-fragments.1
+      '@codemirror/state': 6.7.0
+      '@codemirror/view': 6.43.2
+      solid-js: 1.9.13
+
   debug@4.4.3(supports-color@5.5.0):
     dependencies:
       ms: 2.1.3
@@ -9374,6 +10160,8 @@ snapshots:
   electron-to-chromium@1.5.378: {}
 
   entities@6.0.1: {}
+
+  es-module-lexer@2.3.0: {}
 
   es-module-shims@2.8.1: {}
 
@@ -10166,8 +10954,9 @@ snapshots:
 
   slash@3.0.0: {}
 
-  solid-automerge@1.1.0(solid-js@1.9.13)(supports-color@5.5.0):
+  solid-automerge@2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)(supports-color@5.5.0):
     dependencies:
+      '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
       '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
       cabbages: 0.2.8(supports-color@5.5.0)
       solid-js: 1.9.13
@@ -10329,6 +11118,13 @@ snapshots:
 
   undici-types@7.18.2: {}
 
+  unplugin@2.3.11:
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      acorn: 8.17.0
+      picomatch: 4.0.4
+      webpack-virtual-modules: 0.6.2
+
   update-browserslist-db@1.2.3(browserslist@4.28.4):
     dependencies:
       browserslist: 4.28.4
@@ -10458,6 +11254,8 @@ snapshots:
       vite: 7.3.5(@types/node@24.13.2)
 
   w3c-keyname@2.2.8: {}
+
+  webpack-virtual-modules@0.6.2: {}
 
   which@2.0.2:
     dependencies:
