@@ -71,16 +71,6 @@ export function ThemeTray(element: HTMLElement) {
 			box-shadow: 0 0.5rem 1rem color-mix(in oklch, var(--studio-line, black), transparent 88%);
 			font-family: var(--studio-family-sans, system-ui, sans-serif);
 		}
-		.theme-tray-popover-header {
-			position: sticky;
-			top: 0;
-			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-xs, 0.375rem);
-			background: var(--studio-chrome, var(--studio-fill, white));
-			color: var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #666));
-			font-size: 0.72rem;
-			font-weight: 600;
-			text-transform: uppercase;
-		}
 		.theme-tray-option {
 			display: flex;
 			align-items: center;
@@ -91,18 +81,17 @@ export function ThemeTray(element: HTMLElement) {
 			padding: 0 var(--studio-space-xs, 0.375rem);
 			border: 0;
 			border-radius: var(--studio-radius-xs, 2px);
-			background: transparent;
-			color: inherit;
+			background: var(--studio-chrome-fill, var(--studio-fill, white));
+			color: var(--studio-chrome-line, var(--studio-line, black));
 			font: 500 0.78rem/1 var(--studio-family-sans, system-ui, sans-serif);
 			text-align: left;
 			cursor: pointer;
 		}
 		.theme-tray-option:hover {
-			background: var(--studio-chrome-offset-10, var(--studio-fill-offset-10, #f2f2f2));
+			background: var(--studio-chrome-fill-offset-20, var(--studio-fill-offset-20, #f2f2f2));
 		}
 		.theme-tray-option[data-selected] {
-			background: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
-			color: var(--studio-primary-line, var(--studio-line, black));
+			box-shadow: inset 0 0 0 1px var(--studio-chrome-line, var(--studio-line, black));
 		}
 		.theme-tray-option-name {
 			min-width: 0;
@@ -195,7 +184,6 @@ export function ThemeTray(element: HTMLElement) {
 		}
 
 		const activeThemeId = () => state().themeId
-		const activeMode = () => state().mode
 		return (
 			<div class="theme-tray">
 				<button
@@ -222,11 +210,11 @@ export function ThemeTray(element: HTMLElement) {
 							}}
 							onClick={(event) => event.stopPropagation()}
 						>
-							<div class="theme-tray-popover-header">{activeMode()} theme</div>
 							<For each={themes()}>
 								{(theme) => (
 									<button
 										class="theme-tray-option"
+										theme={theme.id}
 										data-selected={activeThemeId() === theme.id ? "" : undefined}
 										title={theme.name || theme.id}
 										onClick={() => chooseTheme(theme.id)}

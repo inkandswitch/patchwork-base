@@ -1,5 +1,5 @@
 import {render} from "solid-js/web"
-import {createSignal, For, Show} from "solid-js"
+import {createEffect, createSignal, For, Show} from "solid-js"
 import {getRegistry} from "@inkandswitch/patchwork-plugins"
 import {
 	getActiveThemeState,
@@ -33,16 +33,11 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 	const [colorSchemes, setColorSchemes] = createSignal<
 		Record<string, "light" | "dark" | undefined>
 	>({})
-	const [isDark, setIsDark] = createSignal(
-		window.matchMedia("(prefers-color-scheme: dark)").matches
+	const [selectedMode, setSelectedMode] = createSignal<"light" | "dark">(
+		themeState().mode
 	)
 	const [showAllLight, setShowAllLight] = createSignal(false)
 	const [showAllDark, setShowAllDark] = createSignal(false)
-
-	// Watch for color scheme changes
-	const mq = window.matchMedia("(prefers-color-scheme: dark)")
-	const onSchemeChange = (e: MediaQueryListEvent) => setIsDark(e.matches)
-	mq.addEventListener("change", onSchemeChange)
 
 	async function detectAll(themeList: any[]) {
 		const schemes: Record<string, "light" | "dark" | undefined> = {}
@@ -104,6 +99,34 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 			font-weight: 600;
 			margin: 0;
 		}
+		.theme-picker-tabs {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: var(--studio-space-3xs, 0.125rem);
+			padding: var(--studio-space-3xs, 0.125rem);
+			border: 1px solid var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #aaa));
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--studio-chrome-fill, var(--studio-fill, white));
+		}
+		.theme-picker-tab {
+			min-width: 0;
+			height: 2rem;
+			border: 0;
+			border-radius: var(--studio-radius-xs, 2px);
+			background: transparent;
+			color: var(--studio-chrome-line-offset-30, var(--studio-line-offset-30, #555));
+			font: 700 0.75rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			letter-spacing: 0;
+			cursor: pointer;
+		}
+		.theme-picker-tab:hover {
+			background: var(--studio-chrome-fill-offset-20, var(--studio-fill-offset-20, #f2f2f2));
+			color: var(--studio-chrome-line, var(--studio-line, black));
+		}
+		.theme-picker-tab[data-selected] {
+			background: var(--studio-chrome-line, var(--studio-line, black));
+			color: var(--studio-chrome-fill, var(--studio-fill, white));
+		}
 		.theme-picker-section {
 			display: flex;
 			flex-direction: column;
@@ -112,12 +135,7 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 		.theme-picker-section-header {
 			display: flex;
 			align-items: baseline;
-			justify-content: space-between;
-		}
-		.theme-picker-label {
-			font-size: 0.85em;
-			font-weight: 500;
-			color: var(--studio-line-offset-40, #666);
+			justify-content: flex-end;
 		}
 		.theme-picker-show-all {
 			font-size: 0.75em;
@@ -137,10 +155,11 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 			gap: var(--studio-space-3xs, 0.125rem);
 		}
 		.theme-picker-card {
-			border: 1px solid var(--studio-fill-offset-20, #e5e5e5);
+			border: 1px solid var(--studio-chrome-line-offset-40, var(--studio-fill-offset-20, #e5e5e5));
 			border-radius: 2px;
 			padding: var(--studio-space-sm, 0.5rem);
 			cursor: pointer;
+			color: var(--studio-chrome-line, var(--studio-line, black));
 			text-align: center;
 			font-size: 0.85em;
 			aspect-ratio: 1;
@@ -148,13 +167,13 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 			align-items: center;
 			justify-content: center;
 			transition: border-color var(--studio-transition-fast, 0.1s ease);
-			background: var(--studio-fill, white);
+			background: var(--studio-chrome-fill, var(--studio-fill, white));
 		}
 		.theme-picker-card:hover {
-			border-color: var(--studio-fill-offset-40, #999);
+			border-color: var(--studio-chrome-line, var(--studio-line, #999));
 		}
 		.theme-picker-card[data-selected] {
-			border-color: var(--studio-primary-line, var(--studio-primary, #35f7ca));
+			box-shadow: inset 0 0 0 1px var(--studio-chrome-line, var(--studio-line, black));
 		}
 		.theme-picker-active {
 			font-size: 0.8em;
@@ -167,6 +186,7 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 	const dispose = render(() => {
 		const lightId = () => themeState().light
 		const darkId = () => themeState().dark
+		createEffect(() => setSelectedMode(themeState().mode))
 
 		function selectLight(id: string) {
 			setThemeForMode("light", id)
@@ -180,21 +200,44 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 			<div class="theme-picker">
 				<h2 class="theme-picker-heading">Theme</h2>
 				<p class="theme-picker-active">
-					Currently using: {isDark() ? "dark" : "light"} mode
+					Currently using: {themeState().mode} mode
 				</p>
 
-				<div class="theme-picker-section">
-					<div class="theme-picker-section-header">
-						<span class="theme-picker-label">Light theme</span>
-						<Show when={hasHiddenLight()}>
+				<div class="theme-picker-tabs" role="tablist" aria-label="Theme mode">
+					<button
+						class="theme-picker-tab"
+						role="tab"
+						aria-selected={selectedMode() === "light"}
+						data-selected={selectedMode() === "light" ? "" : undefined}
+						onClick={() => setSelectedMode("light")}
+					>
+						LIGHT MODE
+					</button>
+					<button
+						class="theme-picker-tab"
+						role="tab"
+						aria-selected={selectedMode() === "dark"}
+						data-selected={selectedMode() === "dark" ? "" : undefined}
+						onClick={() => setSelectedMode("dark")}
+					>
+						DARK MODE
+					</button>
+				</div>
+
+				<Show when={selectedMode() === "light"}>
+				<div class="theme-picker-section" role="tabpanel">
+					<Show when={hasHiddenLight()}>
+						<div class="theme-picker-section-header">
 							<button
 								class="theme-picker-show-all"
 								onClick={() => setShowAllLight((v) => !v)}
 							>
-								{showAllLight() ? "show matching" : "show all"}
+								{showAllLight()
+									? "Hide dark themes"
+									: "Show dark themes too"}
 							</button>
-						</Show>
-					</div>
+						</div>
+					</Show>
 					<div class="theme-picker-grid">
 						<For each={lightThemes()}>
 							{(theme) => (
@@ -210,19 +253,22 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 						</For>
 					</div>
 				</div>
+				</Show>
 
-				<div class="theme-picker-section">
-					<div class="theme-picker-section-header">
-						<span class="theme-picker-label">Dark theme</span>
-						<Show when={hasHiddenDark()}>
+				<Show when={selectedMode() === "dark"}>
+				<div class="theme-picker-section" role="tabpanel">
+					<Show when={hasHiddenDark()}>
+						<div class="theme-picker-section-header">
 							<button
 								class="theme-picker-show-all"
 								onClick={() => setShowAllDark((v) => !v)}
 							>
-								{showAllDark() ? "show matching" : "show all"}
+								{showAllDark()
+									? "Hide light themes"
+									: "Show light themes too"}
 							</button>
-						</Show>
-					</div>
+						</div>
+					</Show>
 					<div class="theme-picker-grid">
 						<For each={darkThemes()}>
 							{(theme) => (
@@ -238,13 +284,13 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 						</For>
 					</div>
 				</div>
+				</Show>
 			</div>
 		)
 	}, element)
 
 	return () => {
 		unsubscribeThemeState()
-		mq.removeEventListener("change", onSchemeChange)
 		dispose()
 		style.remove()
 	}
