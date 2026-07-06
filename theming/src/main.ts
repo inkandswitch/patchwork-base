@@ -43,31 +43,31 @@ export const plugins = [
 			return ThemePreferencesDatatype
 		},
 	},
-	{
-		type: "patchwork:tool" as const,
-		id: "theme-titlebar",
-		name: "Theme",
-		icon: "Palette",
-		supportedDatatypes: "*" as const,
-		tags: ["titlebar-tool"],
-		unlisted: true,
-		forTitleBar: true,
-		async load() {
-			const {ThemeTitlebarTool} = await import("./theme-titlebar.ts")
-			return ThemeTitlebarTool
-		},
-	},
-	{
-		type: "patchwork:component" as const,
-		id: "theme-tray",
-		name: "Theme",
-		icon: "Palette",
-		tags: ["system-tray"],
-		async load() {
-			const {ThemeTray} = await import("./theme-tray.tsx")
-			return ThemeTray
-		},
-	},
+//	{
+//		type: "patchwork:tool" as const,
+//		id: "theme-titlebar",
+//		name: "Theme",
+//		icon: "Palette",
+//		supportedDatatypes: "*" as const,
+//		tags: ["titlebar-tool"],
+//		unlisted: true,
+//		forTitleBar: true,
+//		async load() {
+//			const {ThemeTitlebarTool} = await import("./theme-titlebar.ts")
+//			return ThemeTitlebarTool
+//		},
+//	},
+//	{
+//		type: "patchwork:component" as const,
+//		id: "theme-tray",
+//		name: "Theme",
+//		icon: "Palette",
+//		tags: ["system-tray"],
+//		async load() {
+//			const {ThemeTray} = await import("./theme-tray.tsx")
+//			return ThemeTray
+//		},
+//	},
 	{
 		type: "patchwork:tool" as const,
 		id: "theme-picker",
