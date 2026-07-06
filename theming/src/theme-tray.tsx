@@ -1,0 +1,197 @@
+import {createSignal, For, onCleanup, Show} from "solid-js"
+import {render} from "solid-js/web"
+import {getRegistry} from "@inkandswitch/patchwork-plugins"
+import {
+	getActiveThemeState,
+	hasThemePreferences,
+	onActiveThemeChange,
+	setThemeForCurrentMode,
+	startActiveTheme,
+} from "./active-theme.ts"
+
+type ThemeDescription = {
+	id: string
+	name?: string
+	style?: string
+	colorScheme?: "light" | "dark"
+}
+
+export function ThemeTray(element: HTMLElement) {
+	startActiveTheme()
+
+	const style = document.createElement("style")
+	style.textContent = `
+		.theme-tray {
+			position: relative;
+			display: inline-flex;
+			align-items: center;
+		}
+		.theme-tray-button {
+			display: inline-flex;
+			align-items: center;
+			gap: var(--studio-space-2xs, 0.25rem);
+			min-width: 0;
+			height: 1.75rem;
+			padding: 0 var(--studio-space-xs, 0.375rem);
+			border: 1px solid var(--studio-chrome-offset-20, var(--studio-fill-offset-20, #d4d4d4));
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--studio-chrome, var(--studio-fill, white));
+			color: var(--studio-chrome-line, var(--studio-line, black));
+			font: 500 0.75rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			cursor: pointer;
+		}
+		.theme-tray-button:hover {
+			background: var(--studio-chrome-offset-10, var(--studio-fill-offset-10, #f2f2f2));
+		}
+		.theme-tray-swatch {
+			width: 0.75rem;
+			height: 0.75rem;
+			border-radius: var(--studio-radius-xs, 2px);
+			background: linear-gradient(135deg, var(--studio-primary-fill, var(--studio-primary, #35f7ca)) 0 50%, var(--studio-secondary-fill, var(--studio-secondary, #ec6ca7)) 50% 100%);
+			box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--studio-line, black), transparent 75%);
+			flex: none;
+		}
+		.theme-tray-label {
+			max-width: 9rem;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.theme-tray-popover {
+			position: absolute;
+			right: 0;
+			bottom: calc(100% + var(--studio-space-2xs, 0.25rem));
+			z-index: 1000;
+			width: 13rem;
+			max-height: min(18rem, 60vh);
+			overflow-y: auto;
+			padding: var(--studio-space-2xs, 0.25rem);
+			border: 1px solid var(--studio-chrome-offset-20, var(--studio-fill-offset-20, #d4d4d4));
+			border-radius: var(--studio-radius-sm, 4px);
+			background: var(--studio-chrome, var(--studio-fill, white));
+			color: var(--studio-chrome-line, var(--studio-line, black));
+			box-shadow: 0 0.5rem 1rem color-mix(in oklch, var(--studio-line, black), transparent 88%);
+			font-family: var(--studio-family-sans, system-ui, sans-serif);
+		}
+		.theme-tray-popover-header {
+			position: sticky;
+			top: 0;
+			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-xs, 0.375rem);
+			background: var(--studio-chrome, var(--studio-fill, white));
+			color: var(--studio-chrome-line-offset-40, var(--studio-line-offset-40, #666));
+			font-size: 0.72rem;
+			font-weight: 600;
+			text-transform: uppercase;
+		}
+		.theme-tray-option {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: var(--studio-space-sm, 0.5rem);
+			width: 100%;
+			min-height: 1.75rem;
+			padding: 0 var(--studio-space-xs, 0.375rem);
+			border: 0;
+			border-radius: var(--studio-radius-xs, 2px);
+			background: transparent;
+			color: inherit;
+			font: 500 0.78rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			text-align: left;
+			cursor: pointer;
+		}
+		.theme-tray-option:hover {
+			background: var(--studio-chrome-offset-10, var(--studio-fill-offset-10, #f2f2f2));
+		}
+		.theme-tray-option[data-selected] {
+			background: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
+			color: var(--studio-primary-line, var(--studio-line, black));
+		}
+		.theme-tray-option-name {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.theme-tray-option-check {
+			flex: none;
+			font-size: 0.72rem;
+		}
+	`
+	element.appendChild(style)
+
+	const dispose = render(() => {
+		const [state, setState] = createSignal(getActiveThemeState())
+		const [open, setOpen] = createSignal(false)
+		const [themes, setThemes] = createSignal<ThemeDescription[]>([])
+		const themeRegistry = getRegistry("patchwork:theme") as any
+		const unsubscribe = onActiveThemeChange(setState)
+
+		const refreshThemes = () => setThemes(themeRegistry.all?.() || [])
+		refreshThemes()
+		themeRegistry.on("registered", refreshThemes)
+		themeRegistry.on("removed", refreshThemes)
+
+		const onDocumentClick = (event: MouseEvent) => {
+			if (!element.contains(event.target as Node)) setOpen(false)
+		}
+		document.addEventListener("click", onDocumentClick)
+
+		onCleanup(() => {
+			unsubscribe()
+			themeRegistry.off?.("registered", refreshThemes)
+			themeRegistry.off?.("removed", refreshThemes)
+			document.removeEventListener("click", onDocumentClick)
+		})
+
+		function chooseTheme(id: string) {
+			if (!hasThemePreferences()) return
+			setThemeForCurrentMode(id)
+			setOpen(false)
+		}
+
+		const activeThemeId = () => state().themeId
+		const activeMode = () => state().mode
+		return (
+			<div class="theme-tray">
+				<button
+					class="theme-tray-button"
+					title={`Theme: ${activeThemeId()}`}
+					onClick={(event) => {
+						event.stopPropagation()
+						setOpen((value) => !value)
+					}}
+				>
+					<span class="theme-tray-swatch" />
+					<span class="theme-tray-label">{activeThemeId()}</span>
+				</button>
+				<Show when={open()}>
+					<div class="theme-tray-popover" onClick={(event) => event.stopPropagation()}>
+						<div class="theme-tray-popover-header">{activeMode()} theme</div>
+						<For each={themes()}>
+							{(theme) => (
+								<button
+									class="theme-tray-option"
+									data-selected={activeThemeId() === theme.id ? "" : undefined}
+									title={theme.name || theme.id}
+									onClick={() => chooseTheme(theme.id)}
+								>
+									<span class="theme-tray-option-name">
+										{theme.name || theme.id}
+									</span>
+									<Show when={activeThemeId() === theme.id}>
+										<span class="theme-tray-option-check">selected</span>
+									</Show>
+								</button>
+							)}
+						</For>
+					</div>
+				</Show>
+			</div>
+		)
+	}, element)
+
+	return () => {
+		dispose()
+		style.remove()
+	}
+}
