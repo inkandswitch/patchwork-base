@@ -40,12 +40,12 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.4";
+const DRAFTS_VERSION = "0.0.5";
 
-// Changes within this window of a group's newest change fall in the same
-// group ("made around the same time"), so a burst of edits reads as a single
-// row. Anything older starts a new group.
-const TIME_WINDOW = 15 * 60 * 1000;
+// A pause between consecutive changes longer than this starts a new group:
+// bursts of continuous editing read as a single row, however long they run,
+// and any minute-plus lull splits the timeline.
+const INACTIVITY_GAP = 60 * 1000;
 
 export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
@@ -239,7 +239,6 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
                 url={summary.url}
                 members={summary.members}
                 mainDocUrl={hostDocHandle()?.url}
-                childCount={summary.childCount}
                 isSelected={selected() === summary.url}
                 onSelect={selectDraft}
                 onScrub={(scrub, baseline) =>
@@ -347,14 +346,15 @@ function MainCard(props: {
             <span class="draft-badge">current</span>
           </Show>
         </div>
-        <div class="draft-card-url">{props.hostDocUrl ?? ""}</div>
       </button>
-      <DraftChangesList
-        members={props.members}
-        mainDocUrl={props.hostDocUrl}
-        onScrub={props.onScrub}
-        scrubber={props.scrubber}
-      />
+      <Show when={props.isSelected}>
+        <DraftChangesList
+          members={props.members}
+          mainDocUrl={props.hostDocUrl}
+          onScrub={props.onScrub}
+          scrubber={props.scrubber}
+        />
+      </Show>
     </div>
   );
 }
@@ -363,7 +363,6 @@ function DraftCard(props: {
   url: AutomergeUrl;
   members: DraftMemberDoc[];
   mainDocUrl: AutomergeUrl | undefined;
-  childCount: number;
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
   onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
@@ -383,17 +382,15 @@ function DraftCard(props: {
             <span class="draft-badge">current</span>
           </Show>
         </div>
-        <div class="draft-card-url">{props.url}</div>
-        <div class="draft-card-meta">
-          {props.members.length} cloned doc(s) · {props.childCount} draft(s)
-        </div>
       </button>
-      <DraftChangesList
-        members={() => props.members}
-        mainDocUrl={props.mainDocUrl}
-        onScrub={props.onScrub}
-        scrubber={props.scrubber}
-      />
+      <Show when={props.isSelected}>
+        <DraftChangesList
+          members={() => props.members}
+          mainDocUrl={props.mainDocUrl}
+          onScrub={props.onScrub}
+          scrubber={props.scrubber}
+        />
+      </Show>
     </div>
   );
 }
@@ -417,9 +414,9 @@ type DraftChange = {
   deletions: number;
 };
 
-// One group of changes made around the same time (within TIME_WINDOW of the
-// group's newest change), regardless of author or document. Rendered as a
-// single non-expandable row. Clicking it parks the scrubber at `newest` (no
+// One burst of activity: consecutive changes separated by no more than
+// INACTIVITY_GAP, regardless of author or document. Rendered as a single
+// non-expandable row. Clicking it parks the scrubber at `newest` (no
 // diff); the row's eye expands the scrubber across the whole group, with
 // `oldest` anchoring the diff baseline (the state just before the group
 // started).
@@ -461,17 +458,17 @@ function changeRef(change: DraftChange): ChangeRef {
 
 // A magnified stretch of the timeline: the range the scrubber spanned when
 // the magnifier was clicked (same anchoring as ScrubberState) plus the finer
-// grouping window to apply inside it. The rest of the timeline keeps the
-// normal TIME_WINDOW grouping.
+// grouping gap to apply inside it. The rest of the timeline keeps the normal
+// INACTIVITY_GAP grouping.
 type ZoomState = {
   head: ChangeRef;
   span: number;
   windowMs: number;
 };
 
-// Renders a draft's (or main's) changes as a timeline of time groups: every
-// member doc's changes interleaved newest first, then folded into groups of
-// changes made within TIME_WINDOW of each other (see `groupChanges`). A
+// Renders a draft's (or main's) changes as a timeline of activity groups:
+// every member doc's changes interleaved newest first, then split wherever
+// the editing paused for INACTIVITY_GAP (see `groupChanges`). A
 // gutter on the left spans the whole history (top = latest change, bottom =
 // first); the indicator overlaying the rows — a calendar-style dot + line,
 // drawn as a bracket while it spans a range — marks the version being looked
@@ -1041,19 +1038,18 @@ function EditCounts(props: { additions: number; deletions: number }) {
   );
 }
 
-// Fold a flat, newest-first list of changes into time groups. The window
-// (TIME_WINDOW unless a magnified range passes a finer one) is anchored to
-// each group's newest change (the first one seen, since rows arrive
-// newest-first): a change joins the current group while it is no more than
-// the window older than that anchor, else it starts a new group. So a group
-// never spans more than the window.
+// Fold a flat, newest-first list of changes into activity groups. Consecutive
+// changes stay in the same group while the pause between them is at most the
+// gap (INACTIVITY_GAP unless a magnified range passes a finer one); a longer
+// lull starts a new group. A group can span any stretch of continuous editing
+// — only inactivity splits it.
 function groupChanges(
   changes: DraftChange[],
-  windowMs: number = TIME_WINDOW
+  gapMs: number = INACTIVITY_GAP
 ): TimeGroup[] {
   const timeGroups: TimeGroup[] = [];
   let window: DraftChange[] = [];
-  let anchorTimeMs: number | null = null;
+  let prevTimeMs: number | null = null;
 
   const flush = () => {
     if (window.length > 0) {
@@ -1064,12 +1060,11 @@ function groupChanges(
 
   for (const change of changes) {
     const timeMs = change.time * 1000;
-    if (anchorTimeMs !== null && anchorTimeMs - timeMs > windowMs) {
-      flush();
-      anchorTimeMs = null;
-    }
-    if (anchorTimeMs === null) anchorTimeMs = timeMs;
+    // Rows arrive newest-first, so the previous row is this change's newer
+    // neighbour; a gap larger than `gapMs` between them is a lull.
+    if (prevTimeMs !== null && prevTimeMs - timeMs > gapMs) flush();
     window.push(change);
+    prevTimeMs = timeMs;
   }
   flush();
 

@@ -46,7 +46,8 @@ export const plugins: Plugin<any>[] = [
     },
   },
   // Variant of the drafts sidebar that folds the change history into
-  // 15-minute time groups instead of listing each change individually.
+  // activity groups (split on a minute of inactivity) instead of listing
+  // each change individually.
   {
     type: "patchwork:tool",
     id: "grouped-drafts",
