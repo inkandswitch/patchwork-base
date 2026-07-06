@@ -40,7 +40,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.8";
+const DRAFTS_VERSION = "0.0.10";
 
 // A pause between consecutive changes longer than this starts a new group:
 // bursts of continuous editing read as a single row, however long they run,
@@ -66,12 +66,11 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
     () => checkedOut()?.checkedOut ?? null
   );
 
-  // Where the scrubber sits: the change whose heads are displayed plus how
-  // many timeline changes back the diff baseline reaches (0 = no diff).
-  // Ephemeral, client-only state: the stored checkpoint (`checkedOut.at`) is
-  // what actually pins the view; this mirrors it to render the token, the
-  // group highlight, and the eye toggles. Not persisted, so it resets on
-  // reload (the pinned view survives).
+  // Where the scrubber sits: the change whose heads are displayed. Ephemeral,
+  // client-only state: the stored checkpoint (`checkedOut.at`) is what
+  // actually pins the view; this mirrors it to render the token and the
+  // group highlight. Not persisted, so it resets on reload (the pinned view
+  // survives).
   const [scrubber, setScrubber] = createSignal<ScrubberState | null>(null);
 
   // A version being dragged out of a history timeline (from a group row or
@@ -117,15 +116,12 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
   let scrubSeq = 0;
 
   // Apply a scrubber position: freeze every member doc at its heads as of the
-  // scrub head, diffed against the state just before `baseline` — the oldest
-  // change the scrubber spans — or not diffed at all when `baseline` is null.
-  // The token and row highlight update immediately; the checkpoint follows
-  // async. `draftUrl` is `null` for main.
+  // scrub head. The token and row highlight update immediately; the
+  // checkpoint follows async. `draftUrl` is `null` for main.
   const onScrub = (
     draftUrl: AutomergeUrl | null,
     members: DraftMemberDoc[],
-    scrub: ScrubberState,
-    baseline: ChangeRef | null
+    scrub: ScrubberState
   ) => {
     const handle = checkedOutHandle();
     const repo = getRepo();
@@ -133,12 +129,7 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
     setScrubber(scrub);
     const seq = ++scrubSeq;
     void (async () => {
-      const checkpoint = await computeCheckpoint(
-        repo,
-        members,
-        scrub.head,
-        baseline
-      );
+      const checkpoint = await computeCheckpoint(repo, members, scrub.head);
       // A newer scrub landed while this one was computing; drop it.
       if (seq !== scrubSeq) return;
       handle.change((d) => {
@@ -232,7 +223,7 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
     }
 
     // Reuse the scrub machinery to resolve per-doc heads at this version.
-    const checkpoint = await computeCheckpoint(repo, members, head, null);
+    const checkpoint = await computeCheckpoint(repo, members, head);
 
     const clones: Record<AutomergeUrl, CloneEntry> = {};
     for (const member of members) {
@@ -294,9 +285,7 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
             isSelected={isMainSelected()}
             members={() => list().main.members}
             onSelect={() => selectDraft(null)}
-            onScrub={(scrub, baseline) =>
-              onScrub(null, list().main.members, scrub, baseline)
-            }
+            onScrub={(scrub) => onScrub(null, list().main.members, scrub)}
             scrubber={() => (isMainSelected() ? scrubber() : null)}
             onDragVersion={(head) =>
               setDragVersion(
@@ -312,9 +301,7 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
                 mainDocUrl={hostDocHandle()?.url}
                 isSelected={selected() === summary.url}
                 onSelect={selectDraft}
-                onScrub={(scrub, baseline) =>
-                  onScrub(summary.url, summary.members, scrub, baseline)
-                }
+                onScrub={(scrub) => onScrub(summary.url, summary.members, scrub)}
                 scrubber={() =>
                   selected() === summary.url ? scrubber() : null
                 }
@@ -431,7 +418,7 @@ function MainCard(props: {
   isSelected: boolean;
   members: Accessor<DraftMemberDoc[]>;
   onSelect: () => void;
-  onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
+  onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
 }) {
@@ -469,7 +456,7 @@ function DraftCard(props: {
   mainDocUrl: AutomergeUrl | undefined;
   isSelected: boolean;
   onSelect: (url: AutomergeUrl) => void;
-  onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
+  onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
 }) {
@@ -522,10 +509,7 @@ type DraftChange = {
 
 // One burst of activity: consecutive changes separated by no more than
 // INACTIVITY_GAP, regardless of author or document. Rendered as a single
-// non-expandable row. Clicking it parks the scrubber at `newest` (no
-// diff); the row's eye expands the scrubber across the whole group, with
-// `oldest` anchoring the diff baseline (the state just before the group
-// started).
+// non-expandable row. Clicking it parks the scrubber at `newest`.
 type TimeGroup = {
   id: string;
   endTime: number;
@@ -533,7 +517,6 @@ type TimeGroup = {
   additions: number;
   deletions: number;
   newest: DraftChange;
-  oldest: DraftChange;
   changes: DraftChange[];
 };
 
@@ -546,15 +529,11 @@ type ChangeRef = {
   time: number;
 };
 
-// Where the scrubber sits. `head` is the change whose heads the view
-// displays; `span` is how many timeline changes the diff reaches back from
-// the head — the baseline is the state just before the span's oldest change,
-// so 0 means no diff (baseline == displayed heads). The head is anchored by
-// change identity rather than index so a recomputed timeline doesn't move
-// the token.
+// Where the scrubber sits: the change whose heads the view displays. The
+// head is anchored by change identity rather than index so a recomputed
+// timeline doesn't move the token.
 type ScrubberState = {
   head: ChangeRef;
-  span: number;
 };
 
 // Strip a timeline change down to the fields that identify it for scrubbing.
@@ -566,18 +545,16 @@ function changeRef(change: DraftChange): ChangeRef {
 // every member doc's changes interleaved newest first, then split wherever
 // the editing paused for INACTIVITY_GAP (see `groupChanges`). A gutter on
 // the left spans the whole history (top = latest change, bottom = first);
-// the indicator — a calendar-style dot + line, drawn as a bracket while it
-// spans a range — marks the version being looked at and how far back the
-// diff baseline reaches. Its lines paint *under* the (semi-transparent)
-// group rows; dragging starts only from its handles in the gutter. While
-// pinned, a sticker overlays the row at the head with the exact change the
-// line sits on. The member set is passed in (from the card's
-// `DraftSummary`); the effect below keeps the timeline live as those docs
-// edit.
+// the indicator — a calendar-style dot + line — marks the version being
+// looked at. Its line paints *under* the (semi-transparent) group rows;
+// dragging starts only from its handles in the gutter. While pinned, a
+// sticker overlays the row at the head with the exact change the line sits
+// on. The member set is passed in (from the card's `DraftSummary`); the
+// effect below keeps the timeline live as those docs edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   mainDocUrl: AutomergeUrl | undefined;
-  onScrub: (scrub: ScrubberState, baseline: ChangeRef | null) => void;
+  onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
 }) {
@@ -624,32 +601,16 @@ function DraftChangesList(props: {
   const timeGroups = createMemo(() => groupChanges(changes()));
 
   // Scrub so the head sits at the timeline change at `headIndex` (global,
-  // 0 = newest), spanning `span` changes back. Resolves the span's oldest
-  // change as the baseline anchor and reports both upward.
-  const scrubTo = (headIndex: number, span: number) => {
-    const list = changes();
-    const head = list[headIndex];
+  // 0 = newest).
+  const scrubTo = (headIndex: number) => {
+    const head = changes()[headIndex];
     if (!head) return;
-    const clamped = Math.max(0, Math.min(span, list.length - headIndex));
-    const base = clamped >= 1 ? list[headIndex + clamped - 1] : null;
-    props.onScrub(
-      { head: changeRef(head), span: clamped },
-      base ? changeRef(base) : null
-    );
+    props.onScrub({ head: changeRef(head) });
   };
 
-  // Jump the scrubber to a group: head at the group's newest change, either
-  // spanning the whole group (`withDiff`: baseline = just before the group
-  // started, showing exactly what it introduced) or collapsed to a point
-  // (baseline = the group's latest heads, so nothing is diffed).
-  const scrubToGroup = (group: TimeGroup, withDiff: boolean) => {
-    props.onScrub(
-      {
-        head: changeRef(group.newest),
-        span: withDiff ? group.changes.length : 0,
-      },
-      withDiff ? changeRef(group.oldest) : null
-    );
+  // Jump the scrubber to a group: head at the group's newest change.
+  const scrubToGroup = (group: TimeGroup) => {
+    props.onScrub({ head: changeRef(group.newest) });
   };
 
   // Where the scrubber head sits in the flat timeline; null when nothing is
@@ -670,17 +631,6 @@ function DraftChangesList(props: {
       group.changes.some(
         (c) => c.hash === s.head.hash && c.docUrl === s.head.docUrl
       )
-    );
-  };
-
-  // The eye is lit when the scrubber spans exactly this whole group.
-  const eyeActive = (group: TimeGroup): boolean => {
-    const s = props.scrubber();
-    return (
-      !!s &&
-      s.head.hash === group.newest.hash &&
-      s.head.docUrl === group.newest.docUrl &&
-      s.span === group.changes.length
     );
   };
 
@@ -735,8 +685,8 @@ function DraftChangesList(props: {
   });
 
   // Map a global change index to a y offset in the track. Indices interpolate
-  // across their group's band; `index === changes().length` (the far edge of
-  // a span reaching past the oldest change) maps to the very bottom.
+  // across their group's band; an index past the oldest change maps to the
+  // very bottom.
   const yForIndex = (index: number): number => {
     const bs = bands();
     if (bs.length === 0) return 0;
@@ -765,28 +715,14 @@ function DraftChangesList(props: {
     return Math.max(0, last.startIndex + last.count - 1);
   };
 
-  // The indicator's pixel extent: top edge at the head, bottom edge at the
-  // far end of the span. Height 0 is fine — the dot and edge lines overflow
-  // the box and stay grabbable. With nothing pinned it idles at the very
-  // top — you're looking at the live latest.
+  // The indicator's pixel position: the head line's y in the track. The
+  // zero-height box is fine — the dot and line overflow it and stay
+  // grabbable. With nothing pinned it idles at the very top — you're looking
+  // at the live latest.
   const tokenGeometry = createMemo(() => {
-    const total = changes().length;
-    if (total === 0 || bands().length === 0) return null;
-    const head = headIndex() ?? 0;
-    const span =
-      headIndex() === null
-        ? 0
-        : Math.min(props.scrubber()?.span ?? 0, total - head);
-    const top = yForIndex(head);
-    const bottom = yForIndex(head + span);
-    return { top, height: Math.max(bottom - top, 0) };
+    if (changes().length === 0 || bands().length === 0) return null;
+    return { top: yForIndex(headIndex() ?? 0) };
   });
-
-  // Spread = the scrubber spans at least one change back, so the indicator
-  // draws as a bracket (top line, spine, bottom line) instead of a plain
-  // calendar-style now-line.
-  const spread = (): boolean =>
-    headIndex() !== null && (props.scrubber()?.span ?? 0) > 0;
 
   let trackEl: HTMLDivElement | undefined;
 
@@ -797,48 +733,23 @@ function DraftChangesList(props: {
     return ev.clientY - rect.top;
   };
 
-  // Begin an indicator drag. Scrubbing starts only from the indicator's own
-  // handles (dot, spine, edge lines) — the bare gutter and the rows don't
-  // scrub. `mode` decides what the pointer moves:
-  //   - "move":   the whole indicator (dot, spine, or collapsed line); the
-  //               head follows the pointer (offset by where it was grabbed),
-  //               span preserved.
-  //   - "bottom": the bottom line; resizes the span (how far back the diff
-  //               reaches). Dragging above the head collapses to no diff.
-  //   - "top":    the top line while spread; moves the head while the bottom
-  //               anchor stays pinned, adjusting head and span together.
+  // Begin an indicator drag: the head follows the pointer (offset by where
+  // the indicator was grabbed). Scrubbing starts only from the indicator's
+  // own handles (dot, line) — the bare gutter and the rows don't scrub.
   // Every position snaps to an individual change, so the indicator can rest
   // anywhere in history — between groups or in the middle of one.
-  const beginDrag = (ev: PointerEvent, mode: "move" | "top" | "bottom") => {
+  const beginDrag = (ev: PointerEvent) => {
     if (!trackEl || changes().length === 0) return;
     ev.preventDefault();
     ev.stopPropagation();
-    const total = changes().length;
-    const startHead = headIndex() ?? 0;
-    const startSpan = Math.min(
-      headIndex() === null ? 0 : (props.scrubber()?.span ?? 0),
-      total - startHead
-    );
-    const bottomIndex = startHead + startSpan;
-    const grabOffset = mode === "move" ? yInTrack(ev) - yForIndex(startHead) : 0;
+    const grabOffset = yInTrack(ev) - yForIndex(headIndex() ?? 0);
 
-    let last = { head: startHead, span: startSpan };
-    const apply = (head: number, span: number) => {
-      if (head === last.head && span === last.span) return;
-      last = { head, span };
-      scrubTo(head, span);
-    };
-
+    let last = headIndex() ?? 0;
     const onMove = (e: PointerEvent) => {
-      const y = yInTrack(e);
-      if (mode === "move") {
-        apply(indexForY(y - grabOffset), last.span);
-      } else if (mode === "bottom") {
-        apply(last.head, Math.max(0, indexForY(y) - last.head + 1));
-      } else {
-        const head = Math.min(indexForY(y), bottomIndex, total - 1);
-        apply(head, Math.max(0, bottomIndex - head));
-      }
+      const head = indexForY(yInTrack(e) - grabOffset);
+      if (head === last) return;
+      last = head;
+      scrubTo(head);
     };
 
     const target = ev.currentTarget as HTMLElement;
@@ -863,10 +774,37 @@ function DraftChangesList(props: {
     props.onDragVersion(head);
   };
 
+  // Zoomed-in scrubbing: group rows render 5x taller (see the data-zoomed
+  // CSS), so the scrubber's per-change stops spread out for fine positioning.
+  const [zoomed, setZoomed] = createSignal(false);
+  // The scrollable changes area, needed to keep the head line fixed in
+  // screen space across a zoom toggle.
+  let scrollerEl: HTMLDivElement | undefined;
+
+  // Toggle the zoom from `group`'s magnifier. Zooming in is entering scrubber
+  // mode, so if nothing is pinned yet, pin to the group first (like clicking
+  // the row). Rows then resize, so re-measure and shift the scroll position
+  // to keep the head line where the eye already is.
+  const toggleZoom = (group: TimeGroup) => {
+    const turningOn = !zoomed();
+    if (turningOn && headIndex() === null) scrubToGroup(group);
+    const before = tokenGeometry()?.top ?? 0;
+    const screenY = before - (scrollerEl?.scrollTop ?? 0);
+    setZoomed(turningOn);
+    requestAnimationFrame(() => {
+      // The rows have re-laid out at the new size; bands re-measure on the
+      // tick and the geometry memo re-evaluates on read.
+      setMeasureTick((t) => t + 1);
+      const after = tokenGeometry()?.top ?? 0;
+      if (scrollerEl) scrollerEl.scrollTop = after - screenY;
+    });
+  };
+
   // The exact change the scrubber head sits on; feeds the sticker that
-  // overlays the group row with the version being looked at. Suppressed when
-  // the head sits exactly on a group's newest change — the row itself already
-  // shows that version, so the sticker would only duplicate it.
+  // overlays the group row with the version being looked at. Zoomed out, it
+  // is suppressed when the head sits exactly on a group's newest change (the
+  // row already shows that version); zoomed in you are always in explicit
+  // scrubber mode, so the sticker always shows.
   const headChange = createMemo<DraftChange | null>(() => {
     const idx = headIndex();
     const change = idx === null ? null : (changes()[idx] ?? null);
@@ -874,16 +812,19 @@ function DraftChangesList(props: {
     const atGroupStart = timeGroups().some(
       (g) => g.newest.hash === change.hash && g.newest.docUrl === change.docUrl
     );
-    return atGroupStart ? null : change;
+    return atGroupStart && !zoomed() ? null : change;
   });
 
   return (
-    <div class="draft-card-changes">
+    <div class="draft-card-changes" ref={scrollerEl}>
       <Show
         when={timeGroups().length > 0}
         fallback={<div class="draft-changes-empty">No changes yet.</div>}
       >
-        <div class="draft-changes-body">
+        <div
+          class="draft-changes-body"
+          data-zoomed={zoomed() ? "" : undefined}
+        >
           <div class="draft-scrubber" ref={trackEl} />
           <div class="draft-changes-rows" ref={setRowsEl}>
             <For each={timeGroups()}>
@@ -892,9 +833,9 @@ function DraftChangesList(props: {
                   group={group}
                   rowRef={(el) => rowEls.set(group.id, el)}
                   isSelected={groupContainsHead(group)}
-                  eyeActive={eyeActive(group)}
-                  onSelect={() => scrubToGroup(group, false)}
-                  onToggleEye={() => scrubToGroup(group, !eyeActive(group))}
+                  zoomActive={zoomed()}
+                  onSelect={() => scrubToGroup(group)}
+                  onToggleZoom={() => toggleZoom(group)}
                   onVersionDragStart={(e) =>
                     beginVersionDrag(e, changeRef(group.newest))
                   }
@@ -907,43 +848,20 @@ function DraftChangesList(props: {
             <div
               class="draft-scrubber-token"
               data-live={headIndex() === null ? "" : undefined}
-              data-spread={spread() ? "" : undefined}
-              style={{
-                top: `${tokenGeometry()!.top}px`,
-                height: `${tokenGeometry()!.height}px`,
-              }}
+              style={{ top: `${tokenGeometry()!.top}px` }}
             >
-              {/* Visual lines, painted under the group rows. */}
-              <div class="draft-scrubber-line draft-scrubber-line--top" />
-              <Show when={spread()}>
-                <div class="draft-scrubber-line draft-scrubber-line--bottom" />
-              </Show>
-              {/* Grab handles, confined to the gutter. */}
+              {/* The head line, painted under the group rows. */}
+              <div class="draft-scrubber-line" />
+              {/* Grab handle, confined to the gutter. */}
               <div
-                class="draft-scrubber-edge draft-scrubber-edge--top"
-                title={
-                  spread()
-                    ? "Drag to move the top of the range"
-                    : "Drag to scrub through history"
-                }
-                onPointerDown={(e) => beginDrag(e, spread() ? "top" : "move")}
+                class="draft-scrubber-edge"
+                title="Drag to scrub through history"
+                onPointerDown={beginDrag}
               />
-              <div
-                class="draft-scrubber-edge draft-scrubber-edge--bottom"
-                title="Drag to change how far back the diff reaches"
-                onPointerDown={(e) => beginDrag(e, "bottom")}
-              />
-              <Show when={spread()}>
-                <div
-                  class="draft-scrubber-spine"
-                  title="Drag to move the range"
-                  onPointerDown={(e) => beginDrag(e, "move")}
-                />
-              </Show>
               <div
                 class="draft-scrubber-dot"
                 title="Drag to scrub through history"
-                onPointerDown={(e) => beginDrag(e, "move")}
+                onPointerDown={beginDrag}
               />
               {/* Pinned inside a group: overlay the row with the exact
                   version the head sits on. Draggable — dragging it out forks
@@ -980,20 +898,19 @@ function DraftChangesList(props: {
 }
 
 // One time group, rendered as a single non-expandable row: author avatars,
-// the group's newest timestamp, an eye toggling the group's diff, and the
-// aggregated +/- counts. Clicking the row parks the scrubber at the top of
-// the group with no diff; the eye expands it across the whole group. The row
-// highlights while the scrubber head sits inside the group. Dragging the row
-// out forks a new draft at the group's newest change (the same version
+// the group's newest timestamp, the zoom toggle, and the aggregated +/-
+// counts. Clicking the row parks the scrubber at the top of the group. The
+// row highlights while the scrubber head sits inside the group. Dragging the
+// row out forks a new draft at the group's newest change (the same version
 // clicking pins); dragstart only fires past the movement threshold, so
 // click-to-select is unaffected.
 function TimeGroupRow(props: {
   group: TimeGroup;
   rowRef: (el: HTMLElement) => void;
   isSelected: boolean;
-  eyeActive: boolean;
+  zoomActive: boolean;
   onSelect: () => void;
-  onToggleEye: () => void;
+  onToggleZoom: () => void;
   onVersionDragStart: (e: DragEvent) => void;
   onVersionDragEnd: () => void;
 }) {
@@ -1012,17 +929,21 @@ function TimeGroupRow(props: {
       <AuthorAvatars actors={props.group.actors} />
       <span class="draft-group-time">{formatTime(props.group.endTime)}</span>
       <span
-        class="draft-highlight-eye"
-        classList={{ "draft-highlight-eye--active": props.eyeActive }}
+        class="draft-zoom-toggle"
+        classList={{ "draft-zoom-toggle--active": props.zoomActive }}
         role="button"
         tabindex={0}
-        title="Toggle a diff of what this group changed"
+        title={
+          props.zoomActive
+            ? "Zoom back out"
+            : "Zoom in for fine-grained scrubbing"
+        }
         onClick={(e) => {
           e.stopPropagation();
-          props.onToggleEye();
+          props.onToggleZoom();
         }}
       >
-        <EyeIcon />
+        <MagnifierIcon />
       </span>
       <span class="draft-group-spacer" />
       <EditCounts
@@ -1033,23 +954,22 @@ function TimeGroupRow(props: {
   );
 }
 
-// An eye glyph for the per-group diff toggle. Revealed on row hover via CSS,
-// or kept lit while its group's diff is active.
-function EyeIcon() {
+// A magnifying glass for the zoom toggle shown on every group row. Zoomed
+// in, group rows render 5x taller for fine-grained scrubbing.
+function MagnifierIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="12"
+      height="12"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
+      stroke-width="2.5"
       stroke-linecap="round"
-      stroke-linejoin="round"
       aria-hidden="true"
     >
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
     </svg>
   );
 }
@@ -1137,7 +1057,6 @@ function buildTimeGroup(windowNewestFirst: DraftChange[]): TimeGroup {
     deletions += c.deletions;
   }
   const newest = windowNewestFirst[0];
-  const oldest = windowNewestFirst[windowNewestFirst.length - 1];
   return {
     id: `tg-${newest.hash}`,
     endTime: newest.time,
@@ -1145,7 +1064,6 @@ function buildTimeGroup(windowNewestFirst: DraftChange[]): TimeGroup {
     additions,
     deletions,
     newest,
-    oldest,
     changes: windowNewestFirst,
   };
 }
@@ -1153,24 +1071,15 @@ function buildTimeGroup(windowNewestFirst: DraftChange[]): TimeGroup {
 // Build the checkpoint map for a scrub position. Each member's displayed
 // version (`to`) is its heads as of `head`: the doc that owns that change is
 // pinned exactly to it, every other member to its latest change at or before
-// it (approximate but good enough). Each member's diff baseline (`from`) is
-// its state just before `start` — the oldest change the scrubber spans — so
-// the diff covers exactly the spanned changes: for the doc that owns `start`
-// that's the change immediately before it (in causal order); for everyone
-// else, their latest change strictly before `start`'s second (a change at
-// exactly that second falls inside the span, so it belongs in the diff, not
-// the baseline). A member with no change before `start` didn't exist yet, so
-// `from` is `[]` (the whole doc reads as added). A null `start` means no
-// diff: the baseline is the displayed heads themselves — set explicitly
-// (rather than omitted) so a draft doesn't fall back to its fork-point
-// baseline and light up the whole draft diff. Members with no change at or
-// before `head` are omitted entirely: they didn't exist yet, so they fall
-// through to live.
+// it (approximate but good enough). The diff baseline (`from`) is always the
+// displayed heads themselves (no diff) — set explicitly (rather than
+// omitted) so a draft doesn't fall back to its fork-point baseline and light
+// up the whole draft diff. Members with no change at or before `head` are
+// omitted entirely: they didn't exist yet, so they fall through to live.
 async function computeCheckpoint(
   repo: Repo,
   members: DraftMemberDoc[],
-  head: ChangeRef,
-  start: ChangeRef | null
+  head: ChangeRef
 ): Promise<DraftCheckpoint> {
   const checkpoint: DraftCheckpoint = {};
   for (const member of members) {
@@ -1201,28 +1110,7 @@ async function computeCheckpoint(
         to = encodeHeads([metas[pinnedIndex].hash]);
       }
 
-      // Baseline: the member's state just before `start`, or the displayed
-      // heads themselves when the scrubber spans nothing.
-      let from: UrlHeads;
-      if (!start) {
-        from = to;
-      } else {
-        let baseIndex = -1;
-        if (member.url === start.docUrl) {
-          baseIndex = metas.findIndex((m) => m.hash === start.hash) - 1;
-        } else {
-          let bestTime = -Infinity;
-          metas.forEach((m, i) => {
-            if (m.time < start.time && m.time >= bestTime) {
-              bestTime = m.time;
-              baseIndex = i;
-            }
-          });
-        }
-        const base = baseIndex >= 0 ? metas[baseIndex] : undefined;
-        from = encodeHeads(base ? [base.hash] : []);
-      }
-      checkpoint[member.url] = { from, to };
+      checkpoint[member.url] = { from: to, to };
     } catch (err) {
       console.warn(
         "[drafts] failed to compute checkpoint for member:",
