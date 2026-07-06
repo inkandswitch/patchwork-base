@@ -27,6 +27,8 @@ type ModuleOption = {
   name: string;
 };
 
+const FRAME_RELOAD_DELAY_MS = 250;
+
 // Minimal shape shared by tool and component descriptions — all we need to
 // build the add-popover options.
 type Describable = { id: string; name?: string; tags?: string[] };
@@ -363,6 +365,7 @@ function ToolbarStrip(props: {
 
 function FrameConfiguratorUI(props: {
   handle: DocHandle<TinyPatchworkLayoutDoc>;
+  element: ToolElement;
 }) {
   const [accountDoc] = useDocument<TinyPatchworkLayoutDoc>(
     () => props.handle.url
@@ -430,7 +433,10 @@ function FrameConfiguratorUI(props: {
           value={accountDoc()!.frameToolId}
           onChange={(v) => {
             setField("frameToolId", v as any);
-            setTimeout(() => window.location.reload(), 50);
+            setTimeout(async () => {
+              await props.element.repo.flush().catch(() => null);
+              window.location.reload();
+            }, FRAME_RELOAD_DELAY_MS);
           }}
           options={frameOptions()}
           docUrl={docUrl}
@@ -474,7 +480,7 @@ export function renderFrameConfigurator(
   const dispose = render(
     () => (
       <RepoContext.Provider value={element.repo}>
-        <FrameConfiguratorUI handle={handle} />
+        <FrameConfiguratorUI handle={handle} element={element} />
       </RepoContext.Provider>
     ),
     element
