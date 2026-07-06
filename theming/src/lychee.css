@@ -4,7 +4,6 @@
 	--studio-line: #000000;
 	--studio-primary: #35f7ca;
 	--studio-secondary: #10A1CF; /* bermuda cocktail #2 */
-        --studio-chrome: #99ccff;
 	--studio-danger: #f12d00;
 	--studio-warning: #f8c43b;
 	--studio-added: #205b46;
@@ -12,7 +11,7 @@
 	--studio-modified: #0cadd6;
 	--studio-link: #3999ff;
 	--studio-selection-fill: #eeeeff;
-	--studio-offset-tint-amount: 22%;
+	--studio-offset-tint-amount: 18%;
 
 	--text-editor-fill: #ffffff;
 	--text-editor-line: #000000;

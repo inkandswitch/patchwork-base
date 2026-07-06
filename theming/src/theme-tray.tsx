@@ -1,5 +1,5 @@
-import {createSignal, For, onCleanup, Show} from "solid-js"
-import {render} from "solid-js/web"
+import {createEffect, createSignal, For, onCleanup, Show} from "solid-js"
+import {Portal, render} from "solid-js/web"
 import {getRegistry} from "@inkandswitch/patchwork-plugins"
 import {
 	getActiveThemeState,
@@ -17,7 +17,7 @@ type ThemeDescription = {
 }
 
 export function ThemeTray(element: HTMLElement) {
-	startActiveTheme()
+	startActiveTheme(element)
 
 	const style = document.createElement("style")
 	style.textContent = `
@@ -58,9 +58,7 @@ export function ThemeTray(element: HTMLElement) {
 			white-space: nowrap;
 		}
 		.theme-tray-popover {
-			position: absolute;
-			right: 0;
-			bottom: calc(100% + var(--studio-space-2xs, 0.25rem));
+			position: fixed;
 			z-index: 1000;
 			width: 13rem;
 			max-height: min(18rem, 60vh);
@@ -122,25 +120,72 @@ export function ThemeTray(element: HTMLElement) {
 	const dispose = render(() => {
 		const [state, setState] = createSignal(getActiveThemeState())
 		const [open, setOpen] = createSignal(false)
+		const [popoverPosition, setPopoverPosition] = createSignal<{
+			left: number
+			top: number
+		}>()
 		const [themes, setThemes] = createSignal<ThemeDescription[]>([])
 		const themeRegistry = getRegistry("patchwork:theme") as any
 		const unsubscribe = onActiveThemeChange(setState)
+		let buttonElement: HTMLButtonElement | undefined
+		let popoverElement: HTMLDivElement | undefined
 
 		const refreshThemes = () => setThemes(themeRegistry.all?.() || [])
 		refreshThemes()
 		themeRegistry.on("registered", refreshThemes)
 		themeRegistry.on("removed", refreshThemes)
 
+		const updatePopoverPosition = () => {
+			if (!buttonElement || !popoverElement) return
+
+			const gap = 4
+			const margin = 8
+			const buttonRect = buttonElement.getBoundingClientRect()
+			const popoverRect = popoverElement.getBoundingClientRect()
+			const maxLeft = Math.max(margin, window.innerWidth - popoverRect.width - margin)
+			const maxTop = Math.max(margin, window.innerHeight - popoverRect.height - margin)
+			const left = Math.min(Math.max(buttonRect.right - popoverRect.width, margin), maxLeft)
+			const preferredTop =
+				buttonRect.top >= popoverRect.height + margin + gap
+					? buttonRect.top - popoverRect.height - gap
+					: buttonRect.bottom + gap
+			const top = Math.min(Math.max(preferredTop, margin), maxTop)
+
+			setPopoverPosition({left, top})
+		}
+
 		const onDocumentClick = (event: MouseEvent) => {
-			if (!element.contains(event.target as Node)) setOpen(false)
+			const target = event.target as Node
+			if (!element.contains(target) && !popoverElement?.contains(target)) setOpen(false)
 		}
 		document.addEventListener("click", onDocumentClick)
+
+		const onDocumentKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") setOpen(false)
+		}
+		document.addEventListener("keydown", onDocumentKeyDown)
+
+		createEffect(() => {
+			if (!open()) return
+
+			const animationFrame = requestAnimationFrame(updatePopoverPosition)
+			window.addEventListener("resize", updatePopoverPosition)
+			window.addEventListener("scroll", updatePopoverPosition, true)
+
+			onCleanup(() => {
+				cancelAnimationFrame(animationFrame)
+				window.removeEventListener("resize", updatePopoverPosition)
+				window.removeEventListener("scroll", updatePopoverPosition, true)
+				setPopoverPosition(undefined)
+			})
+		})
 
 		onCleanup(() => {
 			unsubscribe()
 			themeRegistry.off?.("registered", refreshThemes)
 			themeRegistry.off?.("removed", refreshThemes)
 			document.removeEventListener("click", onDocumentClick)
+			document.removeEventListener("keydown", onDocumentKeyDown)
 		})
 
 		function chooseTheme(id: string) {
@@ -154,6 +199,7 @@ export function ThemeTray(element: HTMLElement) {
 		return (
 			<div class="theme-tray">
 				<button
+					ref={buttonElement}
 					class="theme-tray-button"
 					title={`Theme: ${activeThemeId()}`}
 					onClick={(event) => {
@@ -165,26 +211,37 @@ export function ThemeTray(element: HTMLElement) {
 					<span class="theme-tray-label">{activeThemeId()}</span>
 				</button>
 				<Show when={open()}>
-					<div class="theme-tray-popover" onClick={(event) => event.stopPropagation()}>
-						<div class="theme-tray-popover-header">{activeMode()} theme</div>
-						<For each={themes()}>
-							{(theme) => (
-								<button
-									class="theme-tray-option"
-									data-selected={activeThemeId() === theme.id ? "" : undefined}
-									title={theme.name || theme.id}
-									onClick={() => chooseTheme(theme.id)}
-								>
-									<span class="theme-tray-option-name">
-										{theme.name || theme.id}
-									</span>
-									<Show when={activeThemeId() === theme.id}>
-										<span class="theme-tray-option-check">selected</span>
-									</Show>
-								</button>
-							)}
-						</For>
-					</div>
+					<Portal mount={document.body}>
+						<div
+							ref={popoverElement}
+							class="theme-tray-popover"
+							style={{
+								left: `${popoverPosition()?.left ?? 0}px`,
+								top: `${popoverPosition()?.top ?? 0}px`,
+								visibility: popoverPosition() ? "visible" : "hidden",
+							}}
+							onClick={(event) => event.stopPropagation()}
+						>
+							<div class="theme-tray-popover-header">{activeMode()} theme</div>
+							<For each={themes()}>
+								{(theme) => (
+									<button
+										class="theme-tray-option"
+										data-selected={activeThemeId() === theme.id ? "" : undefined}
+										title={theme.name || theme.id}
+										onClick={() => chooseTheme(theme.id)}
+									>
+										<span class="theme-tray-option-name">
+											{theme.name || theme.id}
+										</span>
+										<Show when={activeThemeId() === theme.id}>
+											<span class="theme-tray-option-check">selected</span>
+										</Show>
+									</button>
+								)}
+							</For>
+						</div>
+					</Portal>
 				</Show>
 			</div>
 		)

@@ -1,7 +1,7 @@
 import {startActiveTheme} from "./active-theme.ts"
 
 export function ThemeTitlebarTool(_handle: any, element: HTMLElement) {
-	startActiveTheme()
+	startActiveTheme(element)
 	element.style.width = "0"
 	element.style.height = "0"
 	element.style.overflow = "hidden"

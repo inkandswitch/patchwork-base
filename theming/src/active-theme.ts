@@ -21,6 +21,12 @@ const listeners = new Set<(state: ActiveThemeState) => void>()
 let started = false
 let currentPrefsHandle: any = undefined
 let currentState: ActiveThemeState | undefined
+let storageStarted = false
+let connectedAccountDocUrl: string | undefined
+let unsubscribeStorage: (() => void) | undefined
+let unsubscribePrefsChange: (() => void) | undefined
+
+const TOOL_STORAGE_ID = "theme-preferences"
 
 function ensureThemeLink(style: string) {
 	if (themeLinks.has(style)) return
@@ -77,65 +83,133 @@ function applyFromPrefs() {
 	emit()
 }
 
-/** Poll for the global repo + account handle, which are set asynchronously. */
-function waitForGlobals(): Promise<{repo: any; accountHandle: any}> {
-	return new Promise((resolve) => {
-		const check = () => {
-			const repo = (window as any).repo
-			const accountHandle = (window as any).accountDocHandle
-			if (repo && accountHandle) {
-				resolve({repo, accountHandle})
-				return true
-			}
-			return false
-		}
-		if (check()) return
-		const interval = setInterval(() => {
-			if (check()) clearInterval(interval)
-		}, 100)
-	})
-}
+function subscribeToProvider<T>(
+	element: HTMLElement,
+	selector: Record<string, unknown>,
+	onValue: (value: T) => void
+) {
+	const view = element.closest("patchwork-view")
+	const dispatchElement = (view as HTMLElement) ?? element
+	const channel = new MessageChannel()
+	const port = channel.port2
+	const controller = new AbortController()
 
-/**
- * Resolve the account's theme-preferences doc, creating it if missing.
- * Returns the preferences handle, or undefined if the account doc isn't ready.
- */
-async function ensureThemePreferences(repo: any, accountHandle: any) {
-	const accountDoc = accountHandle.doc()
-	if (!accountDoc) return undefined
+	port.addEventListener(
+		"message",
+		(event: MessageEvent) => {
+			if ((event.data as any)?.type === "change") onValue((event.data as any).value as T)
+		},
+		{signal: controller.signal}
+	)
+	port.start()
 
-	if (accountDoc.themePreferencesUrl) {
-		return await repo.find(accountDoc.themePreferencesUrl)
+	dispatchElement.dispatchEvent(
+		new CustomEvent("patchwork:subscribe", {
+			detail: {selector, port: channel.port1},
+			bubbles: true,
+			composed: true,
+		})
+	)
+
+	return () => {
+		if (controller.signal.aborted) return
+		controller.abort()
+		try {
+			port.postMessage({type: "unsubscribe"})
+		} catch {}
+		try {
+			port.close()
+		} catch {}
 	}
-
-	const prefsHandle = await repo.create2({
-		"@patchwork": {type: "theme-preferences"},
-		light: "lychee",
-		dark: "gloom",
-	})
-	accountHandle.change((d: any) => {
-		if (!d.themePreferencesUrl) d.themePreferencesUrl = prefsHandle.url
-	})
-	return prefsHandle
 }
 
-async function loadActiveTheme() {
-	const {repo, accountHandle} = await waitForGlobals()
+async function findAccountHandleForElement(element: HTMLElement, repo: any) {
+	const view = element.closest("patchwork-view")
+	const accountDocUrl = view?.getAttribute("doc-url")
+	if (!accountDocUrl) return undefined
+	const accountHandle = await repo.find(accountDocUrl)
 	await accountHandle.whenReady?.()
+	return accountHandle
+}
 
-	let lastPrefsUrl: string | undefined
-	const resolvePrefs = async () => {
-		const prefsHandle = await ensureThemePreferences(repo, accountHandle)
-		if (!prefsHandle || prefsHandle.url === lastPrefsUrl) return
-		lastPrefsUrl = prefsHandle.url
-		await prefsHandle.whenReady?.()
-		currentPrefsHandle = prefsHandle
-		applyFromPrefs()
-		prefsHandle.on("change", applyFromPrefs)
-	}
+async function migrateLegacyThemePreferences(
+	repo: any,
+	accountHandle: any,
+	prefsHandle: any
+) {
+	const legacyUrl = accountHandle?.doc()?.themePreferencesUrl
+	if (!legacyUrl) return
 
-	await resolvePrefs()
-	accountHandle.on("change", resolvePrefs)
+	const legacyHandle = await repo.find(legacyUrl)
+	await legacyHandle.whenReady?.()
+	const legacyDoc = legacyHandle.doc()
+	const legacyLight = typeof legacyDoc?.light === "string" ? legacyDoc.light : undefined
+	const legacyDark = typeof legacyDoc?.dark === "string" ? legacyDoc.dark : undefined
+
+	prefsHandle.change((doc: any) => {
+		if (legacyLight && !doc.light) doc.light = legacyLight
+		if (legacyDark && !doc.dark) doc.dark = legacyDark
+	})
+
+	accountHandle.change((doc: any) => {
+		if (doc.themePreferencesUrl === legacyUrl) delete doc.themePreferencesUrl
+	})
+}
+
+function ensureThemePreferencesShape(prefsHandle: any) {
+	prefsHandle.change((doc: any) => {
+		doc["@patchwork"] = {type: "theme-preferences"}
+		if (!doc.light) doc.light = "lychee"
+		if (!doc.dark) doc.dark = "gloom"
+	})
+}
+
+async function useToolStoragePreferences(element: HTMLElement, storageUrl: string) {
+	const repo = (element as any).repo ?? (window as any).repo
+	if (!repo) return
+
+	const prefsHandle = await repo.find(storageUrl)
+	await prefsHandle.whenReady?.()
+	const accountHandle = await findAccountHandleForElement(element, repo)
+	try {
+		if (accountHandle) await migrateLegacyThemePreferences(repo, accountHandle, prefsHandle)
+	} catch {}
+	ensureThemePreferencesShape(prefsHandle)
+
+	if (currentPrefsHandle === prefsHandle) return
+	unsubscribePrefsChange?.()
+	currentPrefsHandle = prefsHandle
+	applyFromPrefs()
+
+	prefsHandle.on("change", applyFromPrefs)
+	unsubscribePrefsChange = () => prefsHandle.off?.("change", applyFromPrefs)
+}
+
+function connectThemePreferences(element: HTMLElement) {
+	const view = element.closest("patchwork-view")
+	const accountDocUrl = view?.getAttribute("doc-url")
+	if (!accountDocUrl) return
+	if (storageStarted && connectedAccountDocUrl === accountDocUrl) return
+
+	unsubscribeStorage?.()
+	unsubscribePrefsChange?.()
+	connectedAccountDocUrl = accountDocUrl
+	currentPrefsHandle = undefined
+	applyFromPrefs()
+	storageStarted = true
+
+	let lastStorageUrl: string | undefined
+	unsubscribeStorage = subscribeToProvider<string | undefined>(
+		element,
+		{type: "patchwork:tool-storage", toolId: TOOL_STORAGE_ID},
+		(storageUrl) => {
+			if (!storageUrl || storageUrl === lastStorageUrl) return
+			lastStorageUrl = storageUrl
+			useToolStoragePreferences(element, storageUrl).catch(() => {
+				// Theme preferences are best-effort; keep the default theme.
+			})
+		}
+	)
 }
 
 function watchThemeRegistry() {
@@ -162,7 +236,8 @@ function watchThemeRegistry() {
 	})
 }
 
-export function startActiveTheme() {
+export function startActiveTheme(element?: HTMLElement) {
+	if (element) connectThemePreferences(element)
 	if (started) return
 	started = true
 
@@ -173,10 +248,6 @@ export function startActiveTheme() {
 	window
 		.matchMedia("(prefers-color-scheme: dark)")
 		.addEventListener("change", applyFromPrefs)
-
-	loadActiveTheme().catch(() => {
-		// Theme loading is best-effort; fall back to the already-applied default.
-	})
 }
 
 export function getActiveThemeState() {
