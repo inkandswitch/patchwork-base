@@ -114,7 +114,7 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 		}
 		.theme-picker-show-all {
 			font-size: 0.75em;
-			color: var(--studio-link, #36e);
+			color: var(--studio-link-text, var(--studio-link, #36e));
 			cursor: pointer;
 			background: none;
 			border: none;
@@ -147,7 +147,7 @@ export function ThemePickerTool(handle: any, element: HTMLElement) {
 			border-color: var(--studio-fill-offset-40, #999);
 		}
 		.theme-picker-card[data-selected] {
-			border-color: var(--studio-primary, #35f7ca);
+			border-color: var(--studio-primary-line, var(--studio-primary, #35f7ca));
 		}
 		.theme-picker-active {
 			font-size: 0.8em;

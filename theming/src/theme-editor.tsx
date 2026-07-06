@@ -216,7 +216,7 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 			min-width: 0;
 		}
 		.theme-editor .name-input:focus {
-			border-bottom-color: var(--studio-primary, #35f7ca);
+			border-bottom-color: var(--studio-primary-line, var(--studio-primary, #35f7ca));
 		}
 		.theme-editor .toolbar {
 			display: flex;
@@ -237,9 +237,9 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 			background: color-mix(in oklch, var(--studio-fill, white), var(--studio-line, black) 5%);
 		}
 		.theme-editor .btn[data-active] {
-			background: var(--studio-primary, #35f7ca);
-			border-color: var(--studio-primary, #35f7ca);
-			color: var(--studio-fill, white);
+			background: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
+			border-color: var(--studio-primary-line, var(--studio-primary, #35f7ca));
+			color: var(--studio-primary-line, var(--studio-fill, white));
 		}
 		.theme-editor .mode-toggle {
 			display: flex;
@@ -304,7 +304,7 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 			font-family: inherit;
 		}
 		.theme-editor .text-input:focus {
-			outline: 2px solid var(--studio-primary, #35f7ca);
+			outline: 2px solid var(--studio-primary-line, var(--studio-primary, #35f7ca));
 			outline-offset: 1px;
 		}
 		.theme-editor .hex-display {
@@ -377,7 +377,7 @@ export function ThemeEditorTool(handle: any, element: HTMLElement) {
 			overflow-x: auto;
 		}
 		.theme-editor .css-textarea:focus {
-			outline: 2px solid var(--studio-primary, #35f7ca);
+			outline: 2px solid var(--studio-primary-line, var(--studio-primary, #35f7ca));
 			outline-offset: 1px;
 		}
 		.theme-editor .discovered-label {

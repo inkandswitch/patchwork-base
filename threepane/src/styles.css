@@ -43,8 +43,8 @@
      (it mixes toward the chrome ink, so it reads darker on light themes and
      lighter on dark ones), plus a primary-tinted glow + grab pill on hover. */
   --threepane-sidebar-divider: var(--studio-chrome-offset-20, #d4d4d4);
-  --threepane-resize-glow: color-mix(in oklch, var(--studio-primary, #35f7ca), transparent 35%);
-  --threepane-resize-pill: var(--studio-primary, #35f7ca);
+  --threepane-resize-glow: color-mix(in oklch, var(--studio-primary-fill, var(--studio-primary, #35f7ca)), transparent 35%);
+  --threepane-resize-pill: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
 
   /* The context (right) sidebar sits on a chrome surface stepped one offset off
      the toolbar's flat chrome, so the two chrome regions read as distinct. */
@@ -63,7 +63,7 @@
   --context-sidebar-tab-hover: var(--studio-chrome-offset-10, #e5e5e5);
   --context-sidebar-tab-active-bg: var(--studio-fill, white);
   --context-sidebar-tab-active-fg: var(--studio-line, black);
-  --context-sidebar-tab-active-accent: var(--studio-primary, #35f7ca);
+  --context-sidebar-tab-active-accent: var(--studio-primary-line, var(--studio-primary, #35f7ca));
   /* the content panel shares the active tab's surface so the selected tab
      connects seamlessly into the tool view below it */
   --context-sidebar-content-bg: var(--context-sidebar-tab-active-bg);
@@ -784,10 +784,10 @@
 :root,
 :host,
 [theme] {
-  --debug-toast-registered: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-line, black) 20%);
+  --debug-toast-registered: var(--studio-secondary-text, color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-line, black) 20%));
   --debug-toast-loaded: color-mix(in oklch, var(--studio-added, #35f7ca), var(--studio-line, black) 10%);
-  --debug-toast-removed: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--studio-line, black) 20%);
-  --debug-toast-changed: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--studio-line, black) 10%);
+  --debug-toast-removed: var(--studio-danger-text, color-mix(in oklch, var(--studio-danger, #ff6a90), var(--studio-line, black) 20%));
+  --debug-toast-changed: var(--studio-warning-text, color-mix(in oklch, var(--studio-warning, #f8c43b), var(--studio-line, black) 10%));
 }
 
 .frame {

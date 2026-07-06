@@ -18,7 +18,7 @@ const STYLES = `
   --re-string: var(--syntax-string, #2e7d32);
   --re-number: var(--syntax-number, #6a1b9a);
   --re-boolean: var(--syntax-bool, #0277bd);
-  --re-null: var(--studio-danger, #c62828);
+  --re-null: var(--studio-danger-text, var(--studio-danger, #c62828));
   --re-key: var(--syntax-attribute-name, #5e81ac);
   --re-key-index: var(--studio-line-offset-50, rgba(0,0,0,0.3));
   --re-bracket: var(--studio-line-offset-50, rgba(0,0,0,0.3));
@@ -28,15 +28,15 @@ const STYLES = `
   --re-badge-bg: var(--studio-fill-offset-10, rgba(0,0,0,0.07));
   --re-dump-bg: var(--studio-fill-offset-10, rgba(0,0,0,0.04));
   --re-mode-active-bg: var(--studio-fill-offset-20, rgba(0,0,0,0.12));
-  --re-link: var(--studio-link, var(--studio-primary, #0969da));
-  --re-link-hover: var(--studio-primary, #0550ae);
+  --re-link: var(--studio-link-text, var(--studio-link, var(--studio-primary-text, #0969da)));
+  --re-link-hover: var(--studio-link-text, var(--studio-primary-text, #0550ae));
   --re-input-bg: var(--studio-fill-offset-10, rgba(0,0,0,0.04));
   --re-input-border: var(--studio-fill-offset-20, rgba(0,0,0,0.15));
   --re-input-color: var(--studio-line, #2e3440);
   --re-overlay-bg: var(--studio-fill, white);
   --re-ok: var(--studio-added, #2e7d32);
-  --re-cancel: var(--studio-danger, #c62828);
-  --re-focus: var(--studio-primary, #5e81ac);
+  --re-cancel: var(--studio-danger-text, var(--studio-danger, #c62828));
+  --re-focus: var(--studio-primary-line, var(--studio-primary, #5e81ac));
 }
 .raw-editor-wrapper {
   display: flex;

@@ -5,7 +5,7 @@
   --document-list-fill: var(
     --studio-chrome,
     light-dark(
-      color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
+      color-mix(in oklch, var(--studio-secondary-fill, var(--studio-secondary, #33ccf8)), var(--studio-fill, white) 80%),
       black
     )
   );
@@ -57,7 +57,7 @@
      chrome ink, so it tracks the palette and reads correctly light/dark). */
   --document-list-divider: var(--studio-chrome-offset-20, #d4d4d4);
   --document-list-added: var(--studio-added, #35f7ca);
-  --document-list-danger: var(--studio-danger, #ff6a90);
+  --document-list-danger: var(--studio-danger-text, var(--studio-danger, #ff6a90));
   --document-list-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
   --account-bar-fill: var(--studio-chrome-offset-10)
 }
