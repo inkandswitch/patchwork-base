@@ -17,16 +17,15 @@ import {
   useMainDocMounted,
   useDebugRegistryToast,
   DebugRegistryToast,
-  getStoredNumber,
-  getStoredBoolean,
+  useTaggedComponents,
   SIDEBAR_KEYS,
-  DEFAULT_SIDEBAR_WIDTH,
 } from "./hooks";
 import { Sidebar } from "./components/Sidebar";
 import { SidebarWidgets } from "./components/SidebarWidgets";
-import { MainDocumentView } from "./components/MainDocumentView";
+import { ContextSidebar } from "./components/ContextSidebar";
 import { DocumentAreaRoot } from "./components/DocumentAreaRoot";
 import { IsolatedDocumentArea } from "./components/IsolatedDocumentArea";
+import { makePersisted } from "@solid-primitives/storage";
 import {
   createEffect,
   createMemo,
@@ -268,15 +267,34 @@ function PatchworkFrameInner(props: {
 
   const selectedDocUrl = () => selectedView()?.url;
   const selectedToolId = () => selectedView()?.toolId ?? undefined;
+  const hasSelectedDoc = () => Boolean(selectedDocUrl());
 
-  // Right-sidebar seeds, read from host localStorage. The host owns this read and
-  // hands the values to whichever document-area path renders (local DocumentAreaRoot
-  // or the isolated root via IsolatedDocumentArea's boot spec) — localStorage is
-  // stubbed inside the iframe, so the isolated path can't read it itself.
-  const initialRightWidth = () =>
-    getStoredNumber(SIDEBAR_KEYS.rightWidth, DEFAULT_SIDEBAR_WIDTH);
-  const initialRightCollapsed = () =>
-    getStoredBoolean(SIDEBAR_KEYS.rightCollapsed);
+  const [selectedContextToolId, setSelectedContextToolId] = makePersisted(
+    createSignal<string | undefined>(),
+    { name: SIDEBAR_KEYS.contextToolId }
+  );
+
+  // Host-side, registry-driven context sidebar/tray. It deliberately lives
+  // outside `IsolatedDocumentArea`, so isolation mode keeps tray components in
+  // the trusted host realm and preserves one instance across document changes.
+  const contextItems = useTaggedComponents("context-tool");
+  const trayItems = useTaggedComponents("system-tray");
+  const hasContextOrTray = () =>
+    contextItems().length > 0 || trayItems().length > 0;
+  const effectiveRightSidebarCollapsed = () =>
+    !hasSelectedDoc() || sidebarState.isRightSidebarCollapsed();
+  const toggleRightSidebar = () => {
+    if (!hasSelectedDoc()) return;
+    sidebarState.setIsRightSidebarCollapsed((v) => !v);
+  };
+  const handleRightMouseDown = (side: "left" | "right", e: MouseEvent) => {
+    if (!hasSelectedDoc()) return;
+    sidebarResize.handleMouseDown(side, e);
+  };
+  const handleRightToggleClick = (side: "left" | "right", e: MouseEvent) => {
+    if (!hasSelectedDoc()) return;
+    sidebarResize.handleToggleClick(side, e);
+  };
 
   // Suspend the sidebar widgets until the main document has settled (mounted or
   // failed to mount), so the primary column wins the initial render race. With
@@ -323,25 +341,12 @@ function PatchworkFrameInner(props: {
         isolation={props.isolation}
         onInterceptOpen={setPopoverView}
       >
-        <Show
-          when={selectedDocUrl()}
-          fallback={
-            <div class="main-area">
-              <MainDocumentView
-                viewKey={selectedDocUrl}
-                selectedDocUrl={selectedDocUrl}
-                toolId={selectedToolId}
-                ref={setMainDocElement}
-              />
-            </div>
-          }
-        >
+        <div class="frame__main-column">
           {/*
             Document area: isolated (rendered inside a sandboxed iframe) or local
-            (rendered directly). `isolation` is fixed per tool instance. The local
-            path threads `setMainDocElement` (for the host's widgetsReady race) and
-            seeds the right-sidebar state from host localStorage; the isolated path
-            owns that wiring itself (and can't drive the host ref from the iframe).
+            (rendered directly). The right context sidebar/tray is a host-side
+            sibling, outside the isolation boundary, so its tray components have
+            one stable host-realm instance.
           */}
           <Show
             when={props.isolation}
@@ -352,8 +357,9 @@ function PatchworkFrameInner(props: {
                 selectedToolId={selectedToolId}
                 doctitleSlots={doctitleSlots}
                 isLeftCollapsed={sidebarState.isSidebarCollapsed}
-                initialRightWidth={initialRightWidth}
-                initialRightCollapsed={initialRightCollapsed}
+                hasContext={hasContextOrTray}
+                isRightSidebarCollapsed={sidebarState.isRightSidebarCollapsed}
+                onToggleRight={toggleRightSidebar}
               />
             }
           >
@@ -363,11 +369,22 @@ function PatchworkFrameInner(props: {
               selectedToolId={selectedToolId}
               doctitleSlots={doctitleSlots}
               isLeftCollapsed={sidebarState.isSidebarCollapsed}
-              initialRightWidth={initialRightWidth}
-              initialRightCollapsed={initialRightCollapsed}
             />
           </Show>
-        </Show>
+
+          <Show when={hasContextOrTray()}>
+            <ContextSidebar
+              selectedToolId={selectedContextToolId}
+              setSelectedToolId={setSelectedContextToolId}
+              isCollapsed={effectiveRightSidebarCollapsed}
+              width={sidebarState.rightSidebarWidth}
+              onMouseDown={handleRightMouseDown}
+              onToggleClick={handleRightToggleClick}
+              canExpand={hasSelectedDoc}
+              onCollapse={() => sidebarState.setIsRightSidebarCollapsed(true)}
+            />
+          </Show>
+        </div>
       </FrameLayout>
 
       <Show when={popoverView()}>

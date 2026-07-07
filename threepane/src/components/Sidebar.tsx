@@ -9,6 +9,7 @@ type SidebarProps = {
   docUrl?: AutomergeUrl;
   onMouseDown: (side: "left" | "right", e: MouseEvent) => void;
   onToggleClick: (side: "left" | "right", e: MouseEvent) => void;
+  canExpand?: Accessor<boolean>;
   /**
    * Content slot. When provided it replaces the default `<patchwork-view>`
    * (driven by `toolId`/`docUrl`), letting callers render arbitrary Solid
@@ -43,6 +44,7 @@ export function Sidebar(props: SidebarProps) {
     }
     return null;
   };
+  const canExpand = () => props.canExpand?.() ?? true;
 
   return (
     <div
@@ -66,7 +68,7 @@ export function Sidebar(props: SidebarProps) {
       )}
 
       {/* Toggle button when collapsed - left side */}
-      {props.side === "left" && props.isCollapsed() && (
+      {props.side === "left" && props.isCollapsed() && canExpand() && (
         <button
           onClick={(e) => props.onToggleClick(props.side, e)}
           onMouseDown={(e) => props.onMouseDown(props.side, e)}
@@ -88,7 +90,7 @@ export function Sidebar(props: SidebarProps) {
       )}
 
       {/* Toggle button when collapsed - right side */}
-      {props.side === "right" && props.isCollapsed() && (
+      {props.side === "right" && props.isCollapsed() && canExpand() && (
         <button
           onClick={(e) => props.onToggleClick(props.side, e)}
           onMouseDown={(e) => props.onMouseDown(props.side, e)}

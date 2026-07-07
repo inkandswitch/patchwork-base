@@ -19,7 +19,6 @@ import type { ToolSlot } from "../types";
 import { render } from "solid-js/web";
 import type { DocumentAreaInputs } from "./DocumentAreaRoot";
 import { DocumentAreaRoot } from "./DocumentAreaRoot";
-import { DEFAULT_SIDEBAR_WIDTH } from "../hooks";
 import { ensureFrameStyles } from "../ensureFrameStyles";
 
 export interface IsolatedDocumentAreaProps extends DocumentAreaInputs {
@@ -28,10 +27,8 @@ export interface IsolatedDocumentAreaProps extends DocumentAreaInputs {
 }
 
 export function IsolatedDocumentArea(props: IsolatedDocumentAreaProps) {
-  // rootUrls: the docs the iframe is allowed to sync. The context-tool/tray
-  // lanes contribute nothing here — they're always bare `patchwork:component`s
-  // (registry-driven, no configured doc), resolved independently inside the
-  // iframe's own registry.
+  // rootUrls: the docs the iframe is allowed to sync. The context sidebar/tray
+  // stay host-side in `PatchworkFrame`, so they contribute nothing here.
   const rootUrls = createMemo<AutomergeUrl[]>(() => {
     const urls = new Set<AutomergeUrl>();
     const selected = props.selectedDocUrl();
@@ -49,8 +46,6 @@ export function IsolatedDocumentArea(props: IsolatedDocumentAreaProps) {
       selectedToolId: props.selectedToolId(),
       doctitleSlots: props.doctitleSlots(),
       isLeftCollapsed: props.isLeftCollapsed(),
-      initialRightWidth: props.initialRightWidth(),
-      initialRightCollapsed: props.initialRightCollapsed(),
     })
   );
 
@@ -82,8 +77,6 @@ interface IsolationRootProps {
   selectedToolId?: string;
   doctitleSlots?: ToolSlot[];
   isLeftCollapsed?: boolean;
-  initialRightWidth?: number;
-  initialRightCollapsed?: boolean;
 }
 
 /** Parse the isolation props from the inert JSON `<script>` child. */
@@ -136,10 +129,8 @@ export function mountIsolationRoot(element: HTMLElement): () => void {
   // rules are authored nested under `.frame {`, so the document-area markup only
   // picks them up inside a `.frame` ancestor. The props <script> sibling is left
   // untouched. `render` mounts alongside it and its disposer tears the tree down.
-  // Context-tool/tray content resolves against THIS realm's own registry (the
-  // iframe registers the same plugin set as the host — see registry.start in
-  // isolation/src/boot/iframe/main.ts) — nothing about those lanes travels
-  // through these isolation props at all.
+  // The context sidebar/tray are not mounted in this realm; they stay host-side
+  // as siblings of `IsolatedDocumentArea`.
   const dispose = render(
     () => (
       <div class="frame">
@@ -148,8 +139,6 @@ export function mountIsolationRoot(element: HTMLElement): () => void {
           selectedToolId={() => p.selectedToolId}
           doctitleSlots={() => p.doctitleSlots}
           isLeftCollapsed={() => p.isLeftCollapsed ?? false}
-          initialRightWidth={() => p.initialRightWidth ?? DEFAULT_SIDEBAR_WIDTH}
-          initialRightCollapsed={() => p.initialRightCollapsed ?? false}
         />
       </div>
     ),

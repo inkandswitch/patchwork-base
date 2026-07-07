@@ -16,6 +16,7 @@ type ContextSidebarProps = {
   width: Accessor<number>;
   onMouseDown: (side: "left" | "right", e: MouseEvent) => void;
   onToggleClick: (side: "left" | "right", e: MouseEvent) => void;
+  canExpand?: Accessor<boolean>;
   /** Collapse the sidebar, from its own tab-header button. */
   onCollapse: () => void;
 };
@@ -49,6 +50,7 @@ export function ContextSidebar(props: ContextSidebarProps) {
       width={props.width}
       onMouseDown={props.onMouseDown}
       onToggleClick={props.onToggleClick}
+      canExpand={props.canExpand}
       persistContent
     >
       {/* Persisted while collapsed (hidden via CSS) so the tray keeps running.
