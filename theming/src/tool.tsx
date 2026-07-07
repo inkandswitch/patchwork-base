@@ -23,8 +23,8 @@ async function detectColorScheme(
 	}
 }
 
-export function ThemePickerTool(_handle: any, element: HTMLElement) {
-	startActiveTheme(element)
+export function ThemePickerTool(handle: any, element: HTMLElement) {
+	startActiveTheme(element, handle)
 
 	const [themeState, setThemeState] = createSignal(getActiveThemeState())
 	const unsubscribeThemeState = onActiveThemeChange(setThemeState)

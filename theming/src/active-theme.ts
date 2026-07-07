@@ -11,6 +11,15 @@ type ActiveThemeState = {
 	preferencesUrl?: string
 }
 
+type ThemePreferencesHandle = {
+	url?: string
+	doc(): any
+	change(fn: (doc: any) => void): void
+	on?(event: "change", listener: () => void): void
+	off?(event: "change", listener: () => void): void
+	whenReady?(): Promise<unknown>
+}
+
 const bundledStyleUrls = [themeCssUrl, lycheeCssUrl, gloomCssUrl].map(
 	(href) => new URL(href, import.meta.url).href
 )
@@ -19,7 +28,7 @@ const themeLinks = new Map<string, HTMLLinkElement>()
 const listeners = new Set<(state: ActiveThemeState) => void>()
 
 let started = false
-let currentPrefsHandle: any = undefined
+let currentPrefsHandle: ThemePreferencesHandle | undefined
 let currentState: ActiveThemeState | undefined
 let storageStarted = false
 let unsubscribeStorage: (() => void) | undefined
@@ -122,7 +131,7 @@ function subscribeToProvider<T>(
 	}
 }
 
-function ensureThemePreferencesShape(prefsHandle: any) {
+function ensureThemePreferencesShape(prefsHandle: ThemePreferencesHandle) {
 	prefsHandle.change((doc: any) => {
 		doc["@patchwork"] = {type: "theme-preferences"}
 		if (!doc.light) doc.light = "lychee"
@@ -130,21 +139,33 @@ function ensureThemePreferencesShape(prefsHandle: any) {
 	})
 }
 
+async function useThemePreferencesHandle(prefsHandle: ThemePreferencesHandle) {
+	await prefsHandle.whenReady?.()
+	ensureThemePreferencesShape(prefsHandle)
+
+	if (currentPrefsHandle === prefsHandle) return
+	if (
+		currentPrefsHandle?.url &&
+		prefsHandle.url &&
+		currentPrefsHandle.url === prefsHandle.url
+	) {
+		return
+	}
+
+	unsubscribePrefsChange?.()
+	currentPrefsHandle = prefsHandle
+	applyFromPrefs()
+
+	prefsHandle.on?.("change", applyFromPrefs)
+	unsubscribePrefsChange = () => prefsHandle.off?.("change", applyFromPrefs)
+}
+
 async function useToolStoragePreferences(element: HTMLElement, storageUrl: string) {
 	const repo = (element as any).repo ?? (window as any).repo
 	if (!repo) return
 
 	const prefsHandle = await repo.find(storageUrl)
-	await prefsHandle.whenReady?.()
-	ensureThemePreferencesShape(prefsHandle)
-
-	if (currentPrefsHandle === prefsHandle) return
-	unsubscribePrefsChange?.()
-	currentPrefsHandle = prefsHandle
-	applyFromPrefs()
-
-	prefsHandle.on("change", applyFromPrefs)
-	unsubscribePrefsChange = () => prefsHandle.off?.("change", applyFromPrefs)
+	await useThemePreferencesHandle(prefsHandle)
 }
 
 function connectThemePreferences(element: HTMLElement) {
@@ -195,8 +216,17 @@ function watchThemeRegistry() {
 	})
 }
 
-export function startActiveTheme(element?: HTMLElement) {
-	if (element) connectThemePreferences(element)
+export function startActiveTheme(
+	element?: HTMLElement,
+	preferencesHandle?: ThemePreferencesHandle
+) {
+	if (preferencesHandle) {
+		useThemePreferencesHandle(preferencesHandle).catch(() => {
+			// Theme preferences are best-effort; keep the default theme.
+		})
+	} else if (element) {
+		connectThemePreferences(element)
+	}
 	if (started) return
 	started = true
 
