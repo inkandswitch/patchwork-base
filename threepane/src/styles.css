@@ -78,6 +78,7 @@
   font-family: var(--threepane-family);
   color: var(--threepane-fg);
   background: var(--threepane-bg);
+}
 
 .frame__version {
   position: absolute;
@@ -343,11 +344,11 @@
 }
 
 /* The right sidebar persists its content while collapsed so the system tray's
-   tools keep running. The shell is 0px with visible overflow, so hide the
-   content here — `display: none` keeps the tray's elements mounted (and alive)
-   without letting them spill into the main area. */
+   tools keep running. Do not use `display: none`: `patchwork-view` instances
+   must remain connected and layout-independent even before any doc is selected. */
 .sidebar[data-side="right"][data-collapsed] .context-sidebar {
-  display: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Tab bar: the row holding the tab list and the collapse button. Its height +
