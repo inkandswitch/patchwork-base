@@ -122,39 +122,6 @@ function subscribeToProvider<T>(
 	}
 }
 
-async function findAccountHandleForElement(element: HTMLElement, repo: any) {
-	const view = element.closest("patchwork-view")
-	const accountDocUrl = view?.getAttribute("doc-url")
-	if (!accountDocUrl) return undefined
-	const accountHandle = await repo.find(accountDocUrl)
-	await accountHandle.whenReady?.()
-	return accountHandle
-}
-
-async function migrateLegacyThemePreferences(
-	repo: any,
-	accountHandle: any,
-	prefsHandle: any
-) {
-	const legacyUrl = accountHandle?.doc()?.themePreferencesUrl
-	if (!legacyUrl) return
-
-	const legacyHandle = await repo.find(legacyUrl)
-	await legacyHandle.whenReady?.()
-	const legacyDoc = legacyHandle.doc()
-	const legacyLight = typeof legacyDoc?.light === "string" ? legacyDoc.light : undefined
-	const legacyDark = typeof legacyDoc?.dark === "string" ? legacyDoc.dark : undefined
-
-	prefsHandle.change((doc: any) => {
-		if (legacyLight && !doc.light) doc.light = legacyLight
-		if (legacyDark && !doc.dark) doc.dark = legacyDark
-	})
-
-	accountHandle.change((doc: any) => {
-		if (doc.themePreferencesUrl === legacyUrl) delete doc.themePreferencesUrl
-	})
-}
-
 function ensureThemePreferencesShape(prefsHandle: any) {
 	prefsHandle.change((doc: any) => {
 		doc["@patchwork"] = {type: "theme-preferences"}
@@ -169,10 +136,6 @@ async function useToolStoragePreferences(element: HTMLElement, storageUrl: strin
 
 	const prefsHandle = await repo.find(storageUrl)
 	await prefsHandle.whenReady?.()
-	const accountHandle = await findAccountHandleForElement(element, repo)
-	try {
-		if (accountHandle) await migrateLegacyThemePreferences(repo, accountHandle, prefsHandle)
-	} catch {}
 	ensureThemePreferencesShape(prefsHandle)
 
 	if (currentPrefsHandle === prefsHandle) return
@@ -194,6 +157,7 @@ function connectThemePreferences(element: HTMLElement) {
 	storageStarted = true
 
 	let lastStorageUrl: string | undefined
+
 	unsubscribeStorage = subscribeToProvider<string | undefined>(
 		element,
 		{type: "patchwork:tool-storage", toolId: TOOL_STORAGE_ID},

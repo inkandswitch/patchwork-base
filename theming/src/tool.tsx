@@ -135,7 +135,6 @@ export function ThemePickerTool(_handle: any, element: HTMLElement) {
 		.theme-picker-section-header {
 			display: flex;
 			align-items: baseline;
-			justify-content: flex-end;
 		}
 		.theme-picker-show-all {
 			font-size: 0.75em;
