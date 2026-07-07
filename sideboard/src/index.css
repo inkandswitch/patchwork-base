@@ -553,12 +553,8 @@ button {
 .popmenu__radio-item[data-highlighted],
 .popmenu__sub-trigger[data-highlighted] {
   outline: none;
-  background-color: color-mix(
-    in oklch,
-    var(--document-list-primary),
-    var(--document-list-widget-fill) 20%
-  );
-  color: var(--document-list-widget-line);
+  background-color: var(--document-list-selection-fill);
+  color: var(--document-list-selection-line);
 }
 @keyframes contentShow {
   from {
@@ -583,12 +579,8 @@ button {
 
 .popmenu__item--highlighted {
   outline: none;
-  background-color: color-mix(
-    in oklch,
-    var(--document-list-primary),
-    var(--document-list-widget-fill) 20%
-  );
-  color: var(--document-list-widget-line);
+  background-color: var(--document-list-selection-fill);
+  color: var(--document-list-selection-line);
 }
 
 .create-new-menu__content {
