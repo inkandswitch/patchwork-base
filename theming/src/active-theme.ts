@@ -22,7 +22,6 @@ let started = false
 let currentPrefsHandle: any = undefined
 let currentState: ActiveThemeState | undefined
 let storageStarted = false
-let connectedAccountDocUrl: string | undefined
 let unsubscribeStorage: (() => void) | undefined
 let unsubscribePrefsChange: (() => void) | undefined
 
@@ -186,14 +185,10 @@ async function useToolStoragePreferences(element: HTMLElement, storageUrl: strin
 }
 
 function connectThemePreferences(element: HTMLElement) {
-	const view = element.closest("patchwork-view")
-	const accountDocUrl = view?.getAttribute("doc-url")
-	if (!accountDocUrl) return
-	if (storageStarted && connectedAccountDocUrl === accountDocUrl) return
+	if (storageStarted) return
 
 	unsubscribeStorage?.()
 	unsubscribePrefsChange?.()
-	connectedAccountDocUrl = accountDocUrl
 	currentPrefsHandle = undefined
 	applyFromPrefs()
 	storageStarted = true
