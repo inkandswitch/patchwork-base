@@ -215,7 +215,8 @@ function PatchworkFrameInner(props: {
   // component-id string); SlotView decides how to render each. The context
   // sidebar and system tray are no longer configured here at all — they're
   // registry-driven (every `patchwork:component` tagged `"context-tool"` /
-  // `"system-tray"`), resolved directly by `DocumentAreaRoot`.
+  // `"system-tray"`). The context sidebar is host chrome, and the system tray
+  // has one stable host-owned instance below.
   const doctitleSlots = () => threepaneConfig()?.doctitle?.tools;
   const sidebarWidgets = (): ToolSlot[] =>
     threepaneConfig()?.sidebar?.widgets ?? [];
@@ -454,8 +455,8 @@ function FramePopover(props: { view: SelectedView; onClose: () => void }) {
 
 // Host-side frame chrome: the left (account) sidebar plus a slot for the main
 // column (`children`). Rendered once and kept mounted across the no-doc → doc
-// transition; only its `children` (the main column) swap. The right (context)
-// sidebar is *not* here — it lives inside the document area (`DocumentAreaRoot`).
+// transition; only its `children` (the main column) swap. The right context
+// sidebar/tray are host chrome rendered by `PatchworkFrameInner`.
 function FrameLayout(props: {
   accountDocUrl: AutomergeUrl;
   sidebarState: SidebarState;
