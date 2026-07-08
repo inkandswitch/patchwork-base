@@ -103,9 +103,11 @@ export interface IntermediaryRepoOptions {
   /** Optional denylist — denylisted documents are blocked regardless of allowlist. */
   denylist?: SyncDenylist;
   /**
-   * The iframe repo's Automerge author id (generated host-side). A document
-   * arriving from the iframe whose changes are *all* authored by this id was
-   * created by the iframe itself and is auto-allowlisted (no prompt).
+   * The iframe repo's Automerge author id (generated host-side). An unallowlisted
+   * document the iframe references that is resident in the intermediary (it
+   * arrived over the open iframe channel) and whose changes are *all* authored by
+   * this id was created by the iframe itself, so it is auto-allowlisted (no
+   * prompt). See `resolveAccess`.
    */
   iframeAuthorId: string;
   /**
@@ -122,6 +124,36 @@ export interface IntermediaryRepo {
   iframePort: MessagePort;
   /** Tear down the intermediary repo and close all channels. */
   shutdown(): void;
+}
+
+/** The state reported by a `repo.findWithProgress(...)` query. */
+type QueryState = ReturnType<ReturnType<Repo["findWithProgress"]>["peek"]>;
+
+/**
+ * Resolve to the first terminal (`ready` | `unavailable` | `failed`) state of a
+ * `findWithProgress` query, acting exactly once. Peeks the current state first
+ * (it may already be terminal), otherwise awaits the first terminal transition.
+ * The `settled` guard protects against a synchronous subscribe callback firing
+ * before `unsubscribe` is assigned.
+ */
+function firstTerminalState(
+  progress: ReturnType<Repo["findWithProgress"]>
+): Promise<QueryState> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const isTerminal = (s: QueryState) =>
+      s.state === "ready" || s.state === "unavailable" || s.state === "failed";
+    const tryResolve = (s: QueryState): boolean => {
+      if (settled || !isTerminal(s)) return false;
+      settled = true;
+      resolve(s);
+      return true;
+    };
+    if (tryResolve(progress.peek())) return;
+    const unsubscribe = progress.subscribe((s) => {
+      if (tryResolve(s)) unsubscribe();
+    });
+  });
 }
 
 /**
@@ -168,17 +200,6 @@ export function createIntermediaryRepo(
     useWeakRef: true,
   });
 
-  // The one denylist gate, shared by `announce` and `access` so the two can
-  // never drift apart (both must agree for the security invariant to hold).
-  // Returns why a document is blocked from crossing to the iframe, or null if
-  // the denylist permits it (the caller still applies the allowlist).
-  //  - "not-ready": the denylist hasn't finished populating; fail closed to the
-  //    iframe so a protected doc can't sync during the population window.
-  //    Defense in depth — the boot path already awaits readiness before this
-  //    repo exists, so on the normal path this never fires.
-  //  - "denylisted": the document is in the protected set.
-  // The host peer is never gated here; only iframe-bound sync is.
-  //
   // Whether a document may cross the HOST channel: it must NOT be denylisted and
   // MUST be allowlisted. This gate is a *fast, synchronous-return policy check*
   // over in-memory sets — it never awaits a document fetch or a user prompt.
@@ -270,16 +291,6 @@ export function createIntermediaryRepo(
 
   // Decide an undecided document without blocking the gate, then re-run the gate
   // via shareConfigChanged().
-  //
-  // Classification is deterministic and event-driven (no timeout): because the
-  // gate currently denies the host peer for this document, the host source
-  // cannot supply it during this window. So we watch the intermediary's own
-  // query for this document —
-  //  - it reaches `ready` ⇒ the content came from the IFRAME (the open channel)
-  //    ⇒ the iframe created it ⇒ auto-allowlist iff every change is iframe-
-  //    authored (else fall through to the prompt);
-  //  - it settles `unavailable` ⇒ neither the iframe nor the (gated) host has it
-  //    ⇒ it is a FOREIGN document the iframe is requesting ⇒ prompt the user.
   const resolveAccess = async (documentId: DocumentId): Promise<void> => {
     const finish = (allow: boolean, reason: string) => {
       if (allow) {
@@ -312,43 +323,29 @@ export function createIntermediaryRepo(
       finish(approved, approved ? "user approved" : "user denied");
     };
 
-    const progress = repo.findWithProgress(documentId);
-
-    // Act exactly once, on the first terminal state. `settled` guards against
-    // both a synchronous subscribe callback (before `unsubscribe` is assigned)
-    // and any later transition after we've already decided.
-    let settled = false;
-    const decide = (state: ReturnType<typeof progress.peek>): boolean => {
-      if (settled) return true;
-      if (state.state === "ready") {
-        settled = true;
-        if (isAuthoredSolelyByIframe(state.handle)) {
-          finish(true, "authored by iframe");
-        } else {
-          // Resident but not iframe-authored — treat as foreign and prompt.
-          void prompt();
-        }
-        return true;
+    // Classification is deterministic and event-driven (no timeout): because the
+    // gate currently denies the host peer for this document, the host source
+    // cannot supply it during this window. So we watch the intermediary's own
+    // query for this document until it settles —
+    //  - `ready` ⇒ the content came from the IFRAME (the open channel) ⇒ the
+    //    iframe created it ⇒ auto-allowlist iff every change is iframe-authored
+    //    (else it is resident but foreign-authored → fall through to the prompt);
+    //  - `unavailable` ⇒ neither the iframe nor the (gated) host has it ⇒ it is a
+    //    FOREIGN document the iframe is requesting ⇒ prompt the user.
+    const state = await firstTerminalState(repo.findWithProgress(documentId));
+    if (state.state === "ready") {
+      if (isAuthoredSolelyByIframe(state.handle)) {
+        finish(true, "authored by iframe");
+      } else {
+        await prompt();
       }
-      if (state.state === "unavailable") {
-        settled = true;
-        void prompt();
-        return true;
-      }
-      if (state.state === "failed") {
-        settled = true;
-        finish(false, `query failed: ${state.error}`);
-        return true;
-      }
-      return false; // still loading
-    };
-
-    // Act on the current state if already terminal, otherwise on the first
-    // terminal transition.
-    if (decide(progress.peek())) return;
-    const unsubscribe = progress.subscribe((state) => {
-      if (decide(state)) unsubscribe();
-    });
+    } else if (state.state === "unavailable") {
+      await prompt();
+    } else if (state.state === "failed") {
+      finish(false, `query failed: ${state.error}`);
+    }
+    // `loading` is unreachable — firstTerminalState only resolves on a terminal
+    // state — so there is no final branch.
   };
 
   return {

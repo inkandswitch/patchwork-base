@@ -38,7 +38,7 @@ import { log } from "../log.js";
 /**
  * Scan a single document's content for automerge URLs and add any new ones to
  * the allowlist (unless they are denylisted or turn out to be sensitive — see
- * {@link checkAndDenylistIfSensitive}).
+ * {@link denylistIfSensitive}).
  *
  * This is a one-shot scan, not a live subscription: it reads the document's
  * current contents once. Callers re-invoke it (via the wrappers below) when
@@ -114,56 +114,39 @@ export async function buildAllowlist(
     log(`allowlisted root ${url}`);
   }
 
-  await populateAllowlistFromRoots(
-    repo,
-    rootUrls,
-    allowlist,
-    denylist,
-    isStale
-  );
+  await refreshAllowlistFromRoots(repo, rootUrls, allowlist, denylist, isStale);
   return allowlist;
 }
 
 /**
- * Scan multiple root documents into the allowlist, adding everything they
- * transitively reference. Stops early if `isStale` flips (a newer init epoch
- * started). Used by `buildAllowlist` for the initial boot-time seed.
- */
-async function populateAllowlistFromRoots(
-  repo: Repo,
-  rootUrls: AutomergeUrl[],
-  allowlist: SyncAllowlist,
-  denylist: SyncDenylist | undefined,
-  isStale: () => boolean
-): Promise<void> {
-  for (const url of rootUrls) {
-    await scanDocIntoAllowlist(repo, url, allowlist, denylist, isStale);
-    if (isStale()) return;
-  }
-}
-
-/**
- * Re-scan all root documents and add any newly-referenced automerge URLs to
- * the allowlist. Called lazily (e.g. when an access request arrives) rather
- * than on every change, to catch references the user just added.
+ * Scan all root documents into the allowlist, adding everything they
+ * transitively reference. Two uses:
+ *  - boot-time seed (via `buildAllowlist`), passing `isStale` so the scan stops
+ *    early if a newer init epoch started;
+ *  - lazy refresh (e.g. when an access request arrives), called with no
+ *    `isStale` to pick up references the user just added.
+ *
+ * When `isStale` is omitted the early-out is simply skipped.
  */
 async function refreshAllowlistFromRoots(
   repo: Repo,
   rootUrls: AutomergeUrl[],
   allowlist: SyncAllowlist,
-  denylist: SyncDenylist | undefined
+  denylist: SyncDenylist | undefined,
+  isStale?: () => boolean
 ): Promise<void> {
   for (const url of rootUrls) {
-    await scanDocIntoAllowlist(repo, url, allowlist, denylist);
+    await scanDocIntoAllowlist(repo, url, allowlist, denylist, isStale);
+    if (isStale?.()) return;
   }
 }
 
 /**
  * Prompt the user to grant the iframe access to a document that isn't on the
  * allowlist and wasn't auto-allowlisted (i.e. not solely authored by the iframe;
- * the author check lives in the intermediary's `document` watcher — see
- * repo-bridge). Reached as the fallback for docs the iframe references but did
- * not itself create.
+ * the author check lives in the intermediary's `resolveAccess` /
+ * `isAuthoredSolelyByIframe` — see repo-bridge). Reached as the fallback for docs
+ * the iframe references but did not itself create.
  *
  * If the document is one the host repo already knows about, the allowlist is
  * first refreshed (re-scanning roots for newly-added references) and the prompt
@@ -366,7 +349,7 @@ async function denylistModuleSettings(
  * discovered later (e.g. referenced deep in user content) are caught lazily by
  * `denylistIfSensitive`, which shares the same recognition logic.
  */
-export async function populateDenylist(
+async function populateDenylist(
   repo: Repo,
   denylist: SyncDenylist
 ): Promise<void> {
@@ -428,7 +411,7 @@ function sameDoc(a: AutomergeUrl, b: AutomergeUrl): boolean {
  * deliberately do NOT fingerprint folders by shape, which would wrongly block
  * the user's own content folders.
  */
-export async function denylistIfSensitive(
+async function denylistIfSensitive(
   repo: Repo,
   url: AutomergeUrl,
   denylist: SyncDenylist
