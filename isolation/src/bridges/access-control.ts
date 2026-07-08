@@ -38,7 +38,7 @@ import { log } from "../log.js";
 /**
  * Scan a single document's content for automerge URLs and add any new ones to
  * the allowlist (unless they are denylisted or turn out to be sensitive — see
- * {@link checkAndDenylistIfSensitive}).
+ * {@link denylistIfSensitive}).
  *
  * This is a one-shot scan, not a live subscription: it reads the document's
  * current contents once. Callers re-invoke it (via the wrappers below) when
@@ -136,64 +136,44 @@ export async function buildAllowlist(
     log(`allowlisted root ${url}`);
   }
 
-  await populateAllowlistFromRoots(
-    repo,
-    rootUrls,
-    allowlist,
-    denylist,
-    isStale
-  );
+  await refreshAllowlistFromRoots(repo, rootUrls, allowlist, denylist, isStale);
   return allowlist;
 }
 
 /**
- * Scan multiple root documents into the allowlist, adding everything they
- * transitively reference. Stops early if `isStale` flips (a newer init epoch
- * started). Used by `buildAllowlist` for the initial boot-time seed.
- */
-async function populateAllowlistFromRoots(
-  repo: Repo,
-  rootUrls: AutomergeUrl[],
-  allowlist: SyncAllowlist,
-  denylist: SyncDenylist | undefined,
-  isStale: () => boolean
-): Promise<void> {
-  for (const url of rootUrls) {
-    await scanDocIntoAllowlist(repo, url, allowlist, denylist, isStale);
-    if (isStale()) return;
-  }
-}
-
-/**
- * Re-scan all root documents and add any newly-referenced automerge URLs to
- * the allowlist. Called lazily (e.g. when an access request arrives) rather
- * than on every change, to catch references the user just added.
+ * Scan all root documents into the allowlist, adding everything they
+ * transitively reference. Two uses:
+ *  - boot-time seed (via `buildAllowlist`), passing `isStale` so the scan stops
+ *    early if a newer init epoch started;
+ *  - lazy refresh (e.g. when an access request arrives), called with no
+ *    `isStale` to pick up references the user just added.
+ *
+ * When `isStale` is omitted the early-out is simply skipped.
  */
 async function refreshAllowlistFromRoots(
   repo: Repo,
   rootUrls: AutomergeUrl[],
   allowlist: SyncAllowlist,
-  denylist: SyncDenylist | undefined
+  denylist: SyncDenylist | undefined,
+  isStale?: () => boolean
 ): Promise<void> {
   for (const url of rootUrls) {
-    await scanDocIntoAllowlist(repo, url, allowlist, denylist);
+    await scanDocIntoAllowlist(repo, url, allowlist, denylist, isStale);
+    if (isStale?.()) return;
   }
 }
 
 /**
- * Decide whether the iframe may access a document that isn't yet on the
- * allowlist — the intermediary repo's `onAccessRequest` gate.
+ * Prompt the user to grant the iframe access to a document that isn't on the
+ * allowlist and wasn't auto-allowlisted (i.e. not solely authored by the iframe;
+ * the author check lives in the intermediary's `resolveAccess` /
+ * `isAuthoredSolelyByIframe` — see repo-bridge). Reached as the fallback for docs
+ * the iframe references but did not itself create.
  *
- * Unknown documents are NOT auto-allowlisted; the user is prompted. This is a
- * safe default: it stops a tool from silently gaining access to any URL it
- * constructs. The cost is that documents the iframe itself just created also
- * prompt.
- *
- * TODO: once the Author ID API is available, auto-allowlist unknown documents
- * whose author matches the iframe's assigned author ID (the iframe created
- * them) and continue to prompt for all others.
- *
- * Returns true (and allowlists the doc) if access is granted.
+ * If the document is one the host repo already knows about, the allowlist is
+ * first refreshed (re-scanning roots for newly-added references) and the prompt
+ * is skipped if it now matches. Returns true (and allowlists) if access is
+ * granted.
  */
 export async function handleAccessRequest(
   repo: Repo,
@@ -202,28 +182,32 @@ export async function handleAccessRequest(
   denylist: SyncDenylist,
   documentId: DocumentId
 ): Promise<boolean> {
+  log(`handling access request for ${documentId}`);
+  let approved = false;
   if (repo.handles[documentId]) {
     // Known to the host but not yet allowlisted — the URL may have been added
     // since the initial scan (e.g. the user typed a new reference), so re-scan
-    // roots before asking. (Skipped for unknown docs: a root re-scan can't
-    // surface a doc the host has never seen, so it would be wasted work.)
+    // roots before asking.
     await refreshAllowlistFromRoots(repo, rootUrls, allowlist, denylist);
     if (allowlist.has(documentId)) return true;
+
+    approved = window.confirm(
+      `A tool wants to access a document on your system:\n\n` +
+        `Document ID: ${documentId}\n\n` +
+        `Allow access?`
+    );
+  } else {
+    approved = window.confirm(
+      `A tool wants to access a remote document:\n\n` +
+        `Document ID: ${documentId}\n\n` +
+        `This document was not created by the tool and is not on your local system. Allow access?`
+    );
   }
 
-  // TODO: remove temp approval
-  // const approved = window.confirm(
-  //   `A tool wants to access a document:\n\n` +
-  //     `Document ID: ${documentId}\n\n` +
-  //     `This may be a document the tool just created, or one it is ` +
-  //     `trying to open. Allow access?`
-  // );
-  // if (approved) {
-  //   allowlist.addDocumentId(documentId);
-  // }
-  // return approved;
-  allowlist.addDocumentId(documentId);
-  return true;
+  if (approved) {
+    allowlist.addDocumentId(documentId);
+  }
+  return approved;
 }
 
 /**
@@ -387,7 +371,7 @@ async function denylistModuleSettings(
  * discovered later (e.g. referenced deep in user content) are caught lazily by
  * `denylistIfSensitive`, which shares the same recognition logic.
  */
-export async function populateDenylist(
+async function populateDenylist(
   repo: Repo,
   denylist: SyncDenylist
 ): Promise<void> {
@@ -449,7 +433,7 @@ function sameDoc(a: AutomergeUrl, b: AutomergeUrl): boolean {
  * deliberately do NOT fingerprint folders by shape, which would wrongly block
  * the user's own content folders.
  */
-export async function denylistIfSensitive(
+async function denylistIfSensitive(
   repo: Repo,
   url: AutomergeUrl,
   denylist: SyncDenylist

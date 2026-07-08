@@ -114,8 +114,9 @@ Which parts of the UI end up inside the boundary is a choice of the frame config
                        │  - unsigned in → signed out     │
                        └─────────────────────────────────┘
 
-* unknown: prompt — documents not in the host repo are not auto-allowlisted;
-  the user is prompted via window.confirm — see the Allowlist section.
+* unknown: prompt — a document not in the host repo is auto-allowlisted only if
+  every change is authored by the iframe's own author id (it created it);
+  otherwise the user is prompted via window.confirm — see the Allowlist section.
 ```
 
 > **Not yet implemented (future / Keyhive):** the "Keyhive Isolation Identity" box, the "Signs 'signable' commits with isolation identity" line, and the sync-channel "'signed or signable' filter" / "unsigned in → signed out" notes describe the Keyhive-enabled design. Today the intermediary holds no isolation identity and signs nothing, and edits flow through unsigned. See [Security without Keyhive](#security-without-keyhive).
@@ -216,7 +217,7 @@ The allowlist is seeded from the boot spec's `rootUrls`. It is expanded through 
 
 1. **Transitive discovery.** Each root document's content is scanned for embedded automerge URLs (recursively walking objects, arrays, and strings). All discovered URLs are added to the allowlist (unless denylisted). This reflects the assumption that if the user opened a document, its referenced children are authorized for the tool rendering it.
 
-2. **User approval.** When the iframe requests a document that is not on the allowlist, the user is prompted via `window.confirm()` and can approve access explicitly. If the document is one the host repo already knows about, the allowlist is first refreshed (re-scanning all root documents for new URLs, e.g. a reference the user just typed) and the prompt is skipped if it now matches. Documents the host has never seen (newly created by the iframe, added by a collaborator, or embedded in the tool) skip that refresh — a root re-scan cannot surface a document the host has never seen — and prompt directly. Unknown documents are **not** auto-allowlisted; this prevents a tool from silently gaining access to any URL it constructs, at the cost of prompting for documents the iframe itself just created. Once the Author ID API is available, documents created by the iframe's own author ID will be auto-allowlisted while other unknown documents continue to prompt. _(See "Waiting on automerge/keyhive teams" below.)_
+2. **Iframe-authored auto-allowlist + user approval.** When the iframe requests a document that is not on the allowlist: if the document is one the host repo already knows about, the allowlist is first refreshed (re-scanning all root documents for new URLs, e.g. a reference the user just typed) and access is granted if it now matches. Otherwise the gate checks **authorship** — using the Author ID API, the iframe's `Repo` is configured with a per-isolation-context author id (generated host-side, passed into the iframe at boot), so changes the iframe's tools make are attributed to it. If **every** change in the requested document was authored by that id, the document is **auto-allowlisted with no prompt** — it is one the iframe just created. Any other unknown document (never seen by the host, or with any change by a different/absent author) **prompts the user** via `window.confirm()`. This preserves the safe default — a tool cannot silently gain access to a URL it constructs or to a foreign document — while removing the spurious prompt for a tool opening the document it just made. The all-changes check is conservative on purpose: a doc with even one foreign-authored (or unauthored) change still prompts, so a tool can't smuggle access by appending an own-authored change to someone else's document. (Reading the author materializes the doc in the trusted host repo only; the doc becomes iframe-syncable only after it is added to the allowlist, so materializing to check authorship does not itself grant access.)
 
 ### Keyhive integration (future)
 
@@ -349,10 +350,7 @@ The modal renders a `<patchwork-view>` in the host DOM (outside the isolation bo
 
 These are API changes being developed by the automerge and keyhive teams. The isolation architecture depends on them but cannot implement them until they ship.
 
-- **Author ID API.** Configure an author ID on the iframe's Repo so that edits made by tools are correctly attributed. The iframe repo will be configured with the isolation identity's author ID. (Not yet available on main.) Once available, improve the unknown-document handling in `onAccessRequest`:
-  - When the intermediary encounters an unknown document whose author matches the iframe's assigned author ID, auto-allowlist it (the iframe created it) instead of prompting.
-  - For unknown documents with a different author, keep prompting the user.
-  - Today, _all_ unknown documents prompt the user (the blanket auto-allowlist workaround has been removed); this change would restore silent access for the iframe's own creations only.
+- **~~Author ID API~~ — IMPLEMENTED.** The iframe's `Repo` is now configured with a per-isolation-context author id (generated host-side, passed in at boot), and `onAccessRequest` auto-allowlists an unknown document iff every change is by that author id (otherwise prompts). See the "Iframe-authored auto-allowlist" item under [Allowlist](#allowlist). (Requires the automerge authors release — `automerge-repo ≥ 2.7.0-authors`, `automerge ≥ 3.4.0-rev-frag-hex`; `RepoConfig.authorId` + `ChangeMetadata.author`.)
 - **"Signed or signable" bridge config.** Configure the bridge connection (NetworkAdapter or similar) between the intermediary repo and the iframe repo to only accept signed or signable commits from the iframe direction. Signable commits are signed with the isolation identity; mis-attributed commits are dropped. (Not yet available.)
 
 ### Tracked separately

@@ -21,8 +21,9 @@
   "author": "Ink & Switch",
   "license": "MIT",
   "dependencies": {
-    "@automerge/automerge-repo": "^2.6.0-subduction.26",
-    "@automerge/automerge-repo-network-messagechannel": "^2.6.0-subduction.26",
+    "@automerge/automerge": "^3.4.0-rev-frag-hex.3",
+    "@automerge/automerge-repo": "^2.7.0-authors.1",
+    "@automerge/automerge-repo-network-messagechannel": "^2.7.0-authors.1",
     "@inkandswitch/patchwork-elements": "1.0.0",
     "@inkandswitch/patchwork-filesystem": "^0.0.8",
     "@inkandswitch/patchwork-plugins": "^0.0.11",

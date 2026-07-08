@@ -45,6 +45,10 @@ interface InitMessage {
   syncPort: MessagePort;
   data: {
     rootComponentId: string;
+    /** The iframe repo's Automerge author id (hex), generated host-side. */
+    authorId: string;
+    /** The iframe repo's peer id (readable form of the author id), host-side. */
+    peerId: string;
     /**
      * Opaque JSON data for the root component, relayed verbatim from the host
      * (the boundary never parses it). Materialized as-is into the root's inert
@@ -110,6 +114,9 @@ export async function boot(deps: BootDeps) {
   // until modules load, but we need logging during bootstrap.
   // Respects the same localStorage("debug") namespace convention.
   const NAMESPACE = "patchwork:elements:isolation:iframe";
+  // A local id used only to tag early console output (before the boot message
+  // arrives). The repo's real identity — peerId + authorId — comes from the boot
+  // message (host-generated), so the access gate can compare against it.
   const peerId = "isolation-" + crypto.randomUUID().slice(0, 8);
   let debugEnabled = false;
   const log = (...args: unknown[]) => {
@@ -279,8 +286,12 @@ export async function boot(deps: BootDeps) {
     const syncAdapter = new messagechannel.MessageChannelNetworkAdapter(
       init.syncPort
     );
+    // Identity is generated host-side (so the access gate compares against the
+    // same value): `authorId` attributes this repo's changes as the isolation
+    // context, letting the host auto-allowlist docs the iframe created.
     const repo = new automergeRepo.Repo({
-      peerId: peerId,
+      peerId: d.peerId as any,
+      authorId: d.authorId,
       network: [syncAdapter],
     });
     (window as any).repo = repo;
