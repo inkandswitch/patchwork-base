@@ -62,7 +62,7 @@
 
 .notebook-viewer-play-button:hover {
   background: var(--account-history-primary);
-  color: var(--account-history-bg);
+  color: var(--account-history-primary-line);
   border-color: var(--account-history-primary);
 }
 
@@ -92,7 +92,7 @@
 }
 
 .notebook-viewer-direction-option.active {
-  color: var(--account-history-bg);
+  color: var(--account-history-primary-line);
 }
 
 .notebook-viewer-direction-thumb {
@@ -291,7 +291,7 @@
 
 .notebook-viewer-open-doc-button:hover {
   background: var(--account-history-primary);
-  color: var(--account-history-bg);
+  color: var(--account-history-primary-line);
   border-color: var(--account-history-primary);
 }
 

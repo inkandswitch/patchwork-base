@@ -494,7 +494,7 @@
 }
 
 /* account / packages / settings footer, pinned to the sidebar bottom */
-.threepane-sidebar__footer {
+.threepane-sidebar--has-tray .threepane-sidebar__footer {
   flex: none;
   margin-bottom: calc(var(--threepane-tray-height) + env(safe-area-inset-bottom, 0px));
 }

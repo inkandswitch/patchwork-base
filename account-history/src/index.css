@@ -194,7 +194,7 @@
 
 .account-history-sort-button.active {
   background: var(--account-history-primary);
-  color: var(--account-history-bg);
+  color: var(--account-history-primary-line);
   border-color: var(--account-history-primary);
 }
 
@@ -223,7 +223,7 @@
 
 .account-history-toggle-button.active {
   background: var(--account-history-primary);
-  color: var(--account-history-bg);
+  color: var(--account-history-primary-line);
   border-color: var(--account-history-primary);
 }
 
@@ -292,7 +292,7 @@
 
 .account-history-group-toggle:hover {
   background: var(--account-history-primary);
-  color: var(--account-history-bg);
+  color: var(--account-history-primary-line);
   border-color: var(--account-history-primary);
 }
 
