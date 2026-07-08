@@ -40,7 +40,11 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.10";
+const DRAFTS_VERSION = "0.0.15";
+
+// Logged at module load so the console shows which build is running even
+// before the panel renders.
+console.log(`[drafts] GroupedDraftsSidebar v${DRAFTS_VERSION} loaded`);
 
 // A pause between consecutive changes longer than this starts a new group:
 // bursts of continuous editing read as a single row, however long they run,
@@ -229,18 +233,17 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
     for (const member of members) {
       const to = checkpoint[member.url]?.to;
       if (!to) continue;
+      let handle: DocHandle<unknown> | null = null;
       try {
         // Clone the doc the timeline read its changes from (the draft's clone
-        // when dragging out of a draft), pinned to the version's heads —
-        // repo.clone of a view-pinned handle clones the doc as of those heads.
+        // when dragging out of a draft), pinned to the version's heads.
         // Keyed by the original url so baselines and merge-back resolve.
-        const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
-        const clone = repo.clone(handle.view(to));
+        handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
+        const clone = cloneAtVersion(repo, handle, to);
         clones[member.url] = { cloneUrl: clone.url, clonedAt: to };
       } catch (err) {
-        console.warn(
-          "[drafts] failed to fork member at version:",
-          member.url,
+        reportForkFailure(
+          handle ? collectForkDiagnostic(handle, member, to) : null,
           err
         );
       }
@@ -411,6 +414,301 @@ async function mergeDraft(
   draftHandle.change((d) => {
     d.mergedAt = Date.now();
   });
+}
+
+// --- Cloning a member at a version -------------------------------------------
+// The obvious way — `repo.clone(handle.view(to))`, i.e. wasm `fork_at` — is
+// broken upstream: on documents whose history contains certain concurrent
+// merge changes (as anything synced through subduction ends up with),
+// `fork_at` panics with `MissingOps` in `ChangeCollector::from_build_meta`
+// at *any* heads, and the panic poisons the doc object for the rest of the
+// session (every later call throws "recursive use of an object detected").
+// Confirmed offline against automerge 3.3.0-fragments.1 and .2 with a
+// 26-change minimal repro.
+//
+// So the version clone is built without `fork_at`: collect the ancestor
+// closure of the pin heads from the change metadata, bundle exactly those
+// changes (`saveBundle`), hydrate a fresh doc from the bundle
+// (`loadIncremental`), and install it into a new repo handle — the same move
+// `repo.clone` performs internally, minus the panicking wasm path. The
+// resulting doc's heads are exactly `to`, it shares history with the
+// original, and merges back cleanly.
+
+// Build a clone of `handle`'s doc pinned to the `to` heads and register it
+// with the repo. Throws (a plain JS error, no wasm panic) when the pin's
+// ancestry can't be resolved from the doc's change metadata.
+function cloneAtVersion(
+  repo: Repo,
+  handle: DocHandle<unknown>,
+  to: UrlHeads
+): DocHandle<unknown> {
+  const doc = handle.doc() as Automerge.Doc<unknown>;
+  const pinHeads = decodeHeads(to);
+
+  // Ancestor closure of the pin heads, walked over the full change metadata.
+  const metas = Automerge.getChangesMetaSince(doc, []);
+  const byHash = new Map(metas.map((m) => [m.hash, m]));
+  const closure = new Set<string>();
+  const stack = [...pinHeads];
+  while (stack.length > 0) {
+    const hash = stack.pop()!;
+    if (closure.has(hash)) continue;
+    const meta = byHash.get(hash);
+    if (!meta) {
+      throw new Error(
+        `[drafts] change ${hash} is not in the doc's history metadata`
+      );
+    }
+    closure.add(hash);
+    stack.push(...meta.deps);
+  }
+
+  const bundle = Automerge.saveBundle(doc, [...closure]);
+  const pinned = Automerge.loadIncremental(
+    Automerge.init<unknown>(),
+    bundle
+  );
+
+  const gotHeads = [...Automerge.getHeads(pinned)].sort();
+  const wantHeads = [...pinHeads].sort();
+  if (JSON.stringify(gotHeads) !== JSON.stringify(wantHeads)) {
+    throw new Error(
+      `[drafts] version clone heads mismatch: wanted ${wantHeads}, got ${gotHeads}`
+    );
+  }
+
+  const clone = repo.create<unknown>();
+  clone.update(() => pinned);
+  return clone;
+}
+
+// --- Fork-at-version diagnostics --------------------------------------------
+// When `cloneAtVersion` fails, everything we can learn about the member and
+// the pinned heads is dumped as one JSON block tagged
+// [drafts][fork-diagnostic]; paste that back when reporting.
+
+// Everything we could learn about the member and the pinned heads, plus the
+// final error.
+type ForkDiagnostic = {
+  draftsVersion: string;
+  memberUrl: AutomergeUrl;
+  sourceUrl: AutomergeUrl;
+  memberClonedAt: UrlHeads | null;
+  // The version being forked at, as url-encoded heads and as hex hashes.
+  to: UrlHeads;
+  toHex: string[];
+  // The doc's live frontier (hex), for comparison with `toHex`.
+  currentHeads: string[] | null;
+  // Does the doc itself consider `toHex` a valid point in its history?
+  hasHeads: boolean | null;
+  // Change hashes the doc knows it is missing ops for, as of `toHex`.
+  missingDeps: string[] | null;
+  stats: { numChanges: number; numOps: number } | null;
+  automerge: {
+    jsGitHead: string;
+    wasmGitHead: string | null;
+    wasmVersion: string | null;
+  } | null;
+  // Where each pinned hash sits in the doc's history: its topological index,
+  // metadata, and whether it is a live head. `known: false` means the doc has
+  // no change with that hash at all.
+  pinnedChanges: {
+    hash: string;
+    known: boolean;
+    topoIndex: number | null;
+    time: number | null;
+    actor: string | null;
+    seq: number | null;
+    deps: string[] | null;
+    isCurrentHead: boolean;
+  }[];
+  // Sedimentree fragment coverage: how the doc's history is bundled.
+  // `topoRange` is the [min, max] topological index of the fragment's member
+  // changes and `containsPin` whether a pinned hash is one of them — so a
+  // fork-depth failure boundary can be read directly against bundle
+  // boundaries. A pinned hash buried inside a higher-level bundle is the
+  // prime MissingOps suspect.
+  fragments:
+    | {
+        level: number;
+        head: string;
+        memberCount: number;
+        topoRange: [number, number] | null;
+        containsPin: boolean;
+      }[]
+    | null;
+  probeErrors: string[];
+  failure?: { message: string; stack?: string };
+};
+
+// The saved doc bytes captured before the failing fork, kept out of the JSON
+// report (too big) and exposed on `window.__draftsForkRepro` instead, so the
+// exact failing document can be reproduced offline.
+type ForkRepro = {
+  url: AutomergeUrl;
+  toHex: string[];
+  docBase64: string;
+};
+
+// Snapshot everything we can read about `handle`'s doc and the pinned heads.
+// Every probe is individually guarded so one bad call doesn't lose the rest.
+function collectForkDiagnostic(
+  handle: DocHandle<unknown>,
+  member: DraftMemberDoc,
+  to: UrlHeads
+): ForkDiagnostic {
+  const diagnostic: ForkDiagnostic = {
+    draftsVersion: DRAFTS_VERSION,
+    memberUrl: member.url,
+    sourceUrl: member.cloneUrl ?? member.url,
+    memberClonedAt: member.clonedAt,
+    to,
+    toHex: [],
+    currentHeads: null,
+    hasHeads: null,
+    missingDeps: null,
+    stats: null,
+    automerge: null,
+    pinnedChanges: [],
+    fragments: null,
+    probeErrors: [],
+  };
+  const probe = (name: string, run: () => void) => {
+    try {
+      run();
+    } catch (err) {
+      diagnostic.probeErrors.push(`${name}: ${String(err)}`);
+    }
+  };
+
+  probe("decodeHeads", () => {
+    diagnostic.toHex = decodeHeads(to);
+  });
+
+  const doc = handle.doc() as Automerge.Doc<unknown>;
+
+  probe("getHeads", () => {
+    diagnostic.currentHeads = Automerge.getHeads(doc);
+  });
+  probe("hasHeads", () => {
+    diagnostic.hasHeads = Automerge.hasHeads(doc, diagnostic.toHex);
+  });
+  probe("getMissingDeps", () => {
+    diagnostic.missingDeps = Automerge.getMissingDeps(doc, diagnostic.toHex);
+  });
+  probe("stats", () => {
+    const s = Automerge.stats(doc);
+    diagnostic.stats = { numChanges: s.numChanges, numOps: s.numOps };
+  });
+  probe("releaseInfo", () => {
+    const info = Automerge.releaseInfo();
+    diagnostic.automerge = {
+      jsGitHead: info.js.gitHead,
+      wasmGitHead: info.wasm?.gitHead ?? null,
+      wasmVersion: info.wasm?.cargoPackageVersion ?? null,
+    };
+  });
+  probe("pinnedChanges", () => {
+    const topo = Automerge.topoHistoryTraversal(doc);
+    const metas = Automerge.getChangesMetaSince(doc, []);
+    const metaByHash = new Map(metas.map((m) => [m.hash, m]));
+    diagnostic.pinnedChanges = diagnostic.toHex.map((hash) => {
+      const meta = metaByHash.get(hash);
+      const topoIndex = topo.indexOf(hash);
+      return {
+        hash,
+        known: !!meta || topoIndex >= 0,
+        topoIndex: topoIndex >= 0 ? topoIndex : null,
+        time: meta?.time ?? null,
+        actor: meta?.actor ?? null,
+        seq: meta?.seq ?? null,
+        deps: meta?.deps ?? null,
+        isCurrentHead: diagnostic.currentHeads?.includes(hash) ?? false,
+      };
+    });
+  });
+  probe("fragments", () => {
+    const topo = Automerge.topoHistoryTraversal(doc);
+    const topoIndex = new Map(topo.map((h, i) => [h, i]));
+    const pinned = new Set(diagnostic.toHex);
+    diagnostic.fragments = Automerge.getFragmentMetadata(doc).map((f) => {
+      let min = Infinity;
+      let max = -Infinity;
+      let containsPin = false;
+      for (const h of f.members) {
+        const i = topoIndex.get(h);
+        if (i !== undefined) {
+          if (i < min) min = i;
+          if (i > max) max = i;
+        }
+        if (pinned.has(h)) containsPin = true;
+      }
+      return {
+        level: f.level,
+        head: f.head,
+        memberCount: f.members.length,
+        topoRange:
+          min <= max ? ([min, max] as [number, number]) : null,
+        containsPin,
+      };
+    });
+  });
+  probe("saveDoc", () => {
+    // Capture the full doc bytes for an offline repro; published to
+    // `window.__draftsForkRepro` by `reportForkFailure`.
+    const bytes = Automerge.save(doc);
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    lastForkRepro = {
+      url: member.url,
+      toHex: diagnostic.toHex,
+      docBase64: btoa(binary),
+    };
+  });
+
+  return diagnostic;
+}
+
+// The most recent member's saved bytes, captured by `collectForkDiagnostic`
+// and published by `reportForkFailure` when its member's fork fails.
+let lastForkRepro: ForkRepro | null = null;
+
+// Dump the diagnostic and the error as one copy-pasteable JSON block.
+function reportForkFailure(
+  diagnostic: ForkDiagnostic | null,
+  err: unknown
+): void {
+  const failure = {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  };
+  if (!diagnostic) {
+    console.error(
+      "[drafts][fork-diagnostic] failed before diagnostics could be gathered:",
+      failure
+    );
+    return;
+  }
+  diagnostic.failure = failure;
+  if (lastForkRepro && lastForkRepro.url === diagnostic.memberUrl) {
+    (window as unknown as Record<string, unknown>).__draftsForkRepro =
+      lastForkRepro;
+  }
+  console.error(
+    "[drafts][fork-diagnostic] failed to fork member at version — paste this block back:\n" +
+      JSON.stringify(diagnostic, null, 2) +
+      "\n[drafts][fork-diagnostic] the failing doc's bytes are on " +
+      "window.__draftsForkRepro — to save them for an offline repro, run:\n" +
+      "  const r = window.__draftsForkRepro;\n" +
+      "  const bytes = Uint8Array.from(atob(r.docBase64), c => c.charCodeAt(0));\n" +
+      "  const a = document.createElement('a');\n" +
+      "  a.href = URL.createObjectURL(new Blob([bytes]));\n" +
+      "  a.download = 'fork-repro.automerge'; a.click();\n" +
+      "  console.log('pin heads:', r.toHex);"
+  );
 }
 
 function MainCard(props: {
