@@ -3,11 +3,15 @@ import {
   createEffect,
   createSignal,
   For,
+  onCleanup,
   Show,
   untrack,
   type JSX,
 } from "solid-js";
-import { useSupportedToolsForType, useFilteredDatatypes } from "../lib/solid-plugins";
+import {
+  useSupportedToolsForType,
+  useFilteredDatatypes,
+} from "../lib/solid-plugins";
 import type {
   DatatypeDescription,
   Plugin,
@@ -164,6 +168,40 @@ export default function Item(props: {
     source: props.element.toolId!,
   });
 
+  // Spring-loading: while a drag is in progress, hovering it over a document
+  // row for a moment opens that document in the main view *without ending the
+  // drag*, so you can then drop the payload at a precise spot inside the now-
+  // open document. Mirrors the folder auto-expand-on-hover behaviour in
+  // folder.tsx. Folders are excluded here (they auto-expand inline instead),
+  // and the rows being dragged never spring-load themselves.
+  const SPRING_LOAD_MS = 1500;
+  let springTimer: ReturnType<typeof setTimeout> | null = null;
+  let springCommitted = false;
+
+  function startSpringLoad(target: HTMLElement) {
+    if (props.type === "folder" || dragstack.has(props.id)) return;
+    if (springTimer || springCommitted) return;
+
+    target.setAttribute("data-dnd-springload", "");
+    springTimer = setTimeout(() => {
+      springTimer = null;
+      springCommitted = true;
+      target.removeAttribute("data-dnd-springload");
+      props.openWith();
+    }, SPRING_LOAD_MS);
+  }
+
+  function stopSpringLoad() {
+    if (springTimer) {
+      clearTimeout(springTimer);
+      springTimer = null;
+    }
+    springCommitted = false;
+    trigger()?.removeAttribute("data-dnd-springload");
+  }
+
+  onCleanup(stopSpringLoad);
+
   // Remove from the context menu. When this item is part of a multi-selection
   // (cmd-click or cmd-drag marquee), remove the whole selection — with a
   // confirmation prompt, since removing several at once is easy to fat-finger.
@@ -193,14 +231,14 @@ export default function Item(props: {
       const folderHandle =
         position === "inside" && props.type === "folder"
           ? await props.repo.find<FolderDoc>(props.url)
-          : props.parentFolderHandle ?? props.rootFolderHandle;
+          : (props.parentFolderHandle ?? props.rootFolderHandle);
 
       await handleFilesDrop(
         event.dataTransfer.files,
         folderHandle,
         props.repo,
         position,
-        position === "inside" ? 0 : props.itemIndex ?? 0
+        position === "inside" ? 0 : (props.itemIndex ?? 0)
       );
       return;
     }
@@ -354,6 +392,7 @@ export default function Item(props: {
           }
         }}
         ondragend={(event: DragEvent) => {
+          stopSpringLoad();
           clearDragSourceItems();
           clearDragstack();
           setCopyMode(false);
@@ -398,15 +437,19 @@ export default function Item(props: {
           }
 
           setDropTarget({ id: props.id, position });
+
+          startSpringLoad(event.currentTarget as HTMLElement);
         }}
         ondragleave={(event: DragEvent) => {
           // Only clear if we're actually leaving (not entering a child)
           const related = event.relatedTarget as Element;
           if (!related || !(event.currentTarget as Element).contains(related)) {
+            stopSpringLoad();
             clearDropTarget();
           }
         }}
         ondrop={(event: DragEvent) => {
+          stopSpringLoad();
           const target = getDropTarget();
           console.log(
             "[DnD] Item ondrop event fired",
@@ -498,7 +541,9 @@ export default function Item(props: {
             return;
           }
           const target = event.target as Element;
-          if (target.closest(".document-list-folder__toggle, .create-new-button")) {
+          if (
+            target.closest(".document-list-folder__toggle, .create-new-button")
+          ) {
             return;
           }
           clearDragstack();
@@ -622,9 +667,7 @@ export default function Item(props: {
               <ContextMenu.SubContent class="popmenu__sub-content">
                 <ContextMenu.Item
                   class="popmenu__item"
-                  onSelect={() =>
-                    navigator.clipboard.writeText(props.url)
-                  }
+                  onSelect={() => navigator.clipboard.writeText(props.url)}
                 >
                   Automerge url
                 </ContextMenu.Item>

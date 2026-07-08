@@ -315,6 +315,12 @@ button {
   &[data-dnd-dragging] {
     opacity: 0.4;
   }
+  /* Spring-load: hovering a drag over this row opens the document after
+     SPRING_LOAD_MS (see item.tsx). The highlight only fades in for the second
+     half of the hold, so quick pass-overs never flash an animation. */
+  &[data-dnd-springload] {
+    animation: doclist-springload 0.75s ease-out 0.75s both;
+  }
   &[data-dnd-droplist-state]::before {
     content: "";
     position: absolute;
@@ -329,6 +335,19 @@ button {
   }
   &[data-dnd-droplist-state="below"]::before {
     bottom: -1px;
+  }
+}
+
+@keyframes doclist-springload {
+  from {
+    background: transparent;
+  }
+  to {
+    background: color-mix(
+      in oklch,
+      var(--document-list-primary),
+      transparent 40%
+    );
   }
 }
 
