@@ -130,28 +130,47 @@ export interface IntermediaryRepo {
 type QueryState = ReturnType<ReturnType<Repo["findWithProgress"]>["peek"]>;
 
 /**
- * Resolve to the first terminal (`ready` | `unavailable` | `failed`) state of a
- * `findWithProgress` query, acting exactly once. Peeks the current state first
- * (it may already be terminal), otherwise awaits the first terminal transition.
- * The `settled` guard protects against a synchronous subscribe callback firing
- * before `unsubscribe` is assigned.
+ * How long the access classifier waits for the iframe to supply a document's
+ * content before concluding it is foreign and prompting the user. Only a ceiling
+ * for the *negative* (foreign) case — an iframe-created doc reaches `ready` as
+ * soon as its already-queued sync message applies, resolving well before this.
+ * Erring generous only costs a slightly later prompt for a genuinely-foreign doc
+ * (which then waits on `window.confirm` anyway); the trade is a rare spurious
+ * prompt for an iframe-created doc whose content lands after the grace.
  */
-function firstTerminalState(
-  progress: ReturnType<Repo["findWithProgress"]>
-): Promise<QueryState> {
+const IFRAME_SUPPLY_GRACE_MS = 500;
+
+/**
+ * Resolve `true` if the query reaches `ready` within `graceMs`, else `false`.
+ *
+ * Used to classify an undecided host-channel document while the host peer is
+ * held `loading` (see `hostChannelAllows`). With the host gated, the only source
+ * that can bring the intermediary's query to `ready` is the IFRAME supplying the
+ * content over the open channel — i.e. a document the iframe created. A foreign
+ * document the iframe merely *requested* has no supplier, so its query stays
+ * `pending` and this resolves `false` at the grace ceiling. The `ready` signal
+ * itself is deterministic and usually near-instant; the timer only bounds the
+ * no-signal (foreign) case. The `settled` guard makes it act exactly once.
+ */
+function waitForIframeSupplied(
+  progress: ReturnType<Repo["findWithProgress"]>,
+  graceMs: number
+): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false;
-    const isTerminal = (s: QueryState) =>
-      s.state === "ready" || s.state === "unavailable" || s.state === "failed";
-    const tryResolve = (s: QueryState): boolean => {
-      if (settled || !isTerminal(s)) return false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let unsubscribe: (() => void) | undefined;
+    const finish = (v: boolean) => {
+      if (settled) return;
       settled = true;
-      resolve(s);
-      return true;
+      if (timer !== undefined) clearTimeout(timer);
+      unsubscribe?.();
+      resolve(v);
     };
-    if (tryResolve(progress.peek())) return;
-    const unsubscribe = progress.subscribe((s) => {
-      if (tryResolve(s)) unsubscribe();
+    if (progress.peek().state === "ready") return finish(true);
+    timer = setTimeout(() => finish(false), graceMs);
+    unsubscribe = progress.subscribe((s) => {
+      if (s.state === "ready") finish(true);
     });
   });
 }
@@ -201,38 +220,47 @@ export function createIntermediaryRepo(
   });
 
   // Whether a document may cross the HOST channel: it must NOT be denylisted and
-  // MUST be allowlisted. This gate is a *fast, synchronous-return policy check*
-  // over in-memory sets — it never awaits a document fetch or a user prompt.
-  // automerge-repo holds a peer at sharePolicyState "loading" for as long as
-  // `access` is unresolved, which would stall the sync (no doc-unavailable, no
-  // content) — so any slow or interactive decision must happen out of band. An
-  // undecided document is DENIED now; `resolveAccess` decides it in the
-  // background and, once decided, calls `repo.shareConfigChanged()` to re-run
-  // this gate and re-engage the waiting iframe peer (see the automerge team's
-  // "immediately deny, prompt, then fire shareConfigChanged" guidance).
+  // MUST be allowlisted. Terminal answers (denylisted / allowlisted / user-
+  // denied) return synchronously. An *undecided* document returns a PENDING
+  // promise that resolves once `resolveAccess` decides it.
+  //
+  // Why pending rather than an immediate deny: automerge-repo holds a peer at
+  // sharePolicyState "loading" while its `access` promise is unresolved, and a
+  // query with any "loading" peer stays `pending` (never `unavailable`). If we
+  // denied the host peer up front instead, the intermediary's query would settle
+  // `unavailable` and emit `doc-unavailable` to the iframe — which makes the
+  // iframe's one-shot `find()` reject, so the tool gives up and never recovers
+  // even after the user approves (it would need a full re-render). Holding the
+  // host peer "loading" keeps the iframe's `find()` pending until we decide, so
+  // an approval resolves it to `ready` with no re-render. See `resolveAccess`.
   //
   // While the denylist is still populating we fail closed (allow nothing to/from
   // the host) — the boot path awaits denylist readiness before this repo exists,
   // so this is defense in depth. This is the single security boundary; the
   // iframe channel is open.
-  const hostChannelAllows = (documentId: DocumentId): boolean => {
+  const hostChannelAllows = (
+    documentId: DocumentId
+  ): boolean | Promise<boolean> => {
     if (denylist && !denylist.isReady) return false;
     if (denylist?.has(documentId)) return false;
-    if (allowlist.has(documentId)) return true;
-    // Already decided-no, or a decision is already in flight: deny without
-    // re-prompting / re-resolving (this gate is called repeatedly per re-eval).
-    if (denied.has(documentId)) return false;
-    if (pending.has(documentId)) return false;
+    if (allowlist.has(documentId)) return true; // approved / auto-allowed
+    if (denied.has(documentId)) return false; // user said no
 
-    // Undecided: kick off out-of-band resolution and deny for now.
-    pending.add(documentId);
-    void resolveAccess(documentId);
-    return false;
+    // Undecided: return the SAME pending decision promise on every re-eval
+    // (dedup), and kick off out-of-band resolution exactly once.
+    const decision = decisionFor(documentId);
+    if (!pending.has(documentId)) {
+      pending.add(documentId);
+      void resolveAccess(documentId);
+    }
+    return decision.promise;
   };
 
   // Per-channel gate. The iframe channel is fully open (all docs sync both
   // ways); the host channel enforces denylist-then-allowlist. Both `access`
-  // (bidirectional gate) and `announce` (proactive push) use the same rule.
+  // (bidirectional gate) and `announce` (proactive push) use the same rule — so
+  // once a pending decision resolves true, the host peer becomes "announce" and
+  // the intermediary actively serves the doc in both directions.
   const shareGate = async (
     peerId: PeerId,
     documentId?: DocumentId
@@ -262,12 +290,45 @@ export function createIntermediaryRepo(
   hostRepo.networkSubsystem.addNetworkAdapter(isolationHostAdapter);
 
   // ── Out-of-band access resolution ────────────────────────────
-  // The gate (hostChannelAllows) denies any undecided document immediately and
-  // enqueues it here. `pending` dedupes in-flight resolutions (the gate is
-  // called repeatedly as the sync layer re-evaluates); `denied` remembers a
-  // user's "no" so we never re-prompt for the same document.
+  // The gate (hostChannelAllows) returns a pending decision promise for any
+  // undecided document and enqueues it here.
+  //  - `pending` dedupes: it guards that we spawn exactly one `resolveAccess`
+  //    (and thus at most one prompt) per document, even though the gate is
+  //    re-evaluated repeatedly.
+  //  - `denied` remembers a user's "no" so the gate answers a synchronous false
+  //    without re-prompting.
+  //  - `decisions` holds the single shared pending promise per document, so
+  //    every re-evaluation during the window returns the *same* promise (which
+  //    is what pins the host peer at "loading" — see hostChannelAllows).
   const pending = new Set<DocumentId>();
   const denied = new Set<DocumentId>();
+
+  type Decision = {
+    promise: Promise<boolean>;
+    resolve: (allow: boolean) => void;
+    settled: boolean;
+  };
+  const decisions = new Map<DocumentId, Decision>();
+
+  const decisionFor = (documentId: DocumentId): Decision => {
+    let d = decisions.get(documentId);
+    if (!d) {
+      let resolve!: (allow: boolean) => void;
+      const promise = new Promise<boolean>((res) => {
+        resolve = res;
+      });
+      d = { promise, resolve, settled: false };
+      decisions.set(documentId, d);
+    }
+    return d;
+  };
+
+  const settleDecision = (documentId: DocumentId, allow: boolean): void => {
+    const d = decisionFor(documentId);
+    if (d.settled) return;
+    d.settled = true;
+    d.resolve(allow);
+  };
 
   // Whether every change in a *resident* document was authored by the iframe.
   // Reads the already-ready handle directly — it must never trigger a fetch (a
@@ -289,8 +350,8 @@ export function createIntermediaryRepo(
     }
   };
 
-  // Decide an undecided document without blocking the gate, then re-run the gate
-  // via shareConfigChanged().
+  // Decide an undecided document out of band (never blocking the gate), resolve
+  // its pending decision promise, then re-run the gate via shareConfigChanged().
   const resolveAccess = async (documentId: DocumentId): Promise<void> => {
     const finish = (allow: boolean, reason: string) => {
       if (allow) {
@@ -301,9 +362,14 @@ export function createIntermediaryRepo(
         log(`access ${documentId} denied (${reason})`);
       }
       pending.delete(documentId);
-      // Re-run the (now-decided) gate for every doc and re-engage the iframe
-      // peer, which was marked hasRequested when the first denial sent it
-      // doc-unavailable.
+      // Resolve the pending host-gate promise FIRST (unpins the host peer from
+      // "loading"), then re-run the gate for every doc. The fresh evaluation
+      // triggered by shareConfigChanged now sees the doc in allowlist/denied and
+      // answers a synchronous boolean — flipping the host peer to "announce" (so
+      // the intermediary fetches the doc from the host and pushes it to the
+      // still-waiting iframe) or to "denied" (query settles unavailable → the
+      // iframe is told, as it should be on an explicit denial).
+      settleDecision(documentId, allow);
       repo.shareConfigChanged();
     };
 
@@ -323,29 +389,27 @@ export function createIntermediaryRepo(
       finish(approved, approved ? "user approved" : "user denied");
     };
 
-    // Classification is deterministic and event-driven (no timeout): because the
-    // gate currently denies the host peer for this document, the host source
-    // cannot supply it during this window. So we watch the intermediary's own
-    // query for this document until it settles —
-    //  - `ready` ⇒ the content came from the IFRAME (the open channel) ⇒ the
-    //    iframe created it ⇒ auto-allowlist iff every change is iframe-authored
-    //    (else it is resident but foreign-authored → fall through to the prompt);
-    //  - `unavailable` ⇒ neither the iframe nor the (gated) host has it ⇒ it is a
-    //    FOREIGN document the iframe is requesting ⇒ prompt the user.
-    const state = await firstTerminalState(repo.findWithProgress(documentId));
-    if (state.state === "ready") {
-      if (isAuthoredSolelyByIframe(state.handle)) {
-        finish(true, "authored by iframe");
-      } else {
-        await prompt();
-      }
-    } else if (state.state === "unavailable") {
+    // Classify iframe-created vs foreign. The host peer is held "loading" by the
+    // pending gate, so the intermediary's query for this doc can only reach
+    // `ready` if the IFRAME supplied the content over the open channel — i.e. the
+    // iframe created it. If the iframe doesn't supply it within the grace window,
+    // it is a FOREIGN document the iframe is merely requesting → prompt.
+    const progress = repo.findWithProgress(documentId);
+    const iframeSupplied = await waitForIframeSupplied(
+      progress,
+      IFRAME_SUPPLY_GRACE_MS
+    );
+    const state = progress.peek();
+    if (
+      iframeSupplied &&
+      state.state === "ready" &&
+      isAuthoredSolelyByIframe(state.handle)
+    ) {
+      finish(true, "authored by iframe");
+    } else {
+      // Not iframe-supplied, or resident but not solely iframe-authored → prompt.
       await prompt();
-    } else if (state.state === "failed") {
-      finish(false, `query failed: ${state.error}`);
     }
-    // `loading` is unreachable — firstTerminalState only resolves on a terminal
-    // state — so there is no final branch.
   };
 
   return {
