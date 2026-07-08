@@ -45,11 +45,14 @@ export type ToolSlot = ToolRef | string;
 
 /**
  * The threepane layout config (its own document, referenced from
- * `AccountDoc.tools["threepane"]`). The context sidebar and system tray are
- * no longer configured here — they're registry-driven (every
- * `patchwork:component` tagged `"context-tool"` / `"system-tray"`).
+ * `AccountDoc.tools["threepane"]`). The context sidebar is host chrome and
+ * still registry-driven (every `patchwork:component` tagged `"context-tool"`),
+ * but the system tray is configured here: `tray` is the explicit list of tools
+ * docked at the bottom-left, in order.
  */
 export type ThreepaneConfigDoc = {
   sidebar: { widgets: ToolSlot[] };
   doctitle: { tools: ToolSlot[] };
+  /** The system-tray tools, docked at the frame's bottom-left, in order. */
+  tray: ToolSlot[];
 };

@@ -17,7 +17,6 @@ import {
   useMainDocMounted,
   useDebugRegistryToast,
   DebugRegistryToast,
-  useTaggedComponents,
   SIDEBAR_KEYS,
   getStoredNumber,
   getStoredBoolean,
@@ -215,13 +214,14 @@ function PatchworkFrameInner(props: {
   // safe without a fallback here.
   // doctitle keeps its full slots (a [toolId, docId] tuple or a bare
   // component-id string); SlotView decides how to render each. The context
-  // sidebar and system tray are no longer configured here at all — they're
-  // registry-driven (every `patchwork:component` tagged `"context-tool"` /
-  // `"system-tray"`). The context sidebar is host chrome, and the system tray
-  // has one stable host-owned instance below.
+  // sidebar is host chrome and still registry-driven (every
+  // `patchwork:component` tagged `"context-tool"`), but the system tray is
+  // configured here — `tray` is its explicit ordered list of tools, rendered by
+  // the one stable host-owned instance below.
   const doctitleSlots = () => threepaneConfig()?.doctitle?.tools;
   const sidebarWidgets = (): ToolSlot[] =>
     threepaneConfig()?.sidebar?.widgets ?? [];
+  const traySlots = (): ToolSlot[] => threepaneConfig()?.tray ?? [];
   const rootFolderUrl = () => accountDoc()?.rootFolderUrl;
 
   const sidebarState = useSidebarState();
@@ -323,6 +323,7 @@ function PatchworkFrameInner(props: {
         sidebarState={sidebarState}
         sidebarResize={sidebarResize}
         sidebarWidgets={sidebarWidgets}
+        traySlots={traySlots}
         configHandle={threepaneConfigHandle}
         rootFolderUrl={rootFolderUrl}
         widgetsReady={widgetsReady}
@@ -429,6 +430,8 @@ function FrameLayout(props: {
   sidebarState: SidebarState;
   sidebarResize: SidebarResize;
   sidebarWidgets: Accessor<ToolSlot[]>;
+  /** The system-tray tools, configured on the threepane config doc. */
+  traySlots: Accessor<ToolSlot[]>;
   configHandle: Accessor<DocHandle<ThreepaneConfigDoc> | undefined>;
   rootFolderUrl: Accessor<AutomergeUrl | undefined>;
   widgetsReady: Accessor<boolean>;
@@ -444,12 +447,13 @@ function FrameLayout(props: {
   const isCollapsed = props.sidebarState.isSidebarCollapsed;
 
   // The system tray is docked to the frame's bottom-left, OUTSIDE the collapsing
-  // sidebar, so it stays visible even when the sidebar is closed. We read the
-  // tray registry here to reserve matching space at the sidebar's bottom (so the
-  // account bar clears the dock when open) and to skip the dock entirely when no
-  // tray tools are registered.
-  const trayItems = useTaggedComponents("system-tray");
-  const hasTray = () => trayItems().length > 0;
+  // sidebar. Its tools are configured on the threepane config doc's `tray`
+  // array. We use the list here to reserve matching space at the sidebar's
+  // bottom (so the account bar clears the dock when open) and to skip the dock
+  // entirely when nothing is configured. The dock stays mounted when the sidebar
+  // closes — it's hidden with CSS (below), not unmounted, so its tools keep
+  // running.
+  const hasTray = () => props.traySlots().length > 0;
 
   // Under isolation, intercept `patchwork:open-document` events fired by the
   // account bar (account picker / Packages / Settings) at the footer, before
@@ -572,23 +576,20 @@ function FrameLayout(props: {
 
       {/*
         The system tray, docked to the frame's bottom-left. Rendered here —
-        outside the collapsing <Sidebar> — so it stays put when the sidebar
-        closes (trusted host chrome, one stable instance). When the sidebar is
-        open the dock spans its width and sits in the space reserved by
-        `threepane-sidebar--has-tray`, above the account bar; when closed it
-        floats as a compact dock at the corner.
+        outside the collapsing <Sidebar> — as trusted host chrome, one stable
+        instance. When the sidebar is open the dock spans its width and sits in
+        the space reserved by `threepane-sidebar--has-tray`, above the account
+        bar. When the sidebar closes the dock is hidden (`--collapsed` sets
+        `display: none`) rather than unmounted, so the tray is invisible but its
+        tools keep running.
       */}
       <Show when={hasTray()}>
         <div
           class="frame__tray-dock"
           classList={{ "frame__tray-dock--collapsed": isCollapsed() }}
-          style={
-            isCollapsed()
-              ? undefined
-              : { width: `${props.sidebarState.leftSidebarWidth()}px` }
-          }
+          style={{ width: `${props.sidebarState.leftSidebarWidth()}px` }}
         >
-          <Tray />
+          <Tray slots={props.traySlots} />
         </div>
       </Show>
 
