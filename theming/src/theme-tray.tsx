@@ -166,6 +166,13 @@ export function ThemeTray(element: HTMLElement) {
 		}>()
 		const [themes, setThemes] = createSignal<ThemeDescription[]>([])
 		const [filter, setFilter] = createSignal("")
+		const showNameKey = "patchwork:theme-tray:show-name"
+		const [showName, setShowName] = createSignal(
+			localStorage.getItem(showNameKey) === "true"
+		)
+		createEffect(() =>
+			localStorage.setItem(showNameKey, showName() ? "true" : "false")
+		)
 		const themeRegistry = getRegistry("patchwork:theme") as any
 		const unsubscribe = onActiveThemeChange(setState)
 		let buttonElement: HTMLButtonElement | undefined
@@ -271,7 +278,9 @@ export function ThemeTray(element: HTMLElement) {
 					}}
 				>
 					<span class="theme-tray-swatch" />
-					<span class="theme-tray-label">{activeThemeId()}</span>
+					<Show when={showName()}>
+						<span class="theme-tray-label">{activeThemeId()}</span>
+					</Show>
 				</button>
 				<Show when={open()}>
 					<Portal mount={document.body}>
@@ -285,6 +294,19 @@ export function ThemeTray(element: HTMLElement) {
 							}}
 							onClick={(event) => event.stopPropagation()}
 						>
+							<div class="theme-tray-header">
+								<span class="theme-tray-title">theme</span>
+								<label class="theme-tray-toggle">
+									<input
+										type="checkbox"
+										checked={showName()}
+										onChange={(event) =>
+											setShowName(event.currentTarget.checked)
+										}
+									/>
+									show name
+								</label>
+							</div>
 							<input
 								ref={filterElement}
 								class="theme-tray-filter"
