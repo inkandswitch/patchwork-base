@@ -59,7 +59,10 @@
   --document-list-added: var(--studio-added, #35f7ca);
   --document-list-danger: var(--studio-danger-text, var(--studio-danger, #ff6a90));
   --document-list-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
-  --account-bar-fill: var(--studio-chrome-offset-10)
+  --account-bar-fill: var(--studio-chrome-offset-10);
+  /* ink on the account-bar's chrome surface: rides the chrome ink ramp, not
+     --document-list-line (which is content ink and tracks the list surface). */
+  --account-bar-line: var(--studio-chrome-line, var(--studio-line, black));
 }
 }
 
@@ -920,7 +923,7 @@ button {
   gap: 1rem;
   min-height: 4rem;
   background: var(--account-bar-fill);
-  color: var(--document-list-line);
+  color: var(--account-bar-line);
   border-top: 1px solid var(--document-list-divider);
   padding-block: 0.25rem;
   padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));
