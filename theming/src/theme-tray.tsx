@@ -5,6 +5,7 @@ import {
 	getActiveThemeState,
 	hasThemePreferences,
 	onActiveThemeChange,
+	serveCurrentThemeProvider,
 	setThemeForCurrentMode,
 	startActiveTheme,
 } from "./active-theme.ts"
@@ -18,6 +19,11 @@ type ThemeDescription = {
 
 export function ThemeTray(element: HTMLElement) {
 	startActiveTheme(element)
+
+	// Serve the active theme to isolated tools (e.g. the titlebar theme tool)
+	// over the `patchwork:current-theme` provider. Installed on <html> so that
+	// bridged subscribe events, which bubble up to the document root, reach it.
+	const stopThemeProvider = serveCurrentThemeProvider(document.documentElement)
 
 	const style = document.createElement("style")
 	style.textContent = `
@@ -70,6 +76,33 @@ export function ThemeTray(element: HTMLElement) {
 			color: var(--studio-chrome-line, var(--studio-line, black));
 			box-shadow: 0 0.5rem 1rem color-mix(in oklch, var(--studio-line, black), transparent 88%);
 			font-family: var(--studio-family-sans, system-ui, sans-serif);
+		}
+		.theme-tray-header {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: var(--studio-space-sm, 0.5rem);
+			padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-xs, 0.375rem);
+		}
+		.theme-tray-title {
+			font: 600 0.72rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			text-transform: lowercase;
+			letter-spacing: 0.02em;
+			opacity: 0.7;
+		}
+		.theme-tray-toggle {
+			display: inline-flex;
+			align-items: center;
+			gap: var(--studio-space-2xs, 0.25rem);
+			font: 500 0.68rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			opacity: 0.7;
+			cursor: pointer;
+			user-select: none;
+		}
+		.theme-tray-toggle input {
+			margin: 0;
+			accent-color: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
+			cursor: pointer;
 		}
 		.theme-tray-filter {
 			width: 100%;
@@ -291,5 +324,6 @@ export function ThemeTray(element: HTMLElement) {
 	return () => {
 		dispose()
 		style.remove()
+		stopThemeProvider()
 	}
 }

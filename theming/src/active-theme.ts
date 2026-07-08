@@ -20,6 +20,8 @@ type ThemePreferencesHandle = {
 	whenReady?(): Promise<unknown>
 }
 
+export const CURRENT_THEME_SELECTOR = "patchwork:current-theme"
+
 const bundledStyleUrls = [themeCssUrl, lycheeCssUrl, gloomCssUrl].map(
 	(href) => new URL(href, import.meta.url).href
 )
@@ -28,6 +30,7 @@ const themeLinks = new Map<string, HTMLLinkElement>()
 const listeners = new Set<(state: ActiveThemeState) => void>()
 
 let started = false
+let stylesBootstrapped = false
 let currentPrefsHandle: ThemePreferencesHandle | undefined
 let currentState: ActiveThemeState | undefined
 let storageStarted = false
@@ -216,6 +219,16 @@ function watchThemeRegistry() {
 	})
 }
 
+// Load the bundled theme stylesheets and keep the registry-provided ones in
+// sync. Idempotent — safe to call from every entry point. This is the CSS side
+// of theming, independent of where the *active* theme id is sourced from.
+function bootstrapThemeStyles() {
+	if (stylesBootstrapped) return
+	stylesBootstrapped = true
+	for (const href of bundledStyleUrls) ensureThemeLink(href)
+	watchThemeRegistry()
+}
+
 export function startActiveTheme(
 	element?: HTMLElement,
 	preferencesHandle?: ThemePreferencesHandle
@@ -230,13 +243,99 @@ export function startActiveTheme(
 	if (started) return
 	started = true
 
-	for (const href of bundledStyleUrls) ensureThemeLink(href)
-	watchThemeRegistry()
+	bootstrapThemeStyles()
 	applyFromPrefs()
 
 	window
 		.matchMedia("(prefers-color-scheme: dark)")
 		.addEventListener("change", applyFromPrefs)
+}
+
+/**
+ * Drive the active theme from a `patchwork:current-theme` provider instead of
+ * from local preferences. Used by the titlebar theme tool, which runs isolated
+ * and mirrors whatever theme the host is showing: it applies each theme id the
+ * provider emits and re-applies whenever that value changes.
+ *
+ * Stylesheets are still loaded locally so the referenced themes render; only
+ * the *choice* of active theme comes from the provider. Deliberately does not
+ * wire up preferences or the prefers-color-scheme listener — those would fight
+ * the provider for control of the `theme` attribute.
+ *
+ * @returns an unsubscribe function.
+ */
+export function startActiveThemeFromProvider(element: HTMLElement) {
+	bootstrapThemeStyles()
+
+	return subscribeToProvider<string | ActiveThemeState | undefined>(
+		element,
+		{type: CURRENT_THEME_SELECTOR},
+		(value) => {
+			const themeId = typeof value === "string" ? value : value?.themeId
+			if (themeId) applyTheme(themeId)
+		}
+	)
+}
+
+type CurrentThemeSubscribeEvent = CustomEvent<{
+	selector: {type: string; [key: string]: unknown}
+	port: MessagePort
+}>
+
+/**
+ * Answer `patchwork:current-theme` subscriptions with the active theme id,
+ * pushing a fresh value whenever the theme changes. This is the host-side
+ * counterpart to {@link startActiveThemeFromProvider}: it lets isolated tools
+ * (the titlebar theme tool) mirror the host's active theme across the isolation
+ * boundary, where the theme is relayed by the providers bridge.
+ *
+ * The listener is installed on the given root (the theme tray installs it on
+ * `document.documentElement`) so that bridged `patchwork:subscribe` events —
+ * which bubble up to `<html>` — reach it. Implements the provider port protocol
+ * directly to avoid a dependency on `@inkandswitch/patchwork-providers`.
+ *
+ * @returns an unsubscribe function that removes the listener and tears down any
+ *   live subscriptions.
+ */
+export function serveCurrentThemeProvider(root: HTMLElement): () => void {
+	const responders = new Set<() => void>()
+
+	const onSubscribe = (event: Event) => {
+		const detail = (event as CurrentThemeSubscribeEvent).detail
+		if (!detail || detail.selector?.type !== CURRENT_THEME_SELECTOR) return
+		event.stopPropagation()
+
+		const port = detail.port
+		let alive = true
+		const emit = () => {
+			if (!alive) return
+			port.postMessage({type: "change", value: getActiveThemeState().themeId})
+		}
+		const removeThemeListener = onActiveThemeChange(emit)
+
+		const stop = () => {
+			if (!alive) return
+			alive = false
+			removeThemeListener()
+			responders.delete(stop)
+			try {
+				port.close()
+			} catch {}
+		}
+		responders.add(stop)
+
+		port.onmessage = (e: MessageEvent) => {
+			if ((e.data as any)?.type === "unsubscribe") stop()
+		}
+		port.start?.()
+	}
+
+	root.addEventListener("patchwork:subscribe", onSubscribe)
+
+	return () => {
+		root.removeEventListener("patchwork:subscribe", onSubscribe)
+		for (const stop of [...responders]) stop()
+	}
 }
 
 export function getActiveThemeState() {
