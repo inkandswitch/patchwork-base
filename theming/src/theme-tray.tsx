@@ -1,4 +1,4 @@
-import {createEffect, createSignal, For, onCleanup, Show} from "solid-js"
+import {createEffect, createMemo, createSignal, For, onCleanup, Show} from "solid-js"
 import {Portal, render} from "solid-js/web"
 import {getRegistry} from "@inkandswitch/patchwork-plugins"
 import {
@@ -71,6 +71,24 @@ export function ThemeTray(element: HTMLElement) {
 			box-shadow: 0 0.5rem 1rem color-mix(in oklch, var(--studio-line, black), transparent 88%);
 			font-family: var(--studio-family-sans, system-ui, sans-serif);
 		}
+		.theme-tray-filter {
+			width: 100%;
+			height: 1.75rem;
+			margin-bottom: var(--studio-space-2xs, 0.25rem);
+			padding: 0 var(--studio-space-xs, 0.375rem);
+			border: 1px solid var(--studio-chrome-offset-20, var(--studio-fill-offset-20, #d4d4d4));
+			border-radius: var(--studio-radius-xs, 2px);
+			background: var(--studio-chrome-fill, var(--studio-fill, white));
+			color: var(--studio-chrome-line, var(--studio-line, black));
+			font: 500 0.78rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			box-sizing: border-box;
+		}
+		.theme-tray-empty {
+			padding: var(--studio-space-xs, 0.375rem);
+			color: color-mix(in oklch, var(--studio-chrome-line, var(--studio-line, black)), transparent 40%);
+			font: 500 0.78rem/1 var(--studio-family-sans, system-ui, sans-serif);
+			text-align: center;
+		}
 		.theme-tray-option {
 			display: flex;
 			align-items: center;
@@ -114,10 +132,30 @@ export function ThemeTray(element: HTMLElement) {
 			top: number
 		}>()
 		const [themes, setThemes] = createSignal<ThemeDescription[]>([])
+		const [filter, setFilter] = createSignal("")
 		const themeRegistry = getRegistry("patchwork:theme") as any
 		const unsubscribe = onActiveThemeChange(setState)
 		let buttonElement: HTMLButtonElement | undefined
 		let popoverElement: HTMLDivElement | undefined
+		let filterElement: HTMLInputElement | undefined
+
+		const themeLabel = (theme: ThemeDescription) => theme.name || theme.id
+
+		const sortedThemes = createMemo(() =>
+			[...themes()].sort((a, b) =>
+				themeLabel(a).localeCompare(themeLabel(b), undefined, {sensitivity: "base"})
+			)
+		)
+
+		const visibleThemes = createMemo(() => {
+			const query = filter().trim().toLowerCase()
+			if (!query) return sortedThemes()
+			return sortedThemes().filter(
+				(theme) =>
+					themeLabel(theme).toLowerCase().includes(query) ||
+					theme.id.toLowerCase().includes(query)
+			)
+		})
 
 		const refreshThemes = () => setThemes(themeRegistry.all?.() || [])
 		refreshThemes()
@@ -157,7 +195,10 @@ export function ThemeTray(element: HTMLElement) {
 		createEffect(() => {
 			if (!open()) return
 
-			const animationFrame = requestAnimationFrame(updatePopoverPosition)
+			const animationFrame = requestAnimationFrame(() => {
+				updatePopoverPosition()
+				filterElement?.focus()
+			})
 			window.addEventListener("resize", updatePopoverPosition)
 			window.addEventListener("scroll", updatePopoverPosition, true)
 
@@ -166,6 +207,7 @@ export function ThemeTray(element: HTMLElement) {
 				window.removeEventListener("resize", updatePopoverPosition)
 				window.removeEventListener("scroll", updatePopoverPosition, true)
 				setPopoverPosition(undefined)
+				setFilter("")
 			})
 		})
 
@@ -210,7 +252,15 @@ export function ThemeTray(element: HTMLElement) {
 							}}
 							onClick={(event) => event.stopPropagation()}
 						>
-							<For each={themes()}>
+							<input
+								ref={filterElement}
+								class="theme-tray-filter"
+								type="text"
+								placeholder="Filter themes…"
+								value={filter()}
+								onInput={(event) => setFilter(event.currentTarget.value)}
+							/>
+							<For each={visibleThemes()}>
 								{(theme) => (
 									<button
 										class="theme-tray-option"
@@ -228,6 +278,9 @@ export function ThemeTray(element: HTMLElement) {
 									</button>
 								)}
 							</For>
+							<Show when={visibleThemes().length === 0}>
+								<div class="theme-tray-empty">No matching themes</div>
+							</Show>
 						</div>
 					</Portal>
 				</Show>
