@@ -67,7 +67,7 @@ importers:
         version: 1.9.12(@babel/core@7.28.4(supports-color@5.5.0))(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -115,7 +115,7 @@ importers:
         version: 2.1.1
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -228,7 +228,7 @@ importers:
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -396,7 +396,7 @@ importers:
         version: 0.0.7(@automerge/automerge@3.3.0-fragments.1)(@codemirror/state@6.7.0)(@codemirror/view@6.43.2)(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -516,7 +516,7 @@ importers:
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -702,7 +702,7 @@ importers:
         version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -766,7 +766,7 @@ importers:
         version: 0.2.3(@automerge/automerge-repo-solid-primitives@2.6.0-subduction.39(@automerge/automerge@3.3.0-fragments.1)(solid-js@1.9.13))(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.10
         version: 1.9.13
@@ -849,7 +849,7 @@ importers:
         version: 0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6))(@inkandswitch/patchwork-plugins@0.0.6(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)(@inkandswitch/patchwork-filesystem@0.0.4(@automerge/automerge-repo@2.6.0-subduction.34)(@automerge/automerge@3.2.6)))
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
     devDependencies:
       '@automerge/automerge':
         specifier: ^3.2.5
@@ -947,9 +947,12 @@ importers:
       debug:
         specifier: ^4.4.3
         version: 4.4.3(supports-color@5.5.0)
+      lucide-solid:
+        specifier: ^1.23.0
+        version: 1.23.0(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.9
         version: 1.9.13
@@ -1187,7 +1190,7 @@ importers:
         version: 4.3.5(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
-        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13)
+        version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
       solid-js:
         specifier: ^1.9.10
         version: 1.9.13
@@ -4889,6 +4892,11 @@ packages:
     resolution: {integrity: sha512-28vvUnnKQ/dBwiCQtwJw7QauYnE7yd2Cyp4tTTJpvglX4EMpbflcdBgrgToX2j71B3YvugK/NH3BGUk+E/p/Fw==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  lucide-solid@1.23.0:
+    resolution: {integrity: sha512-vzVY2fITccYlJTrv5fHro9OONinnotXtNmAb/Sh1UOpMB/PtvFuF3FVz2Orh7/R7l5YdF1j4TOPmfgImHpzv0g==}
+    peerDependencies:
+      solid-js: ^1.4.7
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -10151,7 +10159,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       bs58: 6.0.0
 
-  cabbages@0.2.8:
+  cabbages@0.2.8(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
     transitivePeerDependencies:
@@ -10699,6 +10707,10 @@ snapshots:
     dependencies:
       react: 18.3.1
 
+  lucide-solid@1.23.0(solid-js@1.9.13):
+    dependencies:
+      solid-js: 1.9.13
+
   lz-string@1.5.0: {}
 
   magic-string@0.30.21:
@@ -11082,16 +11094,16 @@ snapshots:
     dependencies:
       '@automerge/automerge-repo': 2.5.6(supports-color@5.5.0)
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.13)
-      cabbages: 0.2.8
+      cabbages: 0.2.8(supports-color@5.5.0)
       solid-js: 1.9.13
     transitivePeerDependencies:
       - supports-color
 
-  solid-automerge@2.0.0(@automerge/automerge-repo@2.6.0-subduction.34)(solid-js@1.9.13):
+  solid-automerge@2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0):
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.34(supports-color@5.5.0)
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.13)
-      cabbages: 0.2.8
+      cabbages: 0.2.8(supports-color@5.5.0)
       solid-js: 1.9.13
     transitivePeerDependencies:
       - supports-color
@@ -11100,7 +11112,7 @@ snapshots:
     dependencies:
       '@automerge/automerge-repo': 2.6.0-subduction.39
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.13)
-      cabbages: 0.2.8
+      cabbages: 0.2.8(supports-color@5.5.0)
       solid-js: 1.9.13
     transitivePeerDependencies:
       - supports-color
