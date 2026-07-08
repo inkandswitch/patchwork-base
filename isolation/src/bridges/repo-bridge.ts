@@ -126,9 +126,6 @@ export interface IntermediaryRepo {
   shutdown(): void;
 }
 
-/** The state reported by a `repo.findWithProgress(...)` query. */
-type QueryState = ReturnType<ReturnType<Repo["findWithProgress"]>["peek"]>;
-
 /**
  * How long the access classifier waits for the iframe to supply a document's
  * content before concluding it is foreign and prompting the user. Only a ceiling
@@ -141,36 +138,40 @@ type QueryState = ReturnType<ReturnType<Repo["findWithProgress"]>["peek"]>;
 const IFRAME_SUPPLY_GRACE_MS = 500;
 
 /**
- * Resolve `true` if the query reaches `ready` within `graceMs`, else `false`.
+ * Resolve with the ready `DocHandle` if the query reaches `ready` within
+ * `graceMs`, else `null`.
  *
  * Used to classify an undecided host-channel document while the host peer is
  * held `loading` (see `hostChannelAllows`). With the host gated, the only source
  * that can bring the intermediary's query to `ready` is the IFRAME supplying the
  * content over the open channel — i.e. a document the iframe created. A foreign
  * document the iframe merely *requested* has no supplier, so its query stays
- * `pending` and this resolves `false` at the grace ceiling. The `ready` signal
+ * `pending` and this resolves `null` at the grace ceiling. The `ready` signal
  * itself is deterministic and usually near-instant; the timer only bounds the
- * no-signal (foreign) case. The `settled` guard makes it act exactly once.
+ * no-signal (foreign) case. Returning the handle (rather than a boolean) hands
+ * the author check the exact doc it observed ready. The `settled` guard makes it
+ * act exactly once.
  */
 function waitForIframeSupplied(
   progress: ReturnType<Repo["findWithProgress"]>,
   graceMs: number
-): Promise<boolean> {
+): Promise<DocHandle<unknown> | null> {
   return new Promise((resolve) => {
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let unsubscribe: (() => void) | undefined;
-    const finish = (v: boolean) => {
+    const finish = (handle: DocHandle<unknown> | null) => {
       if (settled) return;
       settled = true;
       if (timer !== undefined) clearTimeout(timer);
       unsubscribe?.();
-      resolve(v);
+      resolve(handle);
     };
-    if (progress.peek().state === "ready") return finish(true);
-    timer = setTimeout(() => finish(false), graceMs);
+    const initial = progress.peek();
+    if (initial.state === "ready") return finish(initial.handle);
+    timer = setTimeout(() => finish(null), graceMs);
     unsubscribe = progress.subscribe((s) => {
-      if (s.state === "ready") finish(true);
+      if (s.state === "ready") finish(s.handle);
     });
   });
 }
@@ -192,12 +193,17 @@ function waitForIframeSupplied(
  *    it can only ever hold allowlisted docs + docs the iframe itself pushed. A
  *    denylisted doc can never enter the intermediary to reach the iframe.
  *
- * A document the iframe references that isn't yet allowlisted is DENIED by the
- * gate immediately and resolved out of band (see `resolveAccess` below): if the
- * iframe created it (it is resident and authored solely by the iframe) it is
- * auto-allowlisted; otherwise the user is prompted. Once decided, the gate is
- * re-run via `repo.shareConfigChanged()`. The gate itself never blocks on a
- * fetch or a prompt — doing so would stall the sync (see `hostChannelAllows`).
+ * A document the iframe references that isn't yet allowlisted is left UNDECIDED
+ * by the gate, which returns a pending promise (see `hostChannelAllows`) rather
+ * than an immediate deny — this holds the host peer at sharePolicyState
+ * "loading" so the intermediary's query stays `pending` and the iframe's
+ * one-shot `find()` never rejects. Meanwhile it is classified out of band (see
+ * `resolveAccess` below): if the iframe created it (resident and authored solely
+ * by the iframe) it is auto-allowlisted; otherwise the user is prompted. Once
+ * decided, the pending promise is resolved and the gate re-run via
+ * `repo.shareConfigChanged()`, which now answers synchronously from the
+ * allowlist/denied sets. The gate itself never blocks on a fetch or a prompt —
+ * doing so would stall the sync (see `hostChannelAllows`).
  */
 export function createIntermediaryRepo(
   options: IntermediaryRepoOptions
@@ -324,6 +330,9 @@ export function createIntermediaryRepo(
   };
 
   const settleDecision = (documentId: DocumentId, allow: boolean): void => {
+    // Normally a get — the gate created this decision before spawning
+    // resolveAccess. The create-if-missing keeps settle safe if a future path
+    // ever settles a doc before any gate evaluation.
     const d = decisionFor(documentId);
     if (d.settled) return;
     d.settled = true;
@@ -362,11 +371,11 @@ export function createIntermediaryRepo(
         log(`access ${documentId} denied (${reason})`);
       }
       pending.delete(documentId);
-      // Resolve the pending host-gate promise FIRST (unpins the host peer from
-      // "loading"), then re-run the gate for every doc. The fresh evaluation
-      // triggered by shareConfigChanged now sees the doc in allowlist/denied and
-      // answers a synchronous boolean — flipping the host peer to "announce" (so
-      // the intermediary fetches the doc from the host and pushes it to the
+      // Resolve the pending host-gate promise FIRST (see `hostChannelAllows`),
+      // then re-run the gate for every doc. The fresh evaluation triggered by
+      // shareConfigChanged now sees the doc in allowlist/denied and answers a
+      // synchronous boolean — flipping the host peer to "announce" (so the
+      // intermediary fetches the doc from the host and pushes it to the
       // still-waiting iframe) or to "denied" (query settles unavailable → the
       // iframe is told, as it should be on an explicit denial).
       settleDecision(documentId, allow);
@@ -395,16 +404,8 @@ export function createIntermediaryRepo(
     // iframe created it. If the iframe doesn't supply it within the grace window,
     // it is a FOREIGN document the iframe is merely requesting → prompt.
     const progress = repo.findWithProgress(documentId);
-    const iframeSupplied = await waitForIframeSupplied(
-      progress,
-      IFRAME_SUPPLY_GRACE_MS
-    );
-    const state = progress.peek();
-    if (
-      iframeSupplied &&
-      state.state === "ready" &&
-      isAuthoredSolelyByIframe(state.handle)
-    ) {
+    const handle = await waitForIframeSupplied(progress, IFRAME_SUPPLY_GRACE_MS);
+    if (handle && isAuthoredSolelyByIframe(handle)) {
       finish(true, "authored by iframe");
     } else {
       // Not iframe-supplied, or resident but not solely iframe-authored → prompt.
