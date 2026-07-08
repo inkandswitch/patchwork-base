@@ -615,10 +615,19 @@
   bottom: 0;
   z-index: 4;
   box-sizing: border-box;
+  /* Fade the tray in only *after* the sidebar's width animation completes, so it
+     doesn't flash at full size over the still-expanding sidebar. The delay equals
+     the sidebar's transition duration; collapsing overrides this to hide at once. */
+  opacity: 1;
+  transition: opacity var(--studio-transition-fast, 0.1s) ease
+    var(--studio-transition-slow, 0.25s);
 }
 
 .frame__tray-dock--collapsed {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
+  /* Hide immediately on collapse — no wait, no fade. */
+  transition: opacity 0s;
 }
 
 /* A row of tray-tagged tools, filling the dock. */

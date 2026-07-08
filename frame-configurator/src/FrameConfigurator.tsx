@@ -406,19 +406,12 @@ function FrameConfiguratorUI(props: {
 
   const doctitleIds = () => threepaneDoc()?.doctitle?.tools?.map(slotId);
 
-  // Rebuild the lane from the strip's id list, preserving any entry that was a
-  // bare component id (so reordering/removing doesn't turn a component into a
-  // tool); ids added through the UI become [toolId, docId] tuples.
-  const toSlots = (ids: string[], prev: ToolSlot[] | undefined): ToolSlot[] => {
-    const components = new Set(
-      (prev ?? []).filter((s): s is string => typeof s === "string")
-    );
-    return ids.map((id) => (components.has(id) ? id : [id, docUrl]));
-  };
-
+  // doctitle (and contextbar) tools are stored as plain id strings, never
+  // [toolId, docId] tuples: the frame always points them at the selected
+  // main-view doc, so a tuple's docid would be ignored anyway.
   const setDoctitle = (next: string[]) =>
     threepaneHandle()?.change((doc) => {
-      doc.doctitle.tools = toSlots(next, doc.doctitle.tools);
+      doc.doctitle.tools = next.slice();
     });
 
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(

@@ -579,9 +579,10 @@ function FrameLayout(props: {
         outside the collapsing <Sidebar> — as trusted host chrome, one stable
         instance. When the sidebar is open the dock spans its width and sits in
         the space reserved by `threepane-sidebar--has-tray`, above the account
-        bar. When the sidebar closes the dock is hidden (`--collapsed` sets
-        `display: none`) rather than unmounted, so the tray is invisible but its
-        tools keep running.
+        bar. When the sidebar closes the dock is hidden (`--collapsed` fades it
+        out at once) rather than unmounted, so the tray is invisible but its
+        tools keep running. On open it fades back in only after the sidebar's
+        expand animation finishes, so it never flashes over the growing sidebar.
       */}
       <Show when={hasTray()}>
         <div
