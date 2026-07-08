@@ -4,6 +4,10 @@
 [theme] {
   /* Colors derived from studio variables */
   --account-history-primary: var(--studio-secondary, #33ccf8);
+  /* invert ink for text/icons sitting ON the primary (accent) surface. must be
+     the accent's own luminance-adaptive line, NOT --account-history-bg (the page
+     fill), which is only legible when the accent happens to be dark. */
+  --account-history-primary-line: var(--studio-secondary-line, var(--studio-fill, white));
   --account-history-bg: var(--studio-fill, white);
   --account-history-text: var(--studio-line, black);
   --account-history-text-secondary: var(--studio-line-offset-40, #666);
