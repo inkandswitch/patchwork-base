@@ -13,7 +13,6 @@ import type { AccountDoc, ThreepaneConfigDoc, ToolSlot } from "./types";
 import {
   useSidebarState,
   useSidebarResize,
-  useProviderReady,
   useMainDocMounted,
   useDebugRegistryToast,
   DebugRegistryToast,
@@ -58,6 +57,31 @@ const MAX_SIDEBAR_WIDTH = 720;
 const AUTO_CLOSE_WIDTH = 120;
 const DRAG_THRESHOLD = 3;
 
+// Keep this tiny hook local to the frame chunk. Importing it from the shared
+// hooks chunk has produced an undefined binding in Safari before the frame can
+// mount its providers.
+const useFrameProviderReady = (
+  componentId: string,
+  element: Accessor<HTMLElement | undefined>
+): Accessor<boolean> => {
+  const [isReady, setReady] = createSignal(false);
+
+  createEffect(() => {
+    const el = element();
+    if (!el) return;
+    setReady(false);
+    const onMounted = (event: Event) => {
+      const detail = (event as CustomEvent<{ componentId?: string }>).detail;
+      if (detail?.componentId !== componentId) return;
+      setReady(true);
+    };
+    el.addEventListener("patchwork:mounted", onMounted);
+    onCleanup(() => el.removeEventListener("patchwork:mounted", onMounted));
+  });
+
+  return isReady;
+};
+
 // Fire a `patchwork:open-document` request from an account-bar button. Bubbles +
 // composed so it reaches the footer intercept (isolation → popover) or the
 // selected-doc provider (otherwise → main frame), matching the sideboard tool.
@@ -85,21 +109,21 @@ export function PatchworkFrame({
 
   const [accountProviderElement, setAccountProviderElement] =
     createSignal<HTMLElement>();
-  const isAccountProviderReady = useProviderReady(
+  const isAccountProviderReady = useFrameProviderReady(
     "patchwork-account-provider",
     accountProviderElement
   );
 
   const [toolStorageProviderElement, setToolStorageProviderElement] =
     createSignal<HTMLElement>();
-  const isToolStorageProviderReady = useProviderReady(
+  const isToolStorageProviderReady = useFrameProviderReady(
     "patchwork-tool-storage-provider",
     toolStorageProviderElement
   );
 
   const [selectedDocProviderElement, setSelectedDocProviderElement] =
     createSignal<HTMLElement>();
-  const isSelectedDocProviderReady = useProviderReady(
+  const isSelectedDocProviderReady = useFrameProviderReady(
     "patchwork-selected-doc-provider",
     selectedDocProviderElement
   );

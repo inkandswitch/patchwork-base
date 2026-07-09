@@ -1,10 +1,26 @@
 import { Plugin, ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import type { AccountDoc } from "./types";
 
+// WebKit workaround. The registry invokes a tool/component impl the moment its
+// `import()` resolves; in Safari that can run the impl's *render* while the
+// freshly imported module — and its sibling chunks — still have top-level
+// initializers pending, surfacing the first time the frame mounts as
+// "Cannot access 'X' before initialization" or "X is undefined" (X has been
+// PatchworkFrame, a `_tmpl$` template, and useProviderReady across builds). It
+// reproduces under rollup, rolldown AND esbuild, so it's a module-evaluation
+// ordering race in the engine, not a bundler bug. A macrotask drains every
+// pending microtask — including the module graph's own evaluation
+// continuations — so the graph is fully live before we hand back the impl and
+// the registry renders it.
+function yieldToMacrotask(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve));
+}
+
 async function loadFrame(
   isolation?: boolean
 ): Promise<ToolImplementation<AccountDoc>> {
   const { renderPatchworkFrame } = await import("./PatchworkFrame");
+  await yieldToMacrotask();
   return renderPatchworkFrame(isolation);
 }
 
@@ -67,6 +83,9 @@ export const plugins: Plugin<any>[] = [
     async load() {
       const { mountIsolationRoot } =
         await import("./components/IsolatedDocumentArea");
+      // Same WebKit render-before-init race as loadFrame — this component is
+      // mounted the same way (registry invokes it on import resolve).
+      await yieldToMacrotask();
       return mountIsolationRoot;
     },
   },
