@@ -4,7 +4,7 @@ import {
   type Repo,
   type DocHandle,
 } from "@automerge/automerge-repo";
-import type { AutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
+import type { LegacyAutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
 import { useDocument } from "solid-automerge";
 import type {
   OpenDocumentEventDetail,
@@ -54,7 +54,7 @@ export default function Folder(props: {
   removeFromParent(): void;
   open(detail: OpenDocumentEventDetail): void;
   name?: string;
-  hive?: AutomergeRepoKeyhive;
+  hive?: LegacyAutomergeRepoKeyhive;
   selectedDocUrls: AutomergeUrl[];
   visitedFolders?: Set<AutomergeUrl>;
   element: PatchworkViewElement;

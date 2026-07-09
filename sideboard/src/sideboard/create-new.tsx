@@ -19,13 +19,13 @@ import { docLinkFromUrl } from "./lib/doc-link.ts";
 import { useFilteredDatatypes } from "./lib/solid-plugins";
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
-import type { AutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
+import type { LegacyAutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
 import { NEW_DOC_DND_TYPE, setNewDocDragging, clearDropTarget } from "./dnd/dnd.ts";
 
 export async function createNew(
   repo: Repo,
   datatype: Plugin<DatatypeDescription>,
-  hive?: AutomergeRepoKeyhive
+  hive?: LegacyAutomergeRepoKeyhive
 ): Promise<DocLink> {
   if (isLoadablePlugin(datatype)) {
     const registry = getRegistry("patchwork:datatype");
@@ -37,7 +37,16 @@ export async function createNew(
 
   const docHandle = await createDocOfDatatype2(datatype, repo);
   if (hive) {
-    await hive.addSyncServerPullToDoc(docHandle.url);
+    // A failure here means the doc will not sync until relay access is granted,
+    // but the doc itself is usable, so do not fail the whole creation.
+    try {
+      await hive.addSyncServerRelayToDoc(docHandle.url);
+    } catch (error) {
+      console.warn(
+        `createNew: could not grant sync-server relay access for ${docHandle.url}`,
+        error
+      );
+    }
   }
   const doc = docHandle.doc();
   const name = datatype.module.getTitle(doc);
@@ -168,7 +177,7 @@ function DatatypeMenuContent(props: {
 
 export interface CreateNewProps {
   repo: Repo;
-  hive?: AutomergeRepoKeyhive;
+  hive?: LegacyAutomergeRepoKeyhive;
   changeFolder(fn: ChangeFn<FolderDoc>): void;
   open(detail: OpenDocumentEventDetail): void;
   context?: string;
@@ -296,7 +305,7 @@ export default function CreateNew(props: CreateNewProps) {
  */
 export function NewDocPlaceholder(props: {
   repo: Repo;
-  hive?: AutomergeRepoKeyhive;
+  hive?: LegacyAutomergeRepoKeyhive;
   onCreate(docLink: DocLink): void;
   onDismiss(): void;
   clearFilter(): void;

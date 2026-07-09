@@ -6,10 +6,10 @@ import {
   type Repo,
 } from "@automerge/automerge-repo";
 import {
-  docIdFromAutomergeUrl,
+  isUnprotectedDoc,
   Access,
   ContactCard,
-  type AutomergeRepoKeyhive,
+  type LegacyAutomergeRepoKeyhive,
 } from "@automerge/automerge-repo-keyhive";
 import type {
   OpenDocumentEventDetail,
@@ -48,12 +48,7 @@ import { ShareModal } from "../share-modal.tsx";
 const MAKE_SECURE_COPY_ENABLED = false;
 
 function isKeyhiveProtected(url: AutomergeUrl): boolean {
-  try {
-    docIdFromAutomergeUrl(url);
-    return true;
-  } catch {
-    return false;
-  }
+  return !isUnprotectedDoc(url);
 }
 
 export interface DocumentListProps {
@@ -62,7 +57,7 @@ export interface DocumentListProps {
   depth: number;
   repo: Repo;
   open(detail: OpenDocumentEventDetail): void;
-  hive?: AutomergeRepoKeyhive;
+  hive?: LegacyAutomergeRepoKeyhive;
   selectedDocUrls: AutomergeUrl[];
   visitedFolders?: Set<AutomergeUrl>;
   element: PatchworkViewElement;
@@ -128,14 +123,11 @@ export function DocumentList(props: DocumentListProps) {
           props.hive.syncServer.contactCard.toJson()
         );
         if (serverContactCard) {
-          const relayAccess = Access.tryFromString("relay");
-          if (relayAccess) {
-            await props.hive.addMemberToDoc(
-              newHandle.url,
-              serverContactCard,
-              relayAccess
-            );
-          }
+          await props.hive.addMemberToDoc(
+            newHandle.url,
+            serverContactCard,
+            Access.relay()
+          );
         }
       } catch (err) {
         console.error(

@@ -10,131 +10,70 @@ import type { AutomergeUrl } from "@automerge/automerge-repo";
 import {
   Access,
   ContactCard,
-  docIdFromAutomergeUrl,
-  Identifier,
-  uint8ArrayToHex,
-  type AutomergeRepoKeyhive,
+  type LegacyAutomergeRepoKeyhive,
+  type DocMember,
 } from "@automerge/automerge-repo-keyhive";
-
-type DocAccessList = Record<string, string>;
 
 interface ShareModalProps {
   isOpen: boolean;
   docUrl: AutomergeUrl;
-  hive: AutomergeRepoKeyhive;
+  hive: LegacyAutomergeRepoKeyhive;
   onClose: () => void;
-}
-
-const ACCESS_LEVELS = ["Relay", "Read", "Edit", "Admin"] as const;
-
-async function fetchAccessList(
-  hive: AutomergeRepoKeyhive,
-  docUrl: AutomergeUrl
-): Promise<DocAccessList> {
-  const keyhiveDocId = docIdFromAutomergeUrl(docUrl);
-  const accessList: DocAccessList = {};
-  const members = await hive.docMemberCapabilities(keyhiveDocId);
-  members.forEach((capability) => {
-    const hexId = uint8ArrayToHex(capability.who.id.toBytes());
-    accessList[hexId] = capability.can.toString();
-  });
-  return accessList;
 }
 
 export function ShareModal(props: ShareModalProps) {
   const [contactCardInput, setContactCardInput] = createSignal("");
-  const [docAccessList, setDocAccessList] = createSignal<DocAccessList>({});
-  const [isLoadingAccessList, setIsLoadingAccessList] = createSignal(true);
-  const [currentUserAccess, setCurrentUserAccess] = createSignal<
-    string | undefined
-  >(undefined);
+  const [members, setMembers] = createSignal<DocMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = createSignal(true);
   const [isSubmitting, setIsSubmitting] = createSignal(false);
-  const keyhiveDocId = createMemo(() => docIdFromAutomergeUrl(props.docUrl));
 
-  const currentUserHexId = createMemo(() => {
-    const id = props.hive.active.individual.id;
-    return id ? uint8ArrayToHex(id.toBytes()) : null;
-  });
+  // Refresh after a mutation. Ignores errors (the caller has already handled
+  // the mutation error) so it is safe to await in a `finally`.
+  async function refreshMembers() {
+    try {
+      setMembers(await props.hive.listMembers(props.docUrl));
+    } catch (err) {
+      console.error("[ShareModal] Error refreshing members:", err);
+    }
+  }
 
-  const syncServerHexId = createMemo(() => {
-    const syncServer = props.hive.syncServer;
-    if (!syncServer) return null;
-    const contactCard = ContactCard.fromJson(syncServer.contactCard.toJson());
-    if (!contactCard) return null;
-    return uint8ArrayToHex(contactCard.individualId.bytes);
-  });
+  const currentUserAccess = createMemo(
+    () => members().find((m) => m.isSelf)?.access
+  );
 
-  const publicHexId = createMemo(() => {
-    const publicId = Identifier.publicId();
-    return uint8ArrayToHex(publicId.toBytes());
-  });
+  const isAdmin = createMemo(
+    () => currentUserAccess()?.atLeast(Access.admin()) ?? false
+  );
 
-  const currentPublicAccess = createMemo(() => {
-    const accessList = docAccessList();
-    const pubHexId = publicHexId();
-    return accessList[pubHexId] || null;
-  });
+  const publicAccess = createMemo(
+    () => members().find((m) => m.isPublic)?.access
+  );
 
-  const isAdmin = createMemo(() => currentUserAccess() === "Admin");
-
-  // Fetch current user's access level
+  // Load the member list when the modal opens.
   createEffect(() => {
     if (!props.isOpen) return;
 
     let cancelled = false;
 
-    async function fetchCurrentUserAccess() {
-      const id = props.hive.active.individual.id;
-      if (!id) {
-        if (!cancelled) setCurrentUserAccess(undefined);
-        return;
-      }
+    async function loadMembers() {
+      if (!cancelled) setIsLoadingMembers(true);
 
       try {
-        const access = await props.hive.accessForDoc(id, keyhiveDocId());
+        const list = await props.hive.listMembers(props.docUrl);
         if (!cancelled) {
-          setCurrentUserAccess(access ? access.toString() : undefined);
+          setMembers(list);
+          setIsLoadingMembers(false);
         }
       } catch (err) {
         if (!cancelled) {
-          console.error("[ShareModal] Error checking access level:", err);
-          setCurrentUserAccess(undefined);
+          console.error("[ShareModal] Error loading members:", err);
+          setMembers([]);
+          setIsLoadingMembers(false);
         }
       }
     }
 
-    fetchCurrentUserAccess();
-
-    onCleanup(() => {
-      cancelled = true;
-    });
-  });
-
-  // Fetch access list when modal opens
-  createEffect(() => {
-    if (!props.isOpen) return;
-
-    let cancelled = false;
-
-    async function loadAccessList() {
-      if (!cancelled) setIsLoadingAccessList(true);
-
-      try {
-        const accessList = await fetchAccessList(props.hive, props.docUrl);
-        if (!cancelled) {
-          setDocAccessList(accessList);
-          setIsLoadingAccessList(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error("[ShareModal] Error loading access list:", err);
-          setDocAccessList({});
-          setIsLoadingAccessList(false);
-        }
-      }
-    }
-
-    loadAccessList();
+    loadMembers();
 
     onCleanup(() => {
       cancelled = true;
@@ -172,63 +111,49 @@ export function ShareModal(props: ShareModalProps) {
         throw new Error("Invalid ContactCard JSON");
       }
 
-      const access = Access.tryFromString("edit");
-      if (!access) {
-        throw new Error("Invalid access level");
-      }
-
-      await props.hive.addMemberToDoc(props.docUrl, contactCard, access);
+      await props.hive.addMemberToDoc(props.docUrl, contactCard, Access.edit());
 
       setContactCardInput("");
     } catch (err) {
       console.error("[ShareModal]", err);
     } finally {
-      // Refresh access list even on error, since the delegation may
-      // have succeeded even if there is an error.
-      const accessList = await fetchAccessList(props.hive, props.docUrl);
-      setDocAccessList(accessList);
+      // Refresh even on error, since the delegation may have succeeded.
+      await refreshMembers();
       setIsSubmitting(false);
     }
   };
 
-  const handleRemoveMember = async (hexId: string) => {
+  const handleRemoveMember = async (member: DocMember) => {
     try {
-      await props.hive.revokeMemberFromDoc(props.docUrl, hexId);
+      await props.hive.revokeMemberFromDoc(props.docUrl, member.id);
     } catch (err) {
       console.error("[ShareModal]", err);
     } finally {
-      const accessList = await fetchAccessList(props.hive, props.docUrl);
-      setDocAccessList(accessList);
+      await refreshMembers();
     }
   };
 
   const handleMakePublic = async () => {
     try {
-      const access = Access.tryFromString("edit");
-      if (!access) {
-        throw new Error("Invalid access level");
-      }
-
       // TODO: pass to tool
-      await props.hive.setPublicAccess(props.docUrl, access);
+      await props.hive.setPublicAccess(props.docUrl, Access.edit());
     } catch (err) {
       console.error("[ShareModal]", err);
     } finally {
-      // Refresh access list even on error, since the delegation may
-      // have succeeded even if there is an error.
-      const accessList = await fetchAccessList(props.hive, props.docUrl);
-      setDocAccessList(accessList);
+      // Refresh even on error, since the delegation may have succeeded.
+      await refreshMembers();
     }
   };
 
   const handleMakePrivate = async () => {
+    const publicMember = members().find((m) => m.isPublic);
+    if (!publicMember) return;
     try {
-      await props.hive.revokeMemberFromDoc(props.docUrl, publicHexId());
+      await props.hive.revokeMemberFromDoc(props.docUrl, publicMember.id);
     } catch (err) {
       console.error("[ShareModal]", err);
     } finally {
-      const accessList = await fetchAccessList(props.hive, props.docUrl);
-      setDocAccessList(accessList);
+      await refreshMembers();
     }
   };
 
@@ -240,11 +165,9 @@ export function ShareModal(props: ShareModalProps) {
 
   const formatHexId = (hexId: string) => `0x${hexId.slice(0, 12)}...`;
 
-  const sortedMembers = createMemo(() => {
-    return Object.entries(docAccessList()).sort(([a], [b]) =>
-      a.localeCompare(b)
-    );
-  });
+  const sortedMembers = createMemo(() =>
+    [...members()].sort((a, b) => a.id.localeCompare(b.id))
+  );
 
   return (
     <Show when={props.isOpen}>
@@ -268,14 +191,14 @@ export function ShareModal(props: ShareModalProps) {
 <section class="share-modal__public-section">
               <h3 class="share-modal__section-title">Public Access</h3>
               <div class="share-modal__public-controls">
-                <Show when={currentPublicAccess()}>
+                <Show when={publicAccess()}>
                   <span class="share-modal__public-status">
                     This document is <strong>public</strong>
                   </span>
                 </Show>
                 <Show when={isAdmin()}>
                   <div class="share-modal__public-actions">
-                    <Show when={currentPublicAccess()}>
+                    <Show when={publicAccess()}>
                       <button
                         class="share-modal__add-button"
                         onClick={handleMakePrivate}
@@ -283,7 +206,7 @@ export function ShareModal(props: ShareModalProps) {
                         Revoke Public Access
                       </button>
                     </Show>
-                    <Show when={!currentPublicAccess()}>
+                    <Show when={!publicAccess()}>
                       <button
                         class="share-modal__add-button"
                         onClick={handleMakePublic}
@@ -324,39 +247,30 @@ export function ShareModal(props: ShareModalProps) {
             <section>
               <h3 class="share-modal__section-title">Current Access</h3>
 
-              <Show when={isLoadingAccessList()}>
+              <Show when={isLoadingMembers()}>
                 <p class="share-modal__loading">Loading...</p>
               </Show>
 
-              <Show when={!isLoadingAccessList() && sortedMembers().length === 0}>
+              <Show when={!isLoadingMembers() && sortedMembers().length === 0}>
                 <p class="share-modal__empty">No users have access yet</p>
               </Show>
 
-              <Show when={!isLoadingAccessList() && sortedMembers().length > 0}>
+              <Show when={!isLoadingMembers() && sortedMembers().length > 0}>
                 <div class="share-modal__member-list">
                   <For each={sortedMembers()}>
-                    {([hexId, access]) => {
-                      const isCurrentUser = hexId === currentUserHexId();
-                      const isSyncServer = hexId === syncServerHexId();
-                      const isPublic = hexId === publicHexId();
-                      const myAccessIdx = ACCESS_LEVELS.indexOf(
-                        currentUserAccess() as (typeof ACCESS_LEVELS)[number]
-                      );
-                      const memberAccessIdx = ACCESS_LEVELS.indexOf(
-                        access as (typeof ACCESS_LEVELS)[number]
-                      );
+                    {(member) => {
+                      const mine = currentUserAccess();
                       const canRemove =
-                        myAccessIdx >= 0 &&
-                        memberAccessIdx >= 0 &&
-                        memberAccessIdx <= myAccessIdx &&
-                        !isCurrentUser &&
-                        !isSyncServer;
+                        !!mine &&
+                        mine.atLeast(member.access) &&
+                        !member.isSelf &&
+                        !member.isSyncServer;
 
                       const displayName = () => {
-                        if (isCurrentUser) return "You";
-                        if (isSyncServer) return "Sync Server";
-                        if (isPublic) return "Public";
-                        return formatHexId(hexId);
+                        if (member.isSelf) return "You";
+                        if (member.isSyncServer) return "Sync Server";
+                        if (member.isPublic) return "Public";
+                        return formatHexId(member.id);
                       };
 
                       return (
@@ -365,20 +279,20 @@ export function ShareModal(props: ShareModalProps) {
                             <span
                               class="share-modal__member-id"
                               classList={{
-                                "share-modal__member-id--you": isCurrentUser,
-                                "share-modal__member-id--public": isPublic,
+                                "share-modal__member-id--you": member.isSelf,
+                                "share-modal__member-id--public": member.isPublic,
                               }}
                             >
                               {displayName()}
                             </span>
                             <span class="share-modal__member-access">
-                              {access}
+                              {member.access.toString()}
                             </span>
                           </div>
                           <Show when={canRemove}>
                             <button
                               class="share-modal__remove-button"
-                              onClick={() => handleRemoveMember(hexId)}
+                              onClick={() => handleRemoveMember(member)}
                               aria-label="Remove member"
                             >
                               <svg

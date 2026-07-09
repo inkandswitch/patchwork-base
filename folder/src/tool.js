@@ -178,7 +178,18 @@ async function createDocLink(repo, hive, datatype) {
   const loaded = await getRegistry("patchwork:datatype").load(datatype.id);
   if (!loaded) throw new Error(`couldn't load datatype "${datatype.id}"`);
   const docHandle = await createDocOfDatatype2(loaded, repo);
-  if (hive) await hive.addSyncServerPullToDoc(docHandle.url);
+  if (hive) {
+    // A failure here means the doc will not sync until relay access is granted,
+    // but the doc itself is usable, so do not fail the whole creation.
+    try {
+      await hive.addSyncServerRelayToDoc(docHandle.url);
+    } catch (error) {
+      console.warn(
+        `createDocLink: could not grant sync-server relay access for ${docHandle.url}`,
+        error
+      );
+    }
+  }
   return {
     url: docHandle.url,
     name: loaded.module.getTitle(docHandle.doc()),
