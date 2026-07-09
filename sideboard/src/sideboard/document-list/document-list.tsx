@@ -40,6 +40,7 @@ import {
 import Folder from "./folder.tsx";
 import Item from "./item.tsx";
 import { ItemName } from "./name.tsx";
+import { DatatypeIcon } from "./datatype-icon.tsx";
 import { LoadingRow } from "./loading-row.tsx";
 import { NewDocPlaceholder } from "../create-new.tsx";
 import { ShareModal } from "../share-modal.tsx";
@@ -340,6 +341,7 @@ export function DocumentList(props: DocumentListProps) {
                         : undefined
                     }
                   >
+                    <DatatypeIcon type={doc.type} />
                     <ItemName name={doc.name} id={relid()} rename={rename} />
                     <Show when={props.hive && !isKeyhiveProtected(doc.url)}>
                       <span class="document-list-item__unprotected">

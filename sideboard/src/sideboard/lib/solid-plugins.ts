@@ -7,7 +7,7 @@ import {
   getRegistry,
   getSupportedToolsForType,
 } from "@inkandswitch/patchwork-plugins";
-import { createEffect, createRoot, onCleanup } from "solid-js";
+import { createEffect, createRoot, createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 
 export type MaybeAccessor<T> = T | (() => T);
@@ -97,4 +97,29 @@ export function useSupportedToolsForType(
     setFiltered(reconcile(all.filter((t) => !t.unlisted)));
   });
   return filtered;
+}
+
+const useSharedDatatypeDescription = createShared((type) => {
+  const datatypeRegistry =
+    getRegistry<DatatypeDescription>("patchwork:datatype");
+  const [datatype, setDatatype] = createSignal(datatypeRegistry.get(type));
+
+  const update = () => setDatatype(() => datatypeRegistry.get(type));
+  const dispose = datatypeRegistry.on("changed", update);
+  onCleanup(dispose);
+
+  return datatype;
+});
+
+/**
+ * Hook to reactively look up a datatype's plugin description (id, name, icon)
+ * by its type id. Shared across all callers for the same type. Resolves as
+ * soon as the datatype is registered, even before it's actually loaded, since
+ * `icon`/`name` live on the (synchronously available) description.
+ */
+export function useDatatypeDescription(
+  type: MaybeAccessor<string>
+): () => Plugin<DatatypeDescription> | undefined {
+  const key = typeof type === "function" ? type() : type;
+  return useSharedDatatypeDescription(key);
 }

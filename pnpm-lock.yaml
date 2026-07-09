@@ -947,6 +947,9 @@ importers:
       debug:
         specifier: ^4.4.3
         version: 4.4.3(supports-color@5.5.0)
+      lucide-solid:
+        specifier: ^1.23.0
+        version: 1.23.0(solid-js@1.9.13)
       solid-automerge:
         specifier: ^2.0.0
         version: 2.0.0(@automerge/automerge-repo@2.6.0-subduction.34(supports-color@5.5.0))(solid-js@1.9.13)(supports-color@5.5.0)
@@ -5088,6 +5091,11 @@ packages:
     resolution: {integrity: sha512-28vvUnnKQ/dBwiCQtwJw7QauYnE7yd2Cyp4tTTJpvglX4EMpbflcdBgrgToX2j71B3YvugK/NH3BGUk+E/p/Fw==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  lucide-solid@1.23.0:
+    resolution: {integrity: sha512-vzVY2fITccYlJTrv5fHro9OONinnotXtNmAb/Sh1UOpMB/PtvFuF3FVz2Orh7/R7l5YdF1j4TOPmfgImHpzv0g==}
+    peerDependencies:
+      solid-js: ^1.4.7
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -11078,6 +11086,10 @@ snapshots:
   lucide-react@0.469.0(react@18.3.1):
     dependencies:
       react: 18.3.1
+
+  lucide-solid@1.23.0(solid-js@1.9.13):
+    dependencies:
+      solid-js: 1.9.13
 
   lz-string@1.5.0: {}
 

@@ -415,6 +415,13 @@ button {
   }
 }
 
+.document-list-item__icon {
+  flex: none;
+  align-self: center;
+  margin-right: 8px;
+  color: var(--placeholder-line);
+}
+
 .document-list-item__name {
   overflow: hidden;
   text-overflow: ellipsis;
