@@ -71,7 +71,7 @@ function dispatchOpen(el: HTMLElement, detail: OpenDocumentEventDetail) {
   );
 }
 
-export const PatchworkFrame = ({
+export function PatchworkFrame({
   handle,
   repo,
   ...props
@@ -79,7 +79,7 @@ export const PatchworkFrame = ({
   handle: DocHandle<AccountDoc>;
   repo: Repo;
   isolation?: boolean;
-}) => {
+}) {
   ensureFrameStyles();
   const accountDocUrl = handle.url;
 
@@ -148,7 +148,7 @@ export const PatchworkFrame = ({
       </patchwork-view>
     </div>
   );
-};
+}
 
 function PatchworkFrameInner(props: {
   handle: DocHandle<AccountDoc>;
