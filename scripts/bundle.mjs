@@ -6,9 +6,15 @@
  * The manifest has the same shape as a Patchwork module-settings document
  * (`{ "@patchwork": { type: "patchwork:module-settings" }, modules: [...] }`)
  * but lives as a plain JSON file. Each module entry is a relative URL to a
- * tool's entry-point JS, resolved the same way the runtime resolves an
- * Automerge folder doc's package.json (`exports["."]` under the
- * `patchwork`/`browser`/`import` conditions, falling back to `main`).
+ * tool's *directory* (`./tools/<name>/`), which serves that tool's
+ * `package.json`. At load time the runtime fetches the package.json and
+ * resolves its entry point itself (`exports["."]` under the
+ * `patchwork`/`browser`/`import` conditions, falling back to `main`) — the same
+ * way it resolves an Automerge folder doc — so the tool's own package.json is
+ * the single source of truth for its entry point.
+ *
+ * We still resolve the entry point here, but only to validate the build and to
+ * know which files to copy; the resolved path no longer leaks into the URL.
  *
  * This only aggregates; it does not install or build. Install/build the tools
  * first (from the repo root: `pnpm install` then `pnpm build`, which skip the
@@ -137,8 +143,10 @@ function main() {
       });
     }
 
-    modules.push(`./tools/${name}/${entryRel}`);
-    console.log(`[ok]    ${name} -> ./tools/${name}/${entryRel}`);
+    // Point at the tool directory; the runtime fetches its package.json and
+    // resolves the entry point (validated above) itself.
+    modules.push(`./tools/${name}/`);
+    console.log(`[ok]    ${name} -> ./tools/${name}/ (entry: ${entryRel})`);
   }
 
   const manifest = {
