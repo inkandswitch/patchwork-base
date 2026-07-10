@@ -38,7 +38,9 @@ export function AccountBar(props: PatchworkToolProps<SideboardAccountDoc>) {
         <button
           type="button"
           class="account-bar__button"
-          onClick={() => open({ url: doc.moduleSettingsUrl! })}
+          onClick={() =>
+            open({ url: doc.moduleSettingsUrl!, toolId: "packages" })
+          }
         >
           Packages
         </button>

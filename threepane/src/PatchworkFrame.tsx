@@ -573,7 +573,10 @@ function FrameLayout(props: {
                     type="button"
                     class="threepane-account-bar__button"
                     onClick={(e) =>
-                      dispatchOpen(e.currentTarget, { url: moduleSettingsUrl() })
+                      dispatchOpen(e.currentTarget, {
+                        url: moduleSettingsUrl(),
+                        toolId: "packages",
+                      })
                     }
                   >
                     Packages
