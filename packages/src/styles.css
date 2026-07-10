@@ -710,11 +710,17 @@
   letter-spacing: 0.04em;
   color: color-mix(in oklch, var(--pw-packages-danger), var(--pw-packages-line) 30%);
 }
+.pw-broken__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: color-mix(in oklch, var(--pw-packages-danger), var(--pw-packages-line) 45%);
+  word-break: break-word;
+}
 .pw-broken__url {
   min-width: 0;
 }
-.pw-broken__remove {
-  margin-left: auto;
+.pw-broken__plugins {
+  margin: 0.6rem 0 0;
 }
 .pw-broken__trace {
   margin: 0.6rem 0 0;

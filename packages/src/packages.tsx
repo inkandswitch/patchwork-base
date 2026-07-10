@@ -260,6 +260,22 @@ export function Packages(props: {
       .map((b) => ({ url: b.url, error: b.probe!.error ?? "Unknown error" }))
   );
 
+  // package.json info for broken modules — even though the module failed to
+  // *import*, its package.json usually still fetches, so a failed box can show
+  // the package name/version and its declared plugins alongside the stack.
+  const [brokenInfo, setBrokenInfo] = createSignal<Record<string, PkgInfo>>({});
+  const brokenRequested = new Set<string>();
+  createEffect(() => {
+    for (const { url } of brokenModules()) {
+      const key = moduleKey(url);
+      if (!key || brokenRequested.has(key)) continue;
+      brokenRequested.add(key);
+      void resolvePackageInfo(bareModuleUrl(url)).then((info) =>
+        setBrokenInfo((prev) => ({ ...prev, [key]: info }))
+      );
+    }
+  });
+
   // --- package.json metadata, resolved lazily per importUrl ------------------
   const [pkgMetas, setPkgMetas] = createSignal<Record<string, PkgMeta>>({});
   const requested = new Set<string>();
@@ -746,26 +762,72 @@ export function Packages(props: {
       <Show when={view() === "packages" && brokenModules().length > 0}>
         <div class="pw-broken">
           <For each={brokenModules()}>
-            {(b) => (
-              <div class="pw-broken__box" role="alert">
-                <div class="pw-broken__head">
-                  <span class="pw-broken__label">Failed to import</span>
-                  <Copyable
-                    value={b.url}
-                    class="pw-broken__url"
-                    title="module URL — click to copy"
-                  />
-                  <button
-                    class="pw-actions__btn pw-actions__btn--danger pw-broken__remove"
-                    title="Remove this module from your package list"
-                    onClick={() => uninstall(b.url)}
-                  >
-                    remove
-                  </button>
+            {(b) => {
+              const info = () => brokenInfo()[moduleKey(b.url)!];
+              const meta = () => info()?.meta;
+              const declared = () => info()?.plugins;
+              return (
+                <div class="pw-broken__box" role="alert">
+                  <div class="pw-broken__head">
+                    <span class="pw-broken__label">Failed to import</span>
+                    <Show when={meta()?.title || meta()?.name}>
+                      <span class="pw-broken__name">
+                        {meta()!.title || meta()!.name}
+                      </span>
+                      <Show when={meta()?.version}>
+                        <span class="pw-card__version">v{meta()!.version}</span>
+                      </Show>
+                    </Show>
+                    <Copyable
+                      value={b.url}
+                      class="pw-broken__url"
+                      title="module URL — click to copy"
+                    />
+                    <div class="pw-actions">
+                      <Show when={isAutomergeUrl(b.url)}>
+                        <button
+                          class="pw-actions__btn"
+                          onClick={() => openDoc(b.url)}
+                        >
+                          open
+                        </button>
+                      </Show>
+                      <button
+                        class="pw-actions__btn pw-actions__btn--danger"
+                        title="Delete this module from your package list"
+                        onClick={() => uninstall(b.url)}
+                      >
+                        delete
+                      </button>
+                    </div>
+                  </div>
+                  <Show when={declared() && declared()!.length > 0}>
+                    <ul class="pw-install__plugins pw-broken__plugins">
+                      <For each={declared()!}>
+                        {(p) => (
+                          <li class="pw-install__plugin">
+                            <span class="pw-install__plugin-name">
+                              {p.name || p.id}
+                            </span>
+                            <Show when={p.type}>
+                              <span class="pw-plugin__type">
+                                {prettyType(p.type!)}
+                              </span>
+                            </Show>
+                            <Show when={datatypesLabel(p.supportedDatatypes)}>
+                              <span class="pw-install__plugin-supports">
+                                supports {datatypesLabel(p.supportedDatatypes)}
+                              </span>
+                            </Show>
+                          </li>
+                        )}
+                      </For>
+                    </ul>
+                  </Show>
+                  <pre class="pw-broken__trace">{b.error}</pre>
                 </div>
-                <pre class="pw-broken__trace">{b.error}</pre>
-              </div>
-            )}
+              );
+            }}
           </For>
         </div>
       </Show>
