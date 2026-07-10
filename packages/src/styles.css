@@ -18,15 +18,17 @@
       var(--pw-packages-line),
       var(--pw-packages-fill) 62%
     );
+    /* Dividers should recede into the canvas, with only a trace of the
+       secondary colour to distinguish adjacent areas. */
     --pw-packages-border: color-mix(
       in oklch,
-      var(--pw-packages-fill),
-      var(--pw-packages-line) 12%
+      var(--studio-secondary, #33ccf8),
+      var(--pw-packages-fill) 90%
     );
     --pw-packages-border-strong: color-mix(
       in oklch,
-      var(--pw-packages-fill),
-      var(--pw-packages-line) 22%
+      var(--studio-secondary, #33ccf8),
+      var(--pw-packages-fill) 82%
     );
     --pw-packages-raise: color-mix(
       in oklch,
@@ -220,6 +222,18 @@
   border-bottom: 1px solid var(--pw-packages-fill);
   color: var(--pw-packages-line);
   font-weight: 600;
+}
+.pw-packages__tab[data-view="registries"][data-active] {
+  border-color: color-mix(
+    in oklch,
+    var(--studio-secondary, #33ccf8),
+    var(--pw-packages-fill) 65%
+  );
+  color: color-mix(
+    in oklch,
+    var(--studio-secondary, #33ccf8),
+    var(--pw-packages-line) 40%
+  );
 }
 
 /* Origin chips ride on the right of the tab row, lifted off the baseline. */
@@ -446,19 +460,7 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 1.25rem 1.375rem;
-  border: 1px solid var(--pw-packages-border);
-  border-left: 3px solid var(--pw-packages-core);
-  border-radius: var(--studio-radius-md, 10px);
-  background: var(--pw-packages-raise);
-}
-.pw-card[data-origin="installed"] {
-  border-left-color: var(--pw-packages-installed);
-}
-.pw-card[data-origin="ephemeral"] {
-  border-left-color: var(--pw-packages-ephemeral);
-}
-.pw-card[data-origin="unknown"] {
-  border-left-color: var(--pw-packages-unknown);
+  background: var(--pw-packages-fill);
 }
 .pw-card__source {
   display: flex;
@@ -536,16 +538,18 @@
   padding: 1rem;
 }
 .pw-registry {
-  border: 1px solid var(--pw-packages-border);
-  border-radius: var(--studio-radius-md, 8px);
-  overflow: hidden;
+  border-bottom: 1px solid var(--pw-packages-border);
 }
 .pw-registry__head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.875rem;
-  background: var(--pw-packages-raise-2);
+  background: color-mix(
+    in oklch,
+    var(--studio-secondary, #33ccf8),
+    var(--pw-packages-fill) 94%
+  );
   border-bottom: 1px solid var(--pw-packages-border);
 }
 .pw-registry__name {
@@ -854,10 +858,7 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.875rem 1rem;
-  border: 1px solid var(--pw-packages-border);
-  border-left: 3px solid var(--pw-packages-installed);
-  border-radius: var(--studio-radius-md, 8px);
-  background: var(--pw-packages-raise);
+  background: var(--pw-packages-fill);
 }
 .pw-install__card-head {
   display: flex;

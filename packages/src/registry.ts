@@ -11,6 +11,7 @@
 import { createMemo, createSignal, onCleanup, type Accessor } from "solid-js";
 import { getAllRegistries } from "@inkandswitch/patchwork-plugins";
 import type { PluginRegistry } from "@inkandswitch/patchwork-plugins";
+import { moduleKey } from "./origin.ts";
 
 // A flattened view of one registered plugin, tagged with the registry it lives
 // in. Registry entries are `PluginDescription & { [k]: any }`, so type-specific
@@ -76,6 +77,49 @@ export function readRegistrySnapshot(): RegistryEntry[] {
     }
   }
   return out;
+}
+
+// --- deactivation (pull a module's plugins out of the live registries) -------
+//
+// Removing a module from the settings doc only stops it loading NEXT time; the
+// plugins it already registered linger in memory until reload. To make removal
+// take effect now, we also pull them from the registries here.
+//
+// The host's live @inkandswitch/patchwork-plugins may be newer than the version
+// we type-check against (0.0.5, which has no removal API): it gained
+// `registry.remove(id)`. We reach it by structural feature-detection so this
+// tool keeps building against the older types while still deactivating on hosts
+// that support it — on an older host it's a no-op (the doc edit still lands; the
+// plugin just lingers until reload, exactly as before).
+interface RemovableRegistry {
+  remove?: (id: string) => boolean;
+  all: () => any[];
+}
+
+/**
+ * Remove every plugin registered from `importUrl` from all live registries,
+ * matched by module identity (so a heads-pinned registry importUrl still matches
+ * the doc's bare module URL).
+ */
+export function deactivateModule(importUrl: string | undefined): void {
+  const key = moduleKey(importUrl);
+  if (!key) return;
+  for (const [, reg] of safeGetRegistries()) {
+    const registry = reg as unknown as RemovableRegistry;
+    if (typeof registry.remove !== "function") continue; // older host: no-op
+    let entries: any[];
+    try {
+      // all() returns a fresh array, so removing during this loop is safe.
+      entries = registry.all();
+    } catch {
+      continue;
+    }
+    for (const p of entries) {
+      if (!p || typeof p.id !== "string") continue;
+      if (moduleKey(p.importUrl) !== key) continue;
+      registry.remove(p.id);
+    }
+  }
 }
 
 /**

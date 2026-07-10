@@ -10,6 +10,7 @@ import {
 import "./styles.css";
 import {
   useLiveRegistries,
+  deactivateModule,
   type RegistryEntry,
   type ToolElement,
   type ToolHandle,
@@ -463,8 +464,10 @@ export function Packages(props: {
     );
   };
 
-  // Remove a module from the settings doc you're viewing. The doc stores bare
-  // module URLs while a plugin's importUrl is heads-pinned, so match by key.
+  // Remove a module from the settings doc you're viewing AND deactivate its
+  // plugins from the live registries so it disappears now, not just on reload.
+  // The doc stores bare module URLs while a plugin's importUrl is heads-pinned,
+  // so both sides match by key.
   const uninstall = (importUrl: string | undefined) => {
     const key = moduleKey(importUrl);
     if (!key) return;
@@ -473,6 +476,7 @@ export function Packages(props: {
       const idx = d.modules.findIndex((m) => moduleKey(m) === key);
       if (idx >= 0) d.modules.splice(idx, 1);
     });
+    deactivateModule(importUrl);
   };
 
   // Which per-source actions apply: automerge sources can be opened; anything
@@ -718,6 +722,7 @@ export function Packages(props: {
               {(v) => (
                 <button
                   class="pw-packages__tab"
+                  data-view={v}
                   data-active={view() === v ? "" : undefined}
                   onClick={() => setView(v)}
                 >
