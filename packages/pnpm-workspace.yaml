@@ -1,0 +1,5 @@
+allowBuilds:
+  cbor-extract: true
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@inkandswitch/patchwork-filesystem@0.1.3'
