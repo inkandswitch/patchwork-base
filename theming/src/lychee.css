@@ -11,7 +11,8 @@
 	--studio-modified: #0cadd6;
 	--studio-link: #3999ff;
 	--studio-selection-fill: #eeeeff;
-	--studio-offset-tint-amount: 18%;
+	--studio-offset-tint-amount: 8%;
+        --studio-chrome-fill: #aaeeff;
 
 	--text-editor-fill: #ffffff;
 	--text-editor-line: #000000;
