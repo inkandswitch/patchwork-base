@@ -351,7 +351,12 @@ function commentTargetStyle(isEmphasised: boolean): string {
   const background = isEmphasised
     ? "var(--studio-secondary-fill-offset-40)"
     : "var(--studio-secondary-fill)";
+  // --studio-secondary-line is the luminance-adaptive ink derived to stay legible
+  // ON the secondary fill (black for light accents, white for dark ones), so the
+  // highlighted text reads regardless of the theme's secondary colour. The offset-40
+  // background only mixes 32% toward that ink, so the pairing holds when emphasised too.
   return `
+    color: var(--studio-secondary-line);
     border-bottom: 2px solid var(--studio-secondary-line);
     background-color: ${background};
   `;
