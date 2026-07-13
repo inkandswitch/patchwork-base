@@ -23,11 +23,18 @@ import {
   createMemo,
   createSignal,
   on,
+  onCleanup,
+  onMount,
   Show,
   type Accessor,
 } from "solid-js";
 import type { ToolSlot } from "../types";
-import { useProviderReady, useTaggedComponents, SIDEBAR_KEYS } from "../hooks";
+import {
+  useProviderReady,
+  useTaggedComponents,
+  SIDEBAR_KEYS,
+  COLLAPSE_CONTEXT_SIDEBAR_EVENT,
+} from "../hooks";
 import { useSidebarResize } from "../hooks/useSidebarResize";
 import { FrameTopBar } from "./FrameTopBar";
 import { ContextSidebar } from "./ContextSidebar";
@@ -131,6 +138,19 @@ export function DocumentAreaRoot(props: DocumentAreaRootProps) {
     maxWidth: MAX_SIDEBAR_WIDTH,
     autoCloseWidth: AUTO_CLOSE_WIDTH,
     dragThreshold: DRAG_THRESHOLD,
+  });
+
+  // The host collapses the left sidebar directly, but the right-sidebar collapse
+  // state lives here, so it asks us to collapse out-of-band via a window event
+  // (e.g. after a finger-tap opens a document in the left sidebar — see
+  // `FrameLayout`). Only wired on the host (non-isolated) path; the sandboxed
+  // iframe realm never receives the host's window events.
+  onMount(() => {
+    const onCollapse = () => setIsRightSidebarCollapsed(true);
+    window.addEventListener(COLLAPSE_CONTEXT_SIDEBAR_EVENT, onCollapse);
+    onCleanup(() =>
+      window.removeEventListener(COLLAPSE_CONTEXT_SIDEBAR_EVENT, onCollapse)
+    );
   });
 
   // Selected context-sidebar tab, lifted above the per-draft remount boundary so

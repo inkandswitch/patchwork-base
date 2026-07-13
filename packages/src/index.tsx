@@ -6,6 +6,20 @@
 
 export const plugins = [
   {
+    // The account's module-settings subdoc datatype. Without this a fresh
+    // account's `ensureAccountSubdocs` stalls waiting for it to register, and
+    // the sidebar/layout config never bootstraps.
+    type: "patchwork:datatype",
+    id: "patchwork:module-settings",
+    name: "Module Settings",
+    icon: "Settings",
+    unlisted: true,
+    async load() {
+      const { ModuleSettingsDatatype } = await import("./datatype.ts");
+      return ModuleSettingsDatatype;
+    },
+  },
+  {
     type: "patchwork:tool",
     id: "packages",
     name: "Packages",

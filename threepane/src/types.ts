@@ -30,16 +30,6 @@ export type AccountDoc = {
 export type TinyPatchworkConfigDoc = AccountDoc;
 
 /**
- * The module-settings doc (referenced from `AccountDoc.moduleSettingsUrl`). The
- * frame only ever seeds an empty one; the `packages` tool reads `modules` to
- * tell installed packages from core/ephemeral ones.
- */
-export type ModuleSettingsDoc = {
-  "@patchwork": { type: "patchwork:module-settings"; title?: string };
-  modules: string[];
-};
-
-/**
  * A configured tool slot: which tool, and which document it renders against.
  * The docid is a real pin — every lane renders the tuple's tool against the
  * document the tuple itself names.

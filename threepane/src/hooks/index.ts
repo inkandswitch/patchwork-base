@@ -3,6 +3,7 @@ export {
   getStoredNumber,
   getStoredBoolean,
   SIDEBAR_KEYS,
+  COLLAPSE_CONTEXT_SIDEBAR_EVENT,
   DEFAULT_SIDEBAR_WIDTH,
 } from "./useSidebarState";
 export { useSidebarResize } from "./useSidebarResize";

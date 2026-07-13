@@ -813,7 +813,29 @@
   animation: frame-popover-pop var(--studio-transition, 0.15s ease);
 }
 
-.frame__popover patchwork-view {
+/* The "Open with" picker, docked to the popover's top. Sits at its natural
+   height above the tool body; the doc-openwith tool renders a small titlebar
+   button, so this is left-aligned chrome rather than a full-height view. */
+.frame__popover-toolbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--threepane-space-sm);
+  padding: var(--threepane-space-sm) var(--threepane-space-md);
+  border-bottom: 1px solid var(--threepane-toolbar-border);
+}
+
+.frame__popover-toolbar patchwork-view {
+  display: block;
+}
+
+.frame__popover-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.frame__popover-body patchwork-view {
   display: block;
   width: 100%;
   height: 100%;

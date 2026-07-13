@@ -17,6 +17,7 @@ import {
   useDebugRegistryToast,
   DebugRegistryToast,
   SIDEBAR_KEYS,
+  COLLAPSE_CONTEXT_SIDEBAR_EVENT,
   getStoredNumber,
   getStoredBoolean,
   DEFAULT_SIDEBAR_WIDTH,
@@ -420,26 +421,59 @@ function PatchworkFrameInner(props: {
 // run in the host realm instead of being routed into the isolated main frame.
 // Click the backdrop or press Escape to dismiss.
 function FramePopover(props: { view: SelectedView; onClose: () => void }) {
+  // The tool the popover currently renders the doc with. Seeded from the
+  // intercepted open request and re-pointed by the "Open with" picker in the
+  // toolbar (below) without leaving the popover. Reset whenever a fresh view is
+  // opened.
+  const [toolId, setToolId] = createSignal(props.view.toolId ?? undefined);
+  createEffect(() => setToolId(props.view.toolId ?? undefined));
+
+  let popoverEl: HTMLDivElement | undefined;
+
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") props.onClose();
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => window.removeEventListener("keydown", onKey));
+
+    // The "Open with" picker (and any tool inside the popover) fires
+    // `patchwork:open-document`. Catch it here and re-point the popover in place
+    // rather than letting it bubble out to the selected-doc provider — these are
+    // host-realm chrome tools that must not be routed into the isolated main
+    // frame (the whole reason this popover exists).
+    const el = popoverEl;
+    if (!el) return;
+    const onOpen = (event: OpenDocumentEvent) => {
+      const { url, toolId: nextToolId } = event.detail;
+      if (!url) return;
+      event.stopPropagation();
+      setToolId(nextToolId ?? undefined);
+    };
+    el.addEventListener("patchwork:open-document", onOpen);
+    onCleanup(() => el.removeEventListener("patchwork:open-document", onOpen));
   });
 
   return (
     <div class="frame__popover-backdrop" onClick={() => props.onClose()}>
       <div
+        ref={popoverEl}
         class="frame__popover"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <patchwork-view
-          doc-url={props.view.url}
-          tool-id={props.view.toolId ?? undefined}
-        />
+        {/*
+          "Open with" lets you re-point the popover at a different tool for the
+          same doc. Its `patchwork:open-document` event is intercepted above and
+          swaps `toolId` below in place.
+        */}
+        <div class="frame__popover-toolbar">
+          <patchwork-view doc-url={props.view.url} tool-id="doc-openwith" />
+        </div>
+        <div class="frame__popover-body">
+          <patchwork-view doc-url={props.view.url} tool-id={toolId()} />
+        </div>
       </div>
     </div>
   );
@@ -498,6 +532,27 @@ function FrameLayout(props: {
     el.addEventListener("patchwork:open-document", onOpen);
     onCleanup(() => el.removeEventListener("patchwork:open-document", onOpen));
   });
+
+  // Narrow-viewport UX: when the left sidebar covers most of the frame (>75% of
+  // the viewport width — i.e. it's acting as a full-screen overlay rather than a
+  // side rail), opening a document from it collapses both sidebars so the
+  // document takes over. Under isolation the footer intercept above stops
+  // account-bar events before they reach this listener, so only genuine document
+  // opens (from the sidebar widgets) collapse.
+  let sidebarContentEl: HTMLDivElement | undefined;
+  onMount(() => {
+    const el = sidebarContentEl;
+    if (!el) return;
+    const onOpen = () => {
+      if (el.getBoundingClientRect().width <= window.innerWidth * 0.75) return;
+      props.sidebarState.setIsSidebarCollapsed(true);
+      window.dispatchEvent(new CustomEvent(COLLAPSE_CONTEXT_SIDEBAR_EVENT));
+    };
+    el.addEventListener("patchwork:open-document", onOpen);
+    onCleanup(() =>
+      el.removeEventListener("patchwork:open-document", onOpen)
+    );
+  });
   return (
     <>
       {/*
@@ -527,6 +582,7 @@ function FrameLayout(props: {
         <div
           class="threepane-sidebar"
           classList={{ "threepane-sidebar--has-tray": hasTray() }}
+          ref={sidebarContentEl}
         >
           <SidebarWidgets
             widgets={props.sidebarWidgets}

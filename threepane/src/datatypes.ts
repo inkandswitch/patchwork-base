@@ -1,9 +1,5 @@
 import type { DatatypeImplementation } from "@inkandswitch/patchwork-plugins";
-import type {
-  AccountDoc,
-  ModuleSettingsDoc,
-  ThreepaneConfigDoc,
-} from "./types";
+import type { AccountDoc, ThreepaneConfigDoc } from "./types";
 
 /**
  * The default system-tray tools for a fresh account. The tray is now an
@@ -34,27 +30,6 @@ export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
   },
   getTitle: () => "Patchwork Account",
 };
-
-/**
- * The module-settings doc: the account's installed-packages list. The frame
- * seeds an empty one so `ensureAccountSubdocs` can point `moduleSettingsUrl` at
- * it; the `packages` tool renders/edits it. (Its datatype used to live in the
- * deleted `module-settings-manager` package — re-registered here so a fresh
- * account's subdoc bootstrap doesn't stall waiting on an unregistered datatype.)
- */
-export const ModuleSettingsDatatype: DatatypeImplementation<ModuleSettingsDoc> =
-  {
-    init(doc) {
-      doc["@patchwork"] = { type: "patchwork:module-settings" };
-      doc.modules = [];
-    },
-    getTitle: (doc) => doc["@patchwork"]?.title ?? "Module Settings",
-    setTitle(doc, title) {
-      if (!doc["@patchwork"])
-        doc["@patchwork"] = { type: "patchwork:module-settings" };
-      doc["@patchwork"].title = title;
-    },
-  };
 
 /** The threepane layout config doc (sidebar widgets, doctitle tools, tray). */
 export const ThreepaneConfigDatatype: DatatypeImplementation<ThreepaneConfigDoc> =

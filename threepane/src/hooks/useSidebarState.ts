@@ -14,6 +14,15 @@ export const SIDEBAR_KEYS = {
   contextToolId: "patchwork:contextSidebarToolId",
 } as const;
 
+/**
+ * DOM event (dispatched on `window`) asking the context (right) sidebar to
+ * collapse. The left sidebar is host-owned and collapsed directly, but the
+ * right-sidebar collapse state lives inside `DocumentAreaRoot` (so it survives
+ * the isolation boundary), so the host signals it out-of-band through this event.
+ */
+export const COLLAPSE_CONTEXT_SIDEBAR_EVENT =
+  "patchwork:collapse-context-sidebar";
+
 /** Default sidebar width (px) when nothing is persisted. */
 export const DEFAULT_SIDEBAR_WIDTH = 400;
 
