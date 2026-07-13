@@ -539,8 +539,14 @@ function FrameLayout(props: {
   // document takes over. Under isolation the footer intercept above stops
   // account-bar events before they reach this listener, so only genuine document
   // opens (from the sidebar widgets) collapse.
+  //
+  // `.threepane-sidebar` is unmounted while the sidebar is collapsed and rebuilt
+  // on every re-expand (see `Sidebar`), so we (re)bind inside an effect keyed on
+  // the collapse state rather than once at mount — otherwise the first collapse
+  // destroys the element the listener was on and it never fires again.
   let sidebarContentEl: HTMLDivElement | undefined;
-  onMount(() => {
+  createEffect(() => {
+    if (props.sidebarState.isSidebarCollapsed()) return;
     const el = sidebarContentEl;
     if (!el) return;
     const onOpen = () => {
