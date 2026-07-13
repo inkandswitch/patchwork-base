@@ -24,6 +24,13 @@ export type AccountDoc = {
    * a ThreepaneConfigDoc holding the sidebar/doctitle layout.
    */
   tools?: Record<string, AutomergeUrl>;
+
+  /**
+   * When the module bundles' init scripts (example documents) ran for this
+   * account. Set before seeding, so examples are created at most once — a
+   * deleted Examples folder stays deleted.
+   */
+  exampleDocsSeededAt?: number;
 };
 
 /** @deprecated use AccountDoc */

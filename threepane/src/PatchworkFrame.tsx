@@ -42,6 +42,7 @@ import { render } from "solid-js/web";
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import { ensureThreepaneConfig } from "./account/ensureThreepaneConfig";
+import { seedExampleDocuments } from "./account/seedExampleDocuments";
 import { ensureFrameStyles } from "./ensureFrameStyles";
 
 type SelectedView = {
@@ -195,6 +196,7 @@ function PatchworkFrameInner(props: {
   void (async () => {
     await ensureAccountSubdocs(props.handle, props.repo);
     await ensureThreepaneConfig(props.handle, props.repo);
+    await seedExampleDocuments(props.handle, props.repo);
   })();
 
   const [docVersion, setDocVersion] = createSignal(0);
