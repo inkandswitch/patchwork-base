@@ -1,6 +1,7 @@
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { createDocOfDatatype2 } from "@inkandswitch/patchwork-plugins";
 import type { AccountDoc, ThreepaneConfigDoc, ToolRef, ToolSlot } from "../types";
+import { DEFAULT_TRAY_TOOLS } from "../datatypes";
 import { loadDatatypeWhenReady } from "./ensureSubdocs";
 
 // Title + spacer are intrinsic to the frame's top bar, never configured tools.
@@ -18,9 +19,10 @@ function defaultSidebarWidgets(rootFolderUrl?: AutomergeUrl): ToolRef[] {
 /**
  * Lazily create the threepane layout config doc and point `account.tools.threepane`
  * at it, migrating the legacy `account.documentToolbarToolIds` into its
- * `doctitle` lane. The context sidebar and system tray are registry-driven
- * (every `patchwork:component` tagged `"context-tool"` / `"system-tray"`), so
- * there's nothing to migrate or backfill for them.
+ * `doctitle` lane. The context sidebar is host chrome and still registry-driven
+ * (every `patchwork:component` tagged `"context-tool"`); the system tray is now
+ * an explicit `tray` list here, seeded with `DEFAULT_TRAY_TOOLS` (and backfilled
+ * for configs created before the field existed).
  *
  * Seeds the sidebar with a default document-list widget (pinned to the account's
  * root folder), so the left pane is never empty. Expects `rootFolderUrl` to be
@@ -45,6 +47,11 @@ export async function ensureThreepaneConfig(
     configHandle.change((doc) => {
       if (rootFolderUrl && !doc.sidebar?.widgets?.length) {
         doc.sidebar.widgets = defaultSidebarWidgets(rootFolderUrl);
+      }
+      // Backfill the tray for configs created before it moved out of the
+      // registry onto this doc, so existing accounts keep their system tray.
+      if (!doc.tray) {
+        doc.tray = DEFAULT_TRAY_TOOLS.slice();
       }
     });
     return;
@@ -76,6 +83,7 @@ export async function ensureThreepaneConfig(
   configHandle.change((doc) => {
     doc.doctitle.tools = doctitleTools;
     doc.sidebar.widgets = defaultSidebarWidgets(account?.rootFolderUrl);
+    if (!doc.tray) doc.tray = DEFAULT_TRAY_TOOLS.slice();
   });
 
   accountHandle.change((acc) => {

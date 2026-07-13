@@ -1,6 +1,7 @@
 // Imported as a string (not a side-effect import) so the stylesheet is only
 // injected when the frame tool actually activates — not when index.js loads.
-import frameStyles from "./styles.css?inline";
+// esbuild's `.css` text loader (esbuild/options.ts) returns the CSS source.
+import frameStyles from "./styles.css";
 
 /**
  * Inject the threepane stylesheet into the current realm's document, once.

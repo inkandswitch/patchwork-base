@@ -12,7 +12,7 @@ import {
 } from "solid-js";
 
 import { relativeTime } from "./relative-time";
-import { useDocument } from "@automerge/automerge-repo-solid-primitives";
+import { useDocument } from "solid-automerge";
 import {
   type AutomergeUrl,
   type DocHandle,

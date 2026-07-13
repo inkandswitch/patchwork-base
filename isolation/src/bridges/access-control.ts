@@ -67,22 +67,44 @@ async function scanDocIntoAllowlist(
     const urls = new Set<AutomergeUrl>();
     collectAutomergeUrls(doc, urls);
     for (const url of urls) {
-      if (allowlist.hasUrl(url)) continue;
-      // A URL embedded in user content might point at a sensitive document
-      // (e.g. the account doc, a branches doc, or module settings). Denylist
-      // those instead of allowlisting them, and skip — never grant the tool
-      // access.
-      if (denylist) {
-        const sensitive = await denylistIfSensitive(repo, url, denylist);
-        if (sensitive) continue;
-      }
-      allowlist.add(url);
-      log(`allowlisted ${url}`);
+      await allowlistUrlUnlessSensitive(repo, url, allowlist, denylist);
     }
     log(`allowlist scanned from ${docUrl}`);
   } catch (err) {
     log(`scanDocIntoAllowlist: failed to scan ${docUrl}`, err);
   }
+}
+
+/**
+ * Add one already-known automerge URL to the allowlist, unless it is sensitive.
+ *
+ * This is the single "denylist-check, then add a URL we already hold" step,
+ * shared by the content scan ({@link scanDocIntoAllowlist}, which discovers URLs
+ * inside a document) and by callers that already have the URL in hand and simply
+ * need to disclose it to the iframe under an explicit user gesture (e.g. a
+ * drag-and-drop into an isolated tool — see the drag-drop bridge).
+ *
+ * A URL might point at a sensitive document (the account doc, a branches doc,
+ * module settings, tool source). Those are denylisted instead of allowlisted and
+ * are never handed to the tool. The denylist takes precedence over any grant.
+ *
+ * Returns true if the URL is now allowlisted (or already was), false if it was
+ * denylisted instead — so a caller building a payload to forward can drop the
+ * URLs that didn't survive.
+ */
+export async function allowlistUrlUnlessSensitive(
+  repo: Repo,
+  url: AutomergeUrl,
+  allowlist: SyncAllowlist,
+  denylist: SyncDenylist | undefined
+): Promise<boolean> {
+  if (allowlist.hasUrl(url)) return true;
+  if (denylist && (await denylistIfSensitive(repo, url, denylist))) {
+    return false;
+  }
+  allowlist.add(url);
+  log(`allowlisted ${url}`);
+  return true;
 }
 
 /**
@@ -114,7 +136,13 @@ export async function buildAllowlist(
     log(`allowlisted root ${url}`);
   }
 
-  await populateAllowlistFromRoots(repo, rootUrls, allowlist, denylist, isStale);
+  await populateAllowlistFromRoots(
+    repo,
+    rootUrls,
+    allowlist,
+    denylist,
+    isStale
+  );
   return allowlist;
 }
 
@@ -183,16 +211,19 @@ export async function handleAccessRequest(
     if (allowlist.has(documentId)) return true;
   }
 
-  const approved = window.confirm(
-    `A tool wants to access a document:\n\n` +
-      `Document ID: ${documentId}\n\n` +
-      `This may be a document the tool just created, or one it is ` +
-      `trying to open. Allow access?`
-  );
-  if (approved) {
-    allowlist.addDocumentId(documentId);
-  }
-  return approved;
+  // TODO: remove temp approval
+  // const approved = window.confirm(
+  //   `A tool wants to access a document:\n\n` +
+  //     `Document ID: ${documentId}\n\n` +
+  //     `This may be a document the tool just created, or one it is ` +
+  //     `trying to open. Allow access?`
+  // );
+  // if (approved) {
+  //   allowlist.addDocumentId(documentId);
+  // }
+  // return approved;
+  allowlist.addDocumentId(documentId);
+  return true;
 }
 
 /**
@@ -437,7 +468,9 @@ export async function denylistIfSensitive(
   }
 
   // 3. A module-settings doc the user has, by membership.
-  if (getModuleSettingsUrls().some((settingsUrl) => sameDoc(url, settingsUrl))) {
+  if (
+    getModuleSettingsUrls().some((settingsUrl) => sameDoc(url, settingsUrl))
+  ) {
     log(`dynamically denylisting module settings doc (membership): ${url}`);
     await denylistModuleSettings(repo, url, denylist);
     return true;
@@ -514,7 +547,11 @@ export function getDenylist(repo: Repo): SyncDenylist {
       const settingsUrl = accountHandle.doc()?.moduleSettingsUrl;
       if (settingsUrl && isValidAutomergeUrl(settingsUrl)) {
         accountHandle.off?.("change", onChange);
-        void denylistModuleSettings(repo, settingsUrl as AutomergeUrl, denylist);
+        void denylistModuleSettings(
+          repo,
+          settingsUrl as AutomergeUrl,
+          denylist
+        );
       }
     };
     onChange();

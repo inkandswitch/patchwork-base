@@ -35,7 +35,7 @@ export const ThemeProvider: ParentComponent<{rootEl: HTMLElement}> = (props) => 
 	}
 
 	function recompute() {
-		// `.chat-root` background resolves to var(--studio-fill); the computed
+		// `.chat-root` background resolves to var(--editor-fill); the computed
 		// value is always an rgb()/rgba() string, so luminance is reliable.
 		const bg = getComputedStyle(props.rootEl).backgroundColor
 		setIsLightBg(luminance(bg) > 0.5)

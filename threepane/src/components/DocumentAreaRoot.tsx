@@ -28,11 +28,18 @@ import {
   createMemo,
   createSignal,
   on,
+  onCleanup,
+  onMount,
   Show,
   type Accessor,
 } from "solid-js";
 import type { ToolSlot } from "../types";
-import { useProviderReady, useTaggedComponents, SIDEBAR_KEYS } from "../hooks";
+import {
+  useProviderReady,
+  useTaggedComponents,
+  SIDEBAR_KEYS,
+  COLLAPSE_CONTEXT_SIDEBAR_EVENT,
+} from "../hooks";
 import { useSidebarResize } from "../hooks/useSidebarResize";
 import { FrameTopBar } from "./FrameTopBar";
 import { ContextSidebar } from "./ContextSidebar";
@@ -151,9 +158,21 @@ export function DocumentAreaRoot(props: DocumentAreaRootProps) {
     dragThreshold: DRAG_THRESHOLD,
   });
 
-  // Selected context-sidebar tab. Persisted so it survives reloads; the
-  // sidebar itself stays mounted across draft switches (the overlay provider
-  // re-points handles in place rather than remounting its subtree).
+  // The host collapses the left sidebar directly, but the right-sidebar collapse
+  // state lives here, so it asks us to collapse out-of-band via a window event
+  // (e.g. after a finger-tap opens a document in the left sidebar — see
+  // `FrameLayout`). Only wired on the host (non-isolated) path; the sandboxed
+  // iframe realm never receives the host's window events.
+  onMount(() => {
+    const onCollapse = () => setIsRightSidebarCollapsed(true);
+    window.addEventListener(COLLAPSE_CONTEXT_SIDEBAR_EVENT, onCollapse);
+    onCleanup(() =>
+      window.removeEventListener(COLLAPSE_CONTEXT_SIDEBAR_EVENT, onCollapse)
+    );
+  });
+
+  // Selected context-sidebar tab, lifted above the per-draft remount boundary so
+  // the active tab survives branch switches even though its content remounts.
   const [selectedContextToolId, setSelectedContextToolId] = makePersisted(
     createSignal<string | undefined>(),
     { name: SIDEBAR_KEYS.contextToolId }
@@ -245,13 +264,12 @@ function DraftDocumentArea(props: {
     () => checkedOut()?.checkedOut ?? "main"
   );
 
-  // Registry-driven: whether the right sidebar exists at all (tabs or tray)
-  // no longer depends on any per-account config — just on whether anything is
-  // currently tagged for either lane.
+  // Registry-driven: whether the context sidebar exists at all (any tabs) — no
+  // longer depends on any per-account config, just on whether anything is
+  // currently tagged `context-tool`. The system tray is separate host chrome in
+  // the left sidebar (see `PatchworkFrame`) and no longer gates this column.
   const contextItems = useTaggedComponents("context-tool");
-  const trayItems = useTaggedComponents("system-tray");
-  const hasContextOrTray = () =>
-    contextItems().length > 0 || trayItems().length > 0;
+  const hasContext = () => contextItems().length > 0;
 
   // When a history entry is checked out, view the selected doc at its pinned
   // heads. The overlay reapplies these heads onto the draft's clone, yielding a
@@ -327,7 +345,7 @@ function DraftDocumentArea(props: {
                       docUrl={props.selectedDocUrl}
                       toolSlots={props.doctitleSlots}
                       isLeftCollapsed={props.isLeftCollapsed}
-                      hasContext={hasContextOrTray}
+                      hasContext={hasContext}
                       isRightCollapsed={props.isRightSidebarCollapsed}
                       onToggleRight={() =>
                         props.setIsRightSidebarCollapsed((v) => !v)
@@ -349,7 +367,7 @@ function DraftDocumentArea(props: {
                     </div>
                   </div>
 
-                  <Show when={hasContextOrTray()}>
+                  <Show when={hasContext()}>
                     <ContextSidebar
                       selectedToolId={props.selectedContextToolId}
                       setSelectedToolId={props.setSelectedContextToolId}

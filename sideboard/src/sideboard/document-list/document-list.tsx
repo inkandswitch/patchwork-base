@@ -32,7 +32,6 @@ import {
   Switch,
 } from "solid-js";
 import {
-  filter,
   filterMatches,
   setRenaming,
   pendingNewDoc,
@@ -68,6 +67,8 @@ export interface DocumentListProps {
   visitedFolders?: Set<AutomergeUrl>;
   element: PatchworkViewElement;
   rootFolderHandle: DocHandle<FolderDoc>;
+  filter: string;
+  clearFilter(): void;
 }
 
 export function DocumentList(props: DocumentListProps) {
@@ -103,6 +104,7 @@ export function DocumentList(props: DocumentListProps) {
         hive={props.hive}
         onCreate={commitPending}
         onDismiss={() => setPendingNewDoc(null)}
+        clearFilter={props.clearFilter}
       />
     </div>
   );
@@ -163,7 +165,8 @@ export function DocumentList(props: DocumentListProps) {
     <>
       <For each={props.docs}>
         {(doc, index) => {
-          const visible = () => !filter().length || filterMatches(doc.name);
+          const visible = () =>
+            !props.filter.length || filterMatches(props.filter, doc.name);
           const remove = () => removeItem(index());
           const relid = () => props.handle.url + "/" + index();
           const rename = (name: string) => {
@@ -295,6 +298,8 @@ export function DocumentList(props: DocumentListProps) {
                       visitedFolders={visitedFolders}
                       element={props.element}
                       rootFolderHandle={props.rootFolderHandle}
+                      filter={props.filter}
+                      clearFilter={props.clearFilter}
                     />
                   </Show>
                 </Match>

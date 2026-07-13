@@ -28,11 +28,13 @@ import type {
   ProvidersBridge,
 } from "./providers-bridge.js";
 import type { setupEsModuleShims } from "./es-module-shims.js";
+import type { installWorkerShim } from "./worker-shim.js";
 import type { createRegistry, Registry } from "./registry.js";
 import type {
   createRootComponentData,
   RootComponentData,
 } from "./root-component-data.js";
+import type { createDragDrop, DragDrop } from "./drag-drop.js";
 
 // ---------------------------------------------------------------------------
 // Type declarations for runtime globals available inside the iframe.
@@ -74,8 +76,16 @@ interface BootDeps {
   createRpcClient: typeof createRpcClient;
   createProvidersBridge: typeof createProvidersBridge;
   setupEsModuleShims: typeof setupEsModuleShims;
+  installWorkerShim: typeof installWorkerShim;
+  /**
+   * `workerBootstrap` serialized to source (`.toString()`), assembled in
+   * ../host/srcdoc.ts. Passed as a string (not a function) because it runs
+   * inside a worker blob, not the iframe — `installWorkerShim` embeds it.
+   */
+  workerBootstrapSource: string;
   createRegistry: typeof createRegistry;
   createRootComponentData: typeof createRootComponentData;
+  createDragDrop: typeof createDragDrop;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,8 +100,11 @@ export async function boot(deps: BootDeps) {
     createRpcClient,
     createProvidersBridge,
     setupEsModuleShims,
+    installWorkerShim,
+    workerBootstrapSource,
     createRegistry,
     createRootComponentData,
+    createDragDrop,
   } = deps;
   // Minimal debug-compatible logger. The real `debug` package isn't available
   // until modules load, but we need logging during bootstrap.
@@ -141,6 +154,7 @@ export async function boot(deps: BootDeps) {
   let providers: ProvidersBridge;
   let registry: Registry;
   let rootComponentData: RootComponentData;
+  let dragDrop: DragDrop;
 
   // Route an inbound RPC message to whichever consumer owns it.
   function handleRpcMessage(event: MessageEvent) {
@@ -148,6 +162,7 @@ export async function boot(deps: BootDeps) {
     if (providers.handle(event)) return;
     if (registry.handle(event)) return;
     if (rootComponentData.handle(event)) return;
+    if (dragDrop.handle(event)) return;
   }
 
   // 3. Wait for the init ("boot") message from the host.
@@ -169,6 +184,7 @@ export async function boot(deps: BootDeps) {
   providers = createProvidersBridge(rpcPort, log);
   registry = createRegistry(log);
   rootComponentData = createRootComponentData(log);
+  dragDrop = createDragDrop(log);
   rpcPort.addEventListener("message", handleRpcMessage);
   rpcPort.start();
 
@@ -244,6 +260,20 @@ export async function boot(deps: BootDeps) {
     const hostOrigin = d.hostOrigin;
     installFetchProxy(hostOrigin, rpc.fetchResource, log);
     installLinkInterception(hostOrigin, log);
+
+    // Also intercept tool-spawned Web Workers: a worker can't load a host-origin
+    // script from the opaque-origin iframe, so route its module loading back
+    // through this iframe's RPC (same automerge filter, no new host surface, no
+    // sync port). See ./worker-shim.ts.
+    installWorkerShim({
+      fetchModule: rpc.fetchModule,
+      fetchResource: rpc.fetchResource,
+      esmsSource: d.esmsSource,
+      workerBootstrapSource,
+      importMap: d.importMap,
+      hostOrigin,
+      log,
+    });
 
     // 11. Create in-memory Repo
     const syncAdapter = new messagechannel.MessageChannelNetworkAdapter(

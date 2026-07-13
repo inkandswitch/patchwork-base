@@ -5,7 +5,7 @@ import type { AutomergeUrl } from "@automerge/automerge-repo/slim";
 import {
   makeDocumentProjection,
   useDocument,
-} from "@automerge/automerge-repo-solid-primitives";
+} from "solid-automerge";
 import {
   createMemo,
   createEffect,

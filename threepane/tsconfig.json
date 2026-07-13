@@ -6,7 +6,7 @@
     "outDir": "dist",
     "declaration": true,
     "lib": ["ESNext", "DOM"],
-    "types": ["vite/client"],
+    "types": [],
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,

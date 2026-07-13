@@ -13,16 +13,21 @@ export {
   SyncAllowlist,
   type IntermediaryRepo,
 } from "./repo-bridge.js";
-export { PackagesUrlMapper } from "./url-mapping.js";
 export { startResourceBridge } from "./resource-bridge.js";
-export { getRegistries, watchRegistries } from "./registry-bridge.js";
+export {
+  PackagesUrlMapper,
+  getRegistries,
+  watchRegistries,
+} from "./registry-bridge.js";
 export {
   buildAllowlist,
   handleAccessRequest,
   requestBridgedUrlAccess,
+  allowlistUrlUnlessSensitive,
   getDenylist,
 } from "./access-control.js";
 export { startHostNavigationBridge } from "./navigation-bridge.js";
+export { startHostDragDropBridge } from "./drag-drop-bridge.js";
 export {
   startHostProvidersBridge,
   resolveBridgedProviders,

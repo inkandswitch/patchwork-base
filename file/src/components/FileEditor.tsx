@@ -2,7 +2,7 @@ import {Show, Match, Switch} from "solid-js"
 import {
 	useDocHandle,
 	createDocumentProjection,
-} from "@automerge/automerge-repo-solid-primitives"
+} from "solid-automerge"
 import type {FileDoc} from "../types"
 import {isImmutableStringFileDoc} from "../datatype"
 import {isImageFile} from "../utils"

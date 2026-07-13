@@ -3,7 +3,6 @@ import type { Accessor } from "solid-js";
 import { useTaggedComponents } from "../hooks";
 import { Sidebar } from "./Sidebar";
 import { ContextTabs } from "./ContextTabs";
-import { Tray } from "./Tray";
 
 type ContextSidebarProps = {
   /**
@@ -16,16 +15,16 @@ type ContextSidebarProps = {
   width: Accessor<number>;
   onMouseDown: (side: "left" | "right", e: MouseEvent) => void;
   onToggleClick: (side: "left" | "right", e: MouseEvent) => void;
+  canExpand?: Accessor<boolean>;
   /** Collapse the sidebar, from its own tab-header button. */
   onCollapse: () => void;
 };
 
 /**
  * The document context sidebar: a full-height column with its own tab header
- * (the tabs that select the active tool, plus a collapse button), the active
- * context tool's content, and the bottom tray. Living inside the sidebar — not
- * up in the top bar — lets the resize divider on its left edge run the whole
- * frame height and be draggable end to end, exactly like the left sidebar.
+ * (the tabs that select the active tool, plus a collapse button), and the
+ * active context tool's content. The system tray is separate host chrome in the
+ * left sidebar (owned by `PatchworkFrame`) — it no longer lives here.
  *
  * The tab list is every `patchwork:component` tagged `"context-tool"` —
  * registry-driven, not configured — so it's always rendered as a bare
@@ -49,11 +48,8 @@ export function ContextSidebar(props: ContextSidebarProps) {
       width={props.width}
       onMouseDown={props.onMouseDown}
       onToggleClick={props.onToggleClick}
-      persistContent
+      canExpand={props.canExpand}
     >
-      {/* Persisted while collapsed (hidden via CSS) so the tray keeps running.
-          The active context tool itself still tears down on collapse — only the
-          system tray needs to stay alive secretly. */}
       <div class="context-sidebar">
         {/* Tab header: selects the active tool, with a collapse button at the
             end. Only when there are tabs — a tray-only sidebar has no header
@@ -83,7 +79,6 @@ export function ContextSidebar(props: ContextSidebarProps) {
             </Show>
           </div>
         </Show>
-        <Tray />
       </div>
     </Sidebar>
   );

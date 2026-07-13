@@ -336,7 +336,10 @@ function getDropValidationError(
     const sourceId = sourceItem.folderUrl + "/" + sourceItem.index;
 
     // Prevent dropping item onto itself
-    if (sourceId === operation.targetId) {
+    if (
+      sourceId === operation.targetId ||
+      sourceItem.url === operation.targetId
+    ) {
       return `Cannot drop item onto itself (${sourceItem.item.name})`;
     }
 

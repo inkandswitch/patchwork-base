@@ -10,7 +10,7 @@ import {
   For,
 } from "solid-js";
 
-import { useRepo } from "@automerge/automerge-repo-solid-primitives";
+import { useRepo } from "solid-automerge";
 import {
   type AutomergeUrl,
   type DocHandle,

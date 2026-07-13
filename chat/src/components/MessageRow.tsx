@@ -1,5 +1,5 @@
 import {Show, Switch, Match, createMemo} from "solid-js"
-import {useDocument} from "@automerge/automerge-repo-solid-primitives"
+import {useDocument} from "solid-automerge"
 import type {ChatMessage} from "../types"
 import type {CuteSchema} from "../lib/syntax-schema"
 import {Avatar} from "./Avatar"

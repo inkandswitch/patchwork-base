@@ -1,4 +1,4 @@
-import { useDocument } from "@automerge/automerge-repo-solid-primitives";
+import { useDocument } from "solid-automerge";
 import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
 import type { PatchworkViewElement } from "@inkandswitch/patchwork-elements";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
@@ -7,8 +7,6 @@ import { createEffect, createSignal, onCleanup, Show, Suspense } from "solid-js"
 import { render } from "solid-js/web";
 
 import {
-  filter,
-  setFilter,
   setPendingNewDoc,
   setAutoExpandedFolders,
 } from "./state.ts";
@@ -38,6 +36,7 @@ export function DocumentListPanel(props: {
   const [folder, folderHandle] = useDocument<FolderDoc>(() => props.folderUrl, {
     repo: props.repo,
   });
+  const [filter, setFilter] = createSignal("");
 
   // Optimistic loading: show the skeleton from the moment the panel mounts and
   // keep it up until the root folder handle has actually resolved. Reading the
@@ -194,6 +193,7 @@ export function DocumentListPanel(props: {
           <CreateNew
             square
             draggable
+            clearFilter={() => setFilter("")}
             changeFolder={(fn) => folderHandle()?.change(fn)}
             repo={props.repo}
             hive={props.element.hive}
@@ -222,6 +222,8 @@ export function DocumentListPanel(props: {
               selectedDocUrls={selectedDocUrls()}
               element={props.element}
               rootFolderHandle={folderHandle.latest!}
+              filter={filter()}
+              clearFilter={() => setFilter("")}
             />
           </Suspense>
         </Show>

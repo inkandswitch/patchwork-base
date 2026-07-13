@@ -4,6 +4,11 @@
   --threepane-bg: var(--studio-fill, white);
   --threepane-sidebar-fill: var(--studio-chrome, var(--studio-fill, white));
   --threepane-fg: var(--studio-line, black);
+  /* ink for text sitting ON the sidebar/account-bar chrome surface. mirrors the
+     toolbar/context-sidebar fg: it rides --studio-chrome-line (the chrome's own
+     ink) so it tracks the chrome palette, not the content page. --threepane-fg
+     is content ink and only belongs on --threepane-bg surfaces. */
+  --threepane-sidebar-fg: var(--studio-chrome-line, var(--studio-line, black));
   --threepane-muted: var(--studio-line-offset-50, #999);
   --threepane-family: var(--studio-family-sans, system-ui, sans-serif);
   --threepane-family-code: var(--studio-family-code, ui-monospace, monospace);
@@ -32,8 +37,10 @@
 
   /* the left footer and right tray boxes share one height so they line up. */
   --threepane-tray-height: var(--threepane-space-2xl);
-  /* sidebar toggles ride a touch paler than the line (first ink offset). */
-  --threepane-toggle-fg: var(--studio-line-offset-10, #333);
+  /* sidebar toggles ride a touch paler than the line (first ink offset). they
+     sit on chrome (left toggle over the sidebar, right over the toolbar), so
+     they use the chrome ink ramp, not the content one. */
+  --threepane-toggle-fg: var(--studio-chrome-line-offset-10, var(--studio-line-offset-10, #333));
 
   --threepane-toolbar: var(--studio-chrome, white);
   /* toolbar text rides on the chrome surface, so it uses the chrome ink */
@@ -43,8 +50,8 @@
      (it mixes toward the chrome ink, so it reads darker on light themes and
      lighter on dark ones), plus a primary-tinted glow + grab pill on hover. */
   --threepane-sidebar-divider: var(--studio-chrome-offset-20, #d4d4d4);
-  --threepane-resize-glow: color-mix(in oklch, var(--studio-primary, #35f7ca), transparent 35%);
-  --threepane-resize-pill: var(--studio-primary, #35f7ca);
+  --threepane-resize-glow: color-mix(in oklch, var(--studio-primary-fill, var(--studio-primary, #35f7ca)), transparent 35%);
+  --threepane-resize-pill: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
 
   /* The context (right) sidebar sits on a chrome surface stepped one offset off
      the toolbar's flat chrome, so the two chrome regions read as distinct. */
@@ -63,7 +70,7 @@
   --context-sidebar-tab-hover: var(--studio-chrome-offset-10, #e5e5e5);
   --context-sidebar-tab-active-bg: var(--studio-fill, white);
   --context-sidebar-tab-active-fg: var(--studio-line, black);
-  --context-sidebar-tab-active-accent: var(--studio-primary, #35f7ca);
+  --context-sidebar-tab-active-accent: var(--studio-primary-line, var(--studio-primary, #35f7ca));
   /* the content panel shares the active tab's surface so the selected tab
      connects seamlessly into the tool view below it */
   --context-sidebar-content-bg: var(--context-sidebar-tab-active-bg);
@@ -78,6 +85,7 @@
   font-family: var(--threepane-family);
   color: var(--threepane-fg);
   background: var(--threepane-bg);
+}
 
 .frame__version {
   position: absolute;
@@ -108,6 +116,7 @@
 
 .sidebar[data-side="left"] {
   background: var(--threepane-sidebar-fill);
+  color: var(--threepane-sidebar-fg);
 }
 
 .sidebar[data-side="right"] {
@@ -127,6 +136,7 @@
    [document column | right sidebar], so the right sidebar spans the full frame
    height and its resize divider runs top-to-bottom exactly like the left one. */
 .frame__main-column {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -140,10 +150,22 @@
 .frame__doc-column {
   flex: 1;
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+
+.frame__doc-column > patchwork-view,
+.frame__doc-column > patchwork-view > patchwork-view,
+.frame__doc-column > patchwork-view > patchwork-view > patchwork-view,
+.frame__doc-column
+  > patchwork-view
+  > patchwork-view
+  > patchwork-view
+  > patchwork-view {
+  display: contents;
 }
 
 /* The full-width top toolbar. Its height + top safe-area inset match the
@@ -204,7 +226,7 @@
 }
 
 .frame__sidebar-toggle:hover {
-  color: var(--threepane-fg);
+  color: var(--threepane-sidebar-fg);
 }
 
 /* The document title, rendered intrinsically: shrinks to the title's width but
@@ -342,14 +364,6 @@
   border-left: 1px solid var(--context-sidebar-border);
 }
 
-/* The right sidebar persists its content while collapsed so the system tray's
-   tools keep running. The shell is 0px with visible overflow, so hide the
-   content here — `display: none` keeps the tray's elements mounted (and alive)
-   without letting them spill into the main area. */
-.sidebar[data-side="right"][data-collapsed] .context-sidebar {
-  display: none;
-}
-
 /* Tab bar: the row holding the tab list and the collapse button. Its height +
    top safe-area inset match the document column's top bar so the two header
    strips line up and their bottom hairlines read as one continuous line across
@@ -471,9 +485,18 @@
   min-height: 0;
 }
 
+/* Reserve the docked tray's height at the sidebar's bottom so the account bar
+   sits above the tray (which is pinned outside this collapsing column). */
+.threepane-sidebar--has-tray {
+  padding-bottom: calc(
+    var(--threepane-tray-height) + env(safe-area-inset-bottom, 0px)
+  );
+}
+
 /* account / packages / settings footer, pinned to the sidebar bottom */
-.threepane-sidebar__footer {
+.threepane-sidebar--has-tray .threepane-sidebar__footer {
   flex: none;
+  margin-bottom: calc(var(--threepane-tray-height) + env(safe-area-inset-bottom, 0px));
 }
 
 /* The inlined account bar: avatar (account picker) + Packages + Settings. Ported
@@ -487,10 +510,10 @@
   min-height: var(--threepane-space-2xl);
   box-sizing: border-box;
   background: var(--threepane-sidebar-fill);
-  color: var(--threepane-fg);
+  color: var(--threepane-sidebar-fg);
   border-top: 1px solid var(--threepane-sidebar-divider);
-  padding-block: var(--threepane-space-md);
-  padding-bottom: calc(var(--threepane-space-md) + env(safe-area-inset-bottom));
+  padding-block: var(--threepane-space-2xs);
+  padding-bottom: calc(var(--threepane-space-2xs) + env(safe-area-inset-bottom));
   padding-left: calc(env(safe-area-inset-left) + var(--threepane-space-md));
   padding-right: calc(env(safe-area-inset-right) + var(--threepane-space-md));
   justify-content: space-between;
@@ -571,8 +594,8 @@
 }
 
 .threepane-widgets__add:hover:not(:disabled) {
-  color: var(--threepane-fg);
-  border-color: var(--threepane-fg);
+  color: var(--threepane-sidebar-fg);
+  border-color: var(--threepane-sidebar-fg);
 }
 
 .threepane-widgets__add:disabled {
@@ -580,16 +603,53 @@
   cursor: default;
 }
 
-/* Right sidebar tray: a row of tray-tagged tools pinned to the bottom. */
+/* System tray dock: pinned to the frame's bottom-left. Lives outside the
+   collapsing left sidebar so it isn't torn down when the sidebar closes. When
+   the sidebar is open the dock spans its width (set inline) and fills the space
+   reserved by `threepane-sidebar--has-tray`; when the sidebar closes the dock is
+   hidden (`display: none`) but stays mounted, so the tray is invisible while its
+   tools keep running. */
+.frame__tray-dock {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 4;
+  box-sizing: border-box;
+  /* Fade the tray in only *after* the sidebar's width animation completes, so it
+     doesn't flash at full size over the still-expanding sidebar. The delay equals
+     the sidebar's transition duration; collapsing overrides this to hide at once. */
+  opacity: 1;
+  transition: opacity 0.1s ease 0.25s;
+}
+
+.frame__tray-dock--collapsed {
+  opacity: 0;
+  pointer-events: none;
+  /* Hide immediately on collapse — no wait, no fade. */
+  transition: opacity 0s;
+}
+
+/* A row of tray-tagged tools, filling the dock. */
 .frame-tray {
   display: flex;
   align-items: center;
   gap: var(--threepane-space-2xs);
   box-sizing: border-box;
-  min-height: var(--threepane-tray-height);
+  /* min-height includes the safe-area inset (border-box), and the matching
+     padding-bottom lifts the tray's contents clear of it while the tray's own
+     background fills the inset down to the very bottom edge. */
+  min-height: calc(
+    var(--threepane-tray-height) + env(safe-area-inset-bottom, 0px)
+  );
   padding-inline: var(--threepane-space-sm);
-  border-top: 1px solid var(--context-sidebar-border);
-  background: var(--context-sidebar-content-bg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid var(--threepane-sidebar-divider);
+  background: var(--threepane-sidebar-fill);
+}
+
+.frame-tray__item {
+  display: flex;
+  align-items: center;
 }
 
 .frame-tray patchwork-view {
@@ -753,7 +813,29 @@
   animation: frame-popover-pop var(--studio-transition, 0.15s ease);
 }
 
-.frame__popover patchwork-view {
+/* The "Open with" picker, docked to the popover's top. Sits at its natural
+   height above the tool body; the doc-openwith tool renders a small titlebar
+   button, so this is left-aligned chrome rather than a full-height view. */
+.frame__popover-toolbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--threepane-space-sm);
+  padding: var(--threepane-space-sm) var(--threepane-space-md);
+  border-bottom: 1px solid var(--threepane-toolbar-border);
+}
+
+.frame__popover-toolbar patchwork-view {
+  display: block;
+}
+
+.frame__popover-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.frame__popover-body patchwork-view {
   display: block;
   width: 100%;
   height: 100%;
@@ -784,10 +866,10 @@
 :root,
 :host,
 [theme] {
-  --debug-toast-registered: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-line, black) 20%);
+  --debug-toast-registered: var(--studio-secondary-text, color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-line, black) 20%));
   --debug-toast-loaded: color-mix(in oklch, var(--studio-added, #35f7ca), var(--studio-line, black) 10%);
-  --debug-toast-removed: color-mix(in oklch, var(--studio-danger, #ff6a90), var(--studio-line, black) 20%);
-  --debug-toast-changed: color-mix(in oklch, var(--studio-warning, #f8c43b), var(--studio-line, black) 10%);
+  --debug-toast-removed: var(--studio-danger-text, color-mix(in oklch, var(--studio-danger, #ff6a90), var(--studio-line, black) 20%));
+  --debug-toast-changed: var(--studio-warning-text, color-mix(in oklch, var(--studio-warning, #f8c43b), var(--studio-line, black) 10%));
 }
 
 .frame {

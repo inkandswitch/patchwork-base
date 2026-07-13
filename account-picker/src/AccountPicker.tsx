@@ -4,7 +4,7 @@ import {
   useDocument,
   makeDocumentProjection,
   RepoContext,
-} from "@automerge/automerge-repo-solid-primitives";
+} from "solid-automerge";
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import "./styles.css";
 import type { DocHandle, Repo } from "@automerge/automerge-repo";

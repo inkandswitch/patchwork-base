@@ -2,9 +2,13 @@
 # modules.json + tools/). The shell (site/) is deployed separately and points
 # at this site's modules.json via VITE_DEFAULT_MODULES / localStorage.
 #
-# CORS for cross-origin module import() is emitted into the publish dir as a
-# `_headers` file by scripts/build-static.mjs (also honoured by Cloudflare
-# Pages), so it isn't duplicated here.
+# The shell loads these cross-origin, so every response needs
+# `Access-Control-Allow-Origin: *`: the `modules.json` manifest, each tool's
+# `package.json` (now fetched to resolve its entry point, since manifest URLs
+# point at tool *directories*), and the entry JS that `import()` pulls in. That
+# header is set in the [[headers]] block below for Netlify, and also emitted
+# into the publish dir as a portable `_headers` file by scripts/bundle.mjs so
+# the same bundle works on Cloudflare Pages.
 #
 # Deploys run on Netlify's Git integration: production on the production branch,
 # automatic Deploy Previews for every PR. Also used by `pnpm deploy:tools` (CLI).
@@ -12,8 +16,13 @@
   publish = "static-dist"
   command = "pnpm build:tools:ci"
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+
 [build.environment]
   # Match the local toolchain. Netlify auto-detects pnpm from pnpm-lock.yaml;
   # pin PNPM_VERSION here too if you need an exact pnpm.
   NODE_VERSION = "22"
-  # PNPM_VERSION = "10"
+  PNPM_VERSION = "11.12.0"

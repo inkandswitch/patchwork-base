@@ -6,7 +6,7 @@ import { accept, type SubscribeEvent } from "@inkandswitch/patchwork-providers";
 import {
   useDocument,
   RepoContext,
-} from "@automerge/automerge-repo-solid-primitives";
+} from "solid-automerge";
 import {
   createSignal,
   createMemo,
@@ -27,9 +27,16 @@ type ModuleOption = {
   name: string;
 };
 
+const FRAME_RELOAD_DELAY_MS = 250;
+
 // Minimal shape shared by tool and component descriptions — all we need to
 // build the add-popover options.
-type Describable = { id: string; name?: string; tags?: string[] };
+type Describable = {
+  id: string;
+  name?: string;
+  tags?: string[];
+  unlisted?: boolean;
+};
 
 // Subscribe to a plugin registry (e.g. "patchwork:tool" or
 // "patchwork:component") and keep a reactive list of its descriptions.
@@ -52,7 +59,7 @@ function useDescriptions(type: string) {
 
 function filterToolsByTag(tools: Describable[], tag: string): ModuleOption[] {
   return tools
-    .filter((t) => (t.tags ?? []).includes(tag))
+    .filter((t) => !t.unlisted && (t.tags ?? []).includes(tag))
     .map((t) => ({ id: t.id, name: t.name || t.id }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -256,6 +263,10 @@ function ToolbarStrip(props: {
   let lastDropIndex: number | null = null;
 
   const currentIds = createMemo(() => new Set(props.values ?? []));
+  const listedIds = createMemo(() => new Set(props.allOptions.map((o) => o.id)));
+  const listedValues = createMemo(() =>
+    (props.values ?? []).filter((id) => listedIds().has(id))
+  );
   const available = createMemo(() =>
     props.allOptions.filter((o) => !currentIds().has(o.id))
   );
@@ -263,13 +274,12 @@ function ToolbarStrip(props: {
     props.allOptions.find((o) => o.id === id)?.name ?? id;
 
   const removeAt = (index: number) => {
-    const vals = props.values;
-    if (!vals) return;
+    const vals = listedValues();
     props.setValues(vals.filter((_, i) => i !== index));
   };
 
   const add = (id: string) => {
-    props.setValues([...(props.values ?? []), id]);
+    props.setValues([...listedValues(), id]);
   };
 
   const updateDropIndex = (i: number) => {
@@ -284,7 +294,7 @@ function ToolbarStrip(props: {
     setDropIndex(null);
     lastDropIndex = null;
     if (from == null || to == null || from === to) return;
-    const arr = [...(props.values ?? [])];
+    const arr = [...listedValues()];
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
     props.setValues(arr);
@@ -297,7 +307,7 @@ function ToolbarStrip(props: {
         class={`toolbar-strip${dragIndex() !== null ? " is-dragging" : ""}`}
         ref={nullSelectedDocRef}
       >
-        <For each={props.values ?? []}>
+        <For each={listedValues()}>
           {(id, index) => (
             <div
               class={`toolbar-box${itemDragClass(index(), dragIndex(), dropIndex())}`}
@@ -363,6 +373,7 @@ function ToolbarStrip(props: {
 
 function FrameConfiguratorUI(props: {
   handle: DocHandle<TinyPatchworkLayoutDoc>;
+  element: ToolElement;
 }) {
   const [accountDoc] = useDocument<TinyPatchworkLayoutDoc>(
     () => props.handle.url
@@ -395,19 +406,12 @@ function FrameConfiguratorUI(props: {
 
   const doctitleIds = () => threepaneDoc()?.doctitle?.tools?.map(slotId);
 
-  // Rebuild the lane from the strip's id list, preserving any entry that was a
-  // bare component id (so reordering/removing doesn't turn a component into a
-  // tool); ids added through the UI become [toolId, docId] tuples.
-  const toSlots = (ids: string[], prev: ToolSlot[] | undefined): ToolSlot[] => {
-    const components = new Set(
-      (prev ?? []).filter((s): s is string => typeof s === "string")
-    );
-    return ids.map((id) => (components.has(id) ? id : [id, docUrl]));
-  };
-
+  // doctitle (and contextbar) tools are stored as plain id strings, never
+  // [toolId, docId] tuples: the frame always points them at the selected
+  // main-view doc, so a tuple's docid would be ignored anyway.
   const setDoctitle = (next: string[]) =>
     threepaneHandle()?.change((doc) => {
-      doc.doctitle.tools = toSlots(next, doc.doctitle.tools);
+      doc.doctitle.tools = next.slice();
     });
 
   const setField = <K extends keyof TinyPatchworkLayoutDoc>(
@@ -430,7 +434,10 @@ function FrameConfiguratorUI(props: {
           value={accountDoc()!.frameToolId}
           onChange={(v) => {
             setField("frameToolId", v as any);
-            setTimeout(() => window.location.reload(), 50);
+            setTimeout(async () => {
+              await props.element.repo.flush().catch(() => null);
+              window.location.reload();
+            }, FRAME_RELOAD_DELAY_MS);
           }}
           options={frameOptions()}
           docUrl={docUrl}
@@ -450,17 +457,18 @@ function FrameConfiguratorUI(props: {
             docUrl={docUrl}
           />
         </Show>
-
-        <Show when={(accountDoc() as any)?.themePreferencesUrl}>
-          <div class="config-section">
-            <div class="section-label">Theme</div>
-            <div class="theme-embed">
-              <patchwork-view
-                doc-url={(accountDoc() as any).themePreferencesUrl}
-                tool-id="theme-picker"
-              />
+        <Show when={(accountDoc() as any)?.toolStorage?.["theme-preferences"]}>
+          {(themePreferencesUrl) => (
+            <div class="config-section">
+              <div class="section-label">Theme</div>
+              <div class="theme-embed">
+                <patchwork-view
+                  doc-url={themePreferencesUrl()}
+                  tool-id="theme-picker"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </Show>
       </div>
     </Show>
@@ -474,7 +482,7 @@ export function renderFrameConfigurator(
   const dispose = render(
     () => (
       <RepoContext.Provider value={element.repo}>
-        <FrameConfiguratorUI handle={handle} />
+        <FrameConfiguratorUI handle={handle} element={element} />
       </RepoContext.Provider>
     ),
     element

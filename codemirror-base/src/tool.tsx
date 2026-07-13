@@ -131,11 +131,10 @@ export function CodeMirrorEditor(props: PatchworkToolProps<TextDoc>) {
   };
 
   const decorations = () => {
-    const dark = prefersDarkMode();
     const targetRefs = commentTargets();
     const emphasisRefs = emphasisTargets();
     return RangeSet.of<Decoration>(
-      buildCommentDecorations(targetRefs, emphasisRefs, dark),
+      buildCommentDecorations(targetRefs, emphasisRefs),
       true // sort ranges
     );
   };
@@ -291,10 +290,6 @@ export const mount: ToolImplementation<TextDoc> = (handle, element) =>
     element
   );
 
-function prefersDarkMode(): boolean {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
 // The comments provider already scopes entries to this doc by `targetUrl`,
 // so this just dedupes and resolves each url to a `DocHandle`.
 async function getDedupedCommentTargets(
@@ -329,12 +324,12 @@ async function resolveSubDocUrlsOfDoc(
   return Array.from(refs);
 }
 
-// Targets that overlap `emphasisRefs` (selection ∪ highlight) render in
-// darker yellow; the rest stay in light yellow.
+// Targets that overlap `emphasisRefs` (selection ∪ highlight) render in a
+// stronger secondary tint; the rest stay in the plain secondary fill. Both are
+// theme tokens, so they adapt to light/dark on their own.
 function buildCommentDecorations(
   targetRefs: DocHandle<unknown>[],
-  emphasisRefs: DocHandle<unknown>[],
-  dark: boolean
+  emphasisRefs: DocHandle<unknown>[]
 ): Range<Decoration>[] {
   const out: Range<Decoration>[] = [];
   for (const ref of targetRefs) {
@@ -345,23 +340,21 @@ function buildCommentDecorations(
     const isEmphasised = emphasisRefs.some((s) => s.overlaps(ref));
     out.push(
       Decoration.mark({
-        attributes: { style: commentTargetStyle(isEmphasised, dark) },
+        attributes: { style: commentTargetStyle(isEmphasised) },
       }).range(start, end)
     );
   }
   return out;
 }
 
-function commentTargetStyle(isEmphasised: boolean, dark: boolean): string {
-  return isEmphasised
-    ? `
-        border-bottom: 2px solid ${dark ? "#facc15" : "#ca8a04"};
-        background-color: ${dark ? "#a16207" : "#fde047"};
-      `
-    : `
-        border-bottom: 2px solid ${dark ? "#ca8a04" : "#eab308"};
-        background-color: ${dark ? "#713f12" : "#fef9c3"};
-      `;
+function commentTargetStyle(isEmphasised: boolean): string {
+  const background = isEmphasised
+    ? "var(--studio-secondary-fill-offset-40)"
+    : "var(--studio-secondary-fill)";
+  return `
+    border-bottom: 2px solid var(--studio-secondary-line);
+    background-color: ${background};
+  `;
 }
 
 async function loadCodeMirrorExtensionsForDoc(

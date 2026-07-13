@@ -11,10 +11,11 @@
   --drafts-selected-bg: var(--studio-fill-offset-20, #eef2ff);
   --drafts-font: var(--studio-family-sans, system-ui, sans-serif);
   --drafts-mono: var(--studio-family-code, ui-monospace, monospace);
-  --drafts-primary: var(--studio-primary, #3b82f6);
-  --drafts-primary-fg: var(--studio-fill, white);
-  --drafts-warning: var(--studio-warning, #f59e0b);
-  --drafts-warning-fg: var(--studio-fill, white);
+  --drafts-primary: var(--studio-primary-fill, var(--studio-primary, #3b82f6));
+  --drafts-primary-line: var(--studio-primary-line, var(--studio-fill, white));
+  --drafts-primary-fg: var(--drafts-primary-line);
+  --drafts-warning: var(--studio-warning-fill, var(--studio-warning, #f59e0b));
+  --drafts-warning-fg: var(--studio-warning-line, var(--studio-fill, white));
   --drafts-radius: var(--studio-radius-md, 0.5rem);
   --drafts-radius-sm: var(--studio-radius-sm, 0.25rem);
   --drafts-shadow-sm: var(--studio-shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
@@ -124,8 +125,8 @@
 }
 
 .draft-card[data-selected] {
-  border-color: var(--drafts-primary);
-  box-shadow: 0 0 0 1px var(--drafts-primary);
+  border-color: var(--drafts-primary-line);
+  box-shadow: 0 0 0 1px var(--drafts-primary-line);
 }
 
 .draft-card-header {

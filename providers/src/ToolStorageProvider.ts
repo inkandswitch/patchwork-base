@@ -20,10 +20,16 @@ const pendingCreates = new Map<string, Promise<AutomergeUrl>>();
  * first request and remembered under `accountDoc.toolStorage[toolId]`.
  *
  * This gives any tool (in particular ones with no `docUrl` of their own, e.g.
- * a `patchwork:component` context tool) a place to persist its own data
- * without reaching for globals like `window.accountDocHandle`. The doc's
+ * a `patchwork:component` context tool, or system-tray/titlebar chrome that
+ * sits outside any document view) a place to persist its own data. The doc's
  * contents belong entirely to the requesting tool; this provider only owns
  * the account-doc pointer and the lazy-create.
+ *
+ * Because the storage is scoped to the *account*, we resolve the account doc
+ * from `window.accountDocHandle` (the canonical, bootloader-set handle) rather
+ * than the enclosing view's `doc-url` — which may be absent (tray/titlebar) or
+ * point at whatever document is currently open. The view's `doc-url` is only a
+ * legacy fallback for when the account handle isn't wired up yet.
  *
  * Selector shape: `{ type: "patchwork:tool-storage", toolId: string }`.
  */
@@ -41,11 +47,10 @@ export const ToolStorageProvider = (element: PatchworkViewElement) => {
     accept<AutomergeUrl>(event, (respond) => {
       let canceled = false;
 
-      const view = element.closest<HTMLElement>("patchwork-view") ?? element;
-      const accountDocUrl = view.getAttribute("doc-url") as AutomergeUrl | null;
+      const accountDocUrl = resolveAccountDocUrl(element);
       if (!accountDocUrl) {
         console.warn(
-          "[providers/tool-storage] no doc-url on enclosing view; cannot resolve account doc"
+          "[providers/tool-storage] no account doc handle or doc-url; cannot resolve account doc"
         );
         return;
       }
@@ -74,6 +79,20 @@ export const ToolStorageProvider = (element: PatchworkViewElement) => {
     element.removeEventListener("patchwork:subscribe", onSubscribe);
   };
 };
+
+// Resolve the account doc URL for account-scoped storage. Prefer the canonical
+// account handle set by the bootloader (`window.accountDocHandle`); fall back
+// to the enclosing view's `doc-url` only when it isn't available yet.
+function resolveAccountDocUrl(
+  element: PatchworkViewElement
+): AutomergeUrl | null {
+  const accountUrl = (globalThis as { accountDocHandle?: { url?: AutomergeUrl } })
+    .accountDocHandle?.url;
+  if (accountUrl) return accountUrl;
+
+  const view = element.closest<HTMLElement>("patchwork-view") ?? element;
+  return view.getAttribute("doc-url") as AutomergeUrl | null;
+}
 
 // Resolve the tool's private storage doc, creating + linking it into
 // `accountDoc.toolStorage[toolId]` on first use.

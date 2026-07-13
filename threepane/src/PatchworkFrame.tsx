@@ -2,7 +2,7 @@ import "@inkandswitch/patchwork-elements";
 import {
   useDocHandle,
   useDocument,
-} from "@automerge/automerge-repo-solid-primitives";
+} from "solid-automerge";
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { subscribe } from "@inkandswitch/patchwork-providers";
 import type {
@@ -13,20 +13,21 @@ import type { AccountDoc, ThreepaneConfigDoc, ToolSlot } from "./types";
 import {
   useSidebarState,
   useSidebarResize,
-  useProviderReady,
   useMainDocMounted,
   useDebugRegistryToast,
   DebugRegistryToast,
+  SIDEBAR_KEYS,
+  COLLAPSE_CONTEXT_SIDEBAR_EVENT,
   getStoredNumber,
   getStoredBoolean,
-  SIDEBAR_KEYS,
   DEFAULT_SIDEBAR_WIDTH,
 } from "./hooks";
 import { Sidebar } from "./components/Sidebar";
 import { SidebarWidgets } from "./components/SidebarWidgets";
-import { MainDocumentView } from "./components/MainDocumentView";
 import { DocumentAreaRoot } from "./components/DocumentAreaRoot";
 import { IsolatedDocumentArea } from "./components/IsolatedDocumentArea";
+import { MainDocumentView } from "./components/MainDocumentView";
+import { Tray } from "./components/Tray";
 import {
   createEffect,
   createMemo,
@@ -57,6 +58,31 @@ const MAX_SIDEBAR_WIDTH = 720;
 const AUTO_CLOSE_WIDTH = 120;
 const DRAG_THRESHOLD = 3;
 
+// Keep this tiny hook local to the frame chunk. Importing it from the shared
+// hooks chunk has produced an undefined binding in Safari before the frame can
+// mount its providers.
+const useFrameProviderReady = (
+  componentId: string,
+  element: Accessor<HTMLElement | undefined>
+): Accessor<boolean> => {
+  const [isReady, setReady] = createSignal(false);
+
+  createEffect(() => {
+    const el = element();
+    if (!el) return;
+    setReady(false);
+    const onMounted = (event: Event) => {
+      const detail = (event as CustomEvent<{ componentId?: string }>).detail;
+      if (detail?.componentId !== componentId) return;
+      setReady(true);
+    };
+    el.addEventListener("patchwork:mounted", onMounted);
+    onCleanup(() => el.removeEventListener("patchwork:mounted", onMounted));
+  });
+
+  return isReady;
+};
+
 // Fire a `patchwork:open-document` request from an account-bar button. Bubbles +
 // composed so it reaches the footer intercept (isolation → popover) or the
 // selected-doc provider (otherwise → main frame), matching the sideboard tool.
@@ -70,7 +96,7 @@ function dispatchOpen(el: HTMLElement, detail: OpenDocumentEventDetail) {
   );
 }
 
-export const PatchworkFrame = ({
+export function PatchworkFrame({
   handle,
   repo,
   ...props
@@ -78,27 +104,27 @@ export const PatchworkFrame = ({
   handle: DocHandle<AccountDoc>;
   repo: Repo;
   isolation?: boolean;
-}) => {
+}) {
   ensureFrameStyles();
   const accountDocUrl = handle.url;
 
   const [accountProviderElement, setAccountProviderElement] =
     createSignal<HTMLElement>();
-  const isAccountProviderReady = useProviderReady(
+  const isAccountProviderReady = useFrameProviderReady(
     "patchwork-account-provider",
     accountProviderElement
   );
 
   const [toolStorageProviderElement, setToolStorageProviderElement] =
     createSignal<HTMLElement>();
-  const isToolStorageProviderReady = useProviderReady(
+  const isToolStorageProviderReady = useFrameProviderReady(
     "patchwork-tool-storage-provider",
     toolStorageProviderElement
   );
 
   const [selectedDocProviderElement, setSelectedDocProviderElement] =
     createSignal<HTMLElement>();
-  const isSelectedDocProviderReady = useProviderReady(
+  const isSelectedDocProviderReady = useFrameProviderReady(
     "patchwork-selected-doc-provider",
     selectedDocProviderElement
   );
@@ -147,7 +173,7 @@ export const PatchworkFrame = ({
       </patchwork-view>
     </div>
   );
-};
+}
 
 function PatchworkFrameInner(props: {
   handle: DocHandle<AccountDoc>;
@@ -213,12 +239,14 @@ function PatchworkFrameInner(props: {
   // safe without a fallback here.
   // doctitle keeps its full slots (a [toolId, docId] tuple or a bare
   // component-id string); SlotView decides how to render each. The context
-  // sidebar and system tray are no longer configured here at all — they're
-  // registry-driven (every `patchwork:component` tagged `"context-tool"` /
-  // `"system-tray"`), resolved directly by `DocumentAreaRoot`.
+  // sidebar is host chrome and still registry-driven (every
+  // `patchwork:component` tagged `"context-tool"`), but the system tray is
+  // configured here — `tray` is its explicit ordered list of tools, rendered by
+  // the one stable host-owned instance below.
   const doctitleSlots = () => threepaneConfig()?.doctitle?.tools;
   const sidebarWidgets = (): ToolSlot[] =>
     threepaneConfig()?.sidebar?.widgets ?? [];
+  const traySlots = (): ToolSlot[] => threepaneConfig()?.tray ?? [];
   const rootFolderUrl = () => accountDoc()?.rootFolderUrl;
 
   const sidebarState = useSidebarState();
@@ -269,10 +297,15 @@ function PatchworkFrameInner(props: {
   const selectedDocUrl = () => selectedView()?.url;
   const selectedToolId = () => selectedView()?.toolId ?? undefined;
 
-  // Right-sidebar seeds, read from host localStorage. The host owns this read and
-  // hands the values to whichever document-area path renders (local DocumentAreaRoot
-  // or the isolated root via IsolatedDocumentArea's boot spec) — localStorage is
-  // stubbed inside the iframe, so the isolated path can't read it itself.
+  // Right-sidebar seeds, read from host localStorage. The host owns this read
+  // and hands the values to whichever document-area path renders — the local
+  // `DocumentAreaRoot`, or the isolated root via `IsolatedDocumentArea`'s boot
+  // spec (localStorage is stubbed inside the sandboxed iframe, so the isolated
+  // path can't read it itself). The right-sidebar collapse/width state and the
+  // selected context tab then live *inside* `DocumentAreaRoot`, so the context
+  // sidebar — and its chrome — sit inside the isolation boundary and are
+  // sandboxed alongside the main view. The system tray is separate trusted host
+  // chrome in the left sidebar (see `FrameLayout`).
   const initialRightWidth = () =>
     getStoredNumber(SIDEBAR_KEYS.rightWidth, DEFAULT_SIDEBAR_WIDTH);
   const initialRightCollapsed = () =>
@@ -315,6 +348,7 @@ function PatchworkFrameInner(props: {
         sidebarState={sidebarState}
         sidebarResize={sidebarResize}
         sidebarWidgets={sidebarWidgets}
+        traySlots={traySlots}
         configHandle={threepaneConfigHandle}
         rootFolderUrl={rootFolderUrl}
         widgetsReady={widgetsReady}
@@ -338,10 +372,13 @@ function PatchworkFrameInner(props: {
         >
           {/*
             Document area: isolated (rendered inside a sandboxed iframe) or local
-            (rendered directly). `isolation` is fixed per tool instance. The local
-            path threads `setMainDocElement` (for the host's widgetsReady race) and
-            seeds the right-sidebar state from host localStorage; the isolated path
-            owns that wiring itself (and can't drive the host ref from the iframe).
+            (rendered directly). `isolation` is fixed per tool instance. Both
+            paths render the whole main column (doc column + context sidebar) and
+            own the right-sidebar state, seeded from the host localStorage reads
+            above — so under isolation the context sidebar lives *inside* the
+            iframe, sandboxed with the main view. The local path additionally
+            threads `setMainDocElement` for the host's widgetsReady race (the
+            iframe can't drive that host ref).
           */}
           <Show
             when={props.isolation}
@@ -384,26 +421,59 @@ function PatchworkFrameInner(props: {
 // run in the host realm instead of being routed into the isolated main frame.
 // Click the backdrop or press Escape to dismiss.
 function FramePopover(props: { view: SelectedView; onClose: () => void }) {
+  // The tool the popover currently renders the doc with. Seeded from the
+  // intercepted open request and re-pointed by the "Open with" picker in the
+  // toolbar (below) without leaving the popover. Reset whenever a fresh view is
+  // opened.
+  const [toolId, setToolId] = createSignal(props.view.toolId ?? undefined);
+  createEffect(() => setToolId(props.view.toolId ?? undefined));
+
+  let popoverEl: HTMLDivElement | undefined;
+
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") props.onClose();
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => window.removeEventListener("keydown", onKey));
+
+    // The "Open with" picker (and any tool inside the popover) fires
+    // `patchwork:open-document`. Catch it here and re-point the popover in place
+    // rather than letting it bubble out to the selected-doc provider — these are
+    // host-realm chrome tools that must not be routed into the isolated main
+    // frame (the whole reason this popover exists).
+    const el = popoverEl;
+    if (!el) return;
+    const onOpen = (event: OpenDocumentEvent) => {
+      const { url, toolId: nextToolId } = event.detail;
+      if (!url) return;
+      event.stopPropagation();
+      setToolId(nextToolId ?? undefined);
+    };
+    el.addEventListener("patchwork:open-document", onOpen);
+    onCleanup(() => el.removeEventListener("patchwork:open-document", onOpen));
   });
 
   return (
     <div class="frame__popover-backdrop" onClick={() => props.onClose()}>
       <div
+        ref={popoverEl}
         class="frame__popover"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <patchwork-view
-          doc-url={props.view.url}
-          tool-id={props.view.toolId ?? undefined}
-        />
+        {/*
+          "Open with" lets you re-point the popover at a different tool for the
+          same doc. Its `patchwork:open-document` event is intercepted above and
+          swaps `toolId` below in place.
+        */}
+        <div class="frame__popover-toolbar">
+          <patchwork-view doc-url={props.view.url} tool-id="doc-openwith" />
+        </div>
+        <div class="frame__popover-body">
+          <patchwork-view doc-url={props.view.url} tool-id={toolId()} />
+        </div>
       </div>
     </div>
   );
@@ -411,13 +481,15 @@ function FramePopover(props: { view: SelectedView; onClose: () => void }) {
 
 // Host-side frame chrome: the left (account) sidebar plus a slot for the main
 // column (`children`). Rendered once and kept mounted across the no-doc → doc
-// transition; only its `children` (the main column) swap. The right (context)
-// sidebar is *not* here — it lives inside the document area (`DocumentAreaRoot`).
+// transition; only its `children` (the main column) swap. The right context
+// sidebar/tray are host chrome rendered by `PatchworkFrameInner`.
 function FrameLayout(props: {
   accountDocUrl: AutomergeUrl;
   sidebarState: SidebarState;
   sidebarResize: SidebarResize;
   sidebarWidgets: Accessor<ToolSlot[]>;
+  /** The system-tray tools, configured on the threepane config doc. */
+  traySlots: Accessor<ToolSlot[]>;
   configHandle: Accessor<DocHandle<ThreepaneConfigDoc> | undefined>;
   rootFolderUrl: Accessor<AutomergeUrl | undefined>;
   widgetsReady: Accessor<boolean>;
@@ -431,6 +503,15 @@ function FrameLayout(props: {
   children: JSX.Element;
 }) {
   const isCollapsed = props.sidebarState.isSidebarCollapsed;
+
+  // The system tray is docked to the frame's bottom-left, OUTSIDE the collapsing
+  // sidebar. Its tools are configured on the threepane config doc's `tray`
+  // array. We use the list here to reserve matching space at the sidebar's
+  // bottom (so the account bar clears the dock when open) and to skip the dock
+  // entirely when nothing is configured. The dock stays mounted when the sidebar
+  // closes — it's hidden with CSS (below), not unmounted, so its tools keep
+  // running.
+  const hasTray = () => props.traySlots().length > 0;
 
   // Under isolation, intercept `patchwork:open-document` events fired by the
   // account bar (account picker / Packages / Settings) at the footer, before
@@ -450,6 +531,27 @@ function FrameLayout(props: {
     };
     el.addEventListener("patchwork:open-document", onOpen);
     onCleanup(() => el.removeEventListener("patchwork:open-document", onOpen));
+  });
+
+  // Narrow-viewport UX: when the left sidebar covers most of the frame (>75% of
+  // the viewport width — i.e. it's acting as a full-screen overlay rather than a
+  // side rail), opening a document from it collapses both sidebars so the
+  // document takes over. Under isolation the footer intercept above stops
+  // account-bar events before they reach this listener, so only genuine document
+  // opens (from the sidebar widgets) collapse.
+  let sidebarContentEl: HTMLDivElement | undefined;
+  onMount(() => {
+    const el = sidebarContentEl;
+    if (!el) return;
+    const onOpen = () => {
+      if (el.getBoundingClientRect().width <= window.innerWidth * 0.75) return;
+      props.sidebarState.setIsSidebarCollapsed(true);
+      window.dispatchEvent(new CustomEvent(COLLAPSE_CONTEXT_SIDEBAR_EVENT));
+    };
+    el.addEventListener("patchwork:open-document", onOpen);
+    onCleanup(() =>
+      el.removeEventListener("patchwork:open-document", onOpen)
+    );
   });
   return (
     <>
@@ -477,7 +579,11 @@ function FrameLayout(props: {
         onMouseDown={props.sidebarResize.handleMouseDown}
         onToggleClick={props.sidebarResize.handleToggleClick}
       >
-        <div class="threepane-sidebar">
+        <div
+          class="threepane-sidebar"
+          classList={{ "threepane-sidebar--has-tray": hasTray() }}
+          ref={sidebarContentEl}
+        >
           <SidebarWidgets
             widgets={props.sidebarWidgets}
             configHandle={props.configHandle}
@@ -523,7 +629,10 @@ function FrameLayout(props: {
                     type="button"
                     class="threepane-account-bar__button"
                     onClick={(e) =>
-                      dispatchOpen(e.currentTarget, { url: moduleSettingsUrl() })
+                      dispatchOpen(e.currentTarget, {
+                        url: moduleSettingsUrl(),
+                        toolId: "packages",
+                      })
                     }
                   >
                     Packages
@@ -547,6 +656,26 @@ function FrameLayout(props: {
           </div>
         </div>
       </Sidebar>
+
+      {/*
+        The system tray, docked to the frame's bottom-left. Rendered here —
+        outside the collapsing <Sidebar> — as trusted host chrome, one stable
+        instance. When the sidebar is open the dock spans its width and sits in
+        the space reserved by `threepane-sidebar--has-tray`, above the account
+        bar. When the sidebar closes the dock is hidden (`--collapsed` fades it
+        out at once) rather than unmounted, so the tray is invisible but its
+        tools keep running. On open it fades back in only after the sidebar's
+        expand animation finishes, so it never flashes over the growing sidebar.
+      */}
+      <Show when={hasTray()}>
+        <div
+          class="frame__tray-dock"
+          classList={{ "frame__tray-dock--collapsed": isCollapsed() }}
+          style={{ width: `${props.sidebarState.leftSidebarWidth()}px` }}
+        >
+          <Tray slots={props.traySlots} />
+        </div>
+      </Show>
 
       {props.children}
     </>

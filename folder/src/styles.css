@@ -13,8 +13,9 @@
   --folder-view-card: var(--editor-fill, white);
   --folder-view-card-border: var(--editor-fill-offset-20, #e5e5e5);
 
-  --folder-view-accent: var(--studio-primary, #35f7ca);
-  --folder-view-accent-ink: var(--editor-fill, white);
+  --folder-view-accent: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
+  --folder-view-accent-line: var(--studio-primary-line, var(--editor-fill, white));
+  --folder-view-accent-text: var(--editor-primary-text, var(--studio-primary-text, var(--studio-primary, #35f7ca)));
   --folder-view-hover: var(--editor-fill-offset-10, #f2f2f2);
 
   /* Layered drop shadow so a card reads as a solid object resting on the
@@ -74,7 +75,7 @@
   gap: var(--studio-space-2xs, 0.25rem);
   font: inherit;
   font-size: 0.8rem;
-  color: var(--folder-view-accent-ink);
+  color: var(--folder-view-accent-line);
   background: var(--folder-view-accent);
   border: 1px solid transparent;
   border-radius: var(--studio-radius-sm, 4px);
@@ -220,7 +221,7 @@
 
 .folder-view .folder-entry-open {
   font-size: 0.8rem;
-  color: var(--folder-view-accent);
+  color: var(--folder-view-accent-text);
   text-decoration: none;
   padding: var(--studio-space-2xs, 0.25rem) var(--studio-space-sm, 0.5rem);
   border-radius: var(--studio-radius-sm, 4px);

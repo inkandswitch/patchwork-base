@@ -21,7 +21,6 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import type { OpenDocumentEventDetail } from "@inkandswitch/patchwork-elements";
 import type { AutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
 import { NEW_DOC_DND_TYPE, setNewDocDragging, clearDropTarget } from "./dnd/dnd.ts";
-import { setFilter } from "./state.ts";
 
 export async function createNew(
   repo: Repo,
@@ -92,7 +91,7 @@ function DatatypeMenuContent(props: {
 
   return (
     <DropdownMenu.Portal>
-      <DropdownMenu.Content class="popmenu__content">
+      <DropdownMenu.Content class="popmenu__content create-new-menu__content">
         <div class="create-new-filter">
           <input
             class="create-new-filter__input"
@@ -177,6 +176,7 @@ export interface CreateNewProps {
   square?: boolean;
   /** allow dragging the button onto a folder/item to create a doc there */
   draggable?: boolean;
+  clearFilter(): void;
 }
 
 export default function CreateNew(props: CreateNewProps) {
@@ -188,7 +188,7 @@ export default function CreateNew(props: CreateNewProps) {
       doc.docs.push(freshy);
     });
     // Clear the filter so the just-created doc is actually visible in the list.
-    setFilter("");
+    props.clearFilter();
     props.open(freshy);
     setOpen(false);
   }
@@ -201,7 +201,7 @@ export default function CreateNew(props: CreateNewProps) {
       doc.docs.push(docLink);
     });
     // Clear the filter so the freshly added doc is visible.
-    setFilter("");
+    props.clearFilter();
     props.open(docLink);
     setOpen(false);
   }
@@ -235,7 +235,7 @@ export default function CreateNew(props: CreateNewProps) {
       font-family: inherit;
       font-size: 0.9rem;
       pointer-events: none;
-      color: var(--document-list-line);
+      color: var(--document-list-primary-line);
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     `;
     preview.textContent = "new doc";
@@ -299,12 +299,13 @@ export function NewDocPlaceholder(props: {
   hive?: AutomergeRepoKeyhive;
   onCreate(docLink: DocLink): void;
   onDismiss(): void;
+  clearFilter(): void;
 }) {
   const [open, setOpen] = createSignal(true);
 
   async function pickDatatype(datatype: Plugin<DatatypeDescription>) {
     const freshy = await createNew(props.repo, datatype, props.hive);
-    setFilter("");
+    props.clearFilter();
     props.onCreate(freshy);
   }
 
@@ -312,7 +313,7 @@ export function NewDocPlaceholder(props: {
     const trimmed = url.trim();
     if (!isValidAutomergeUrl(trimmed)) return;
     const docLink = await docLinkFromUrl(props.repo, trimmed as AutomergeUrl);
-    setFilter("");
+    props.clearFilter();
     props.onCreate(docLink);
   }
 

@@ -1,5 +1,5 @@
 import { render } from "solid-js/web";
-import { RepoContext } from "@automerge/automerge-repo-solid-primitives";
+import { RepoContext } from "solid-automerge";
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
 import { STYLE as CUTE_STYLE } from "cute.txt/style";
 import { CommentsView } from "./CommentsView";

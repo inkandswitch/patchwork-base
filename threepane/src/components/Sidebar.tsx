@@ -9,19 +9,13 @@ type SidebarProps = {
   docUrl?: AutomergeUrl;
   onMouseDown: (side: "left" | "right", e: MouseEvent) => void;
   onToggleClick: (side: "left" | "right", e: MouseEvent) => void;
+  canExpand?: Accessor<boolean>;
   /**
    * Content slot. When provided it replaces the default `<patchwork-view>`
    * (driven by `toolId`/`docUrl`), letting callers render arbitrary Solid
    * content inside the shared sidebar chrome (collapse/resize/toggle).
    */
   children?: JSX.Element;
-  /**
-   * Keep the content mounted while collapsed instead of tearing it down. The
-   * shell still shrinks to 0px; callers must hide the persisted content via CSS
-   * (it would otherwise spill out, since the shell's overflow is visible). Used
-   * by the context sidebar so the system tray's tools stay alive when closed.
-   */
-  persistContent?: boolean;
 };
 
 /**
@@ -43,6 +37,7 @@ export function Sidebar(props: SidebarProps) {
     }
     return null;
   };
+  const canExpand = () => props.canExpand?.() ?? true;
 
   return (
     <div
@@ -66,7 +61,7 @@ export function Sidebar(props: SidebarProps) {
       )}
 
       {/* Toggle button when collapsed - left side */}
-      {props.side === "left" && props.isCollapsed() && (
+      {props.side === "left" && props.isCollapsed() && canExpand() && (
         <button
           onClick={(e) => props.onToggleClick(props.side, e)}
           onMouseDown={(e) => props.onMouseDown(props.side, e)}
@@ -88,7 +83,7 @@ export function Sidebar(props: SidebarProps) {
       )}
 
       {/* Toggle button when collapsed - right side */}
-      {props.side === "right" && props.isCollapsed() && (
+      {props.side === "right" && props.isCollapsed() && canExpand() && (
         <button
           onClick={(e) => props.onToggleClick(props.side, e)}
           onMouseDown={(e) => props.onMouseDown(props.side, e)}
@@ -98,11 +93,8 @@ export function Sidebar(props: SidebarProps) {
         />
       )}
 
-      {/* Sidebar content - right side. With persistContent it stays mounted
-          while collapsed (hidden via CSS) so e.g. the system tray keeps running. */}
-      {props.side === "right" &&
-        (props.persistContent || !props.isCollapsed()) &&
-        content()}
+      {/* Sidebar content - right side */}
+      {props.side === "right" && !props.isCollapsed() && content()}
     </div>
   );
 }

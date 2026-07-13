@@ -5,7 +5,7 @@
   --document-list-fill: var(
     --studio-chrome,
     light-dark(
-      color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 80%),
+      color-mix(in oklch, var(--studio-secondary-fill, var(--studio-secondary, #33ccf8)), var(--studio-fill, white) 80%),
       black
     )
   );
@@ -25,7 +25,10 @@
   --placeholder-line: var(--studio-line-offset-50, #808e80);
   --document-list-search-line: var(--studio-line, #000);
 
-  --document-list-primary: color-mix(in oklch, var(--studio-secondary, #33ccf8), var(--studio-fill, white) 60%);
+  --document-list-primary: var(--studio-primary-fill, var(--studio-primary, #35f7ca));
+  --document-list-primary-line: var(--studio-primary-line, var(--studio-line, black));
+  --document-list-selection-fill: var(--document-list-primary);
+  --document-list-selection-line: var(--document-list-primary-line);
 
   --document-list-create-new-fill: var(--studio-fill, white);
   --document-list-create-new-line: color-mix(
@@ -54,9 +57,12 @@
      chrome ink, so it tracks the palette and reads correctly light/dark). */
   --document-list-divider: var(--studio-chrome-offset-20, #d4d4d4);
   --document-list-added: var(--studio-added, #35f7ca);
-  --document-list-danger: var(--studio-danger, #ff6a90);
+  --document-list-danger: var(--studio-danger-text, var(--studio-danger, #ff6a90));
   --document-list-toggle-hover: color-mix(in oklch, var(--studio-line, black), transparent 93%);
-  --account-bar-fill: var(--studio-chrome-offset-10)
+  --account-bar-fill: var(--studio-chrome-offset-10);
+  /* ink on the account-bar's chrome surface: rides the chrome ink ramp, not
+     --document-list-line (which is content ink and tracks the list surface). */
+  --account-bar-line: var(--studio-chrome-line, var(--studio-line, black));
 }
 }
 
@@ -290,7 +296,11 @@ button {
   }
 
   &[aria-selected="true"] {
-    background: var(--document-list-primary);
+    background: var(--document-list-selection-fill);
+    color: var(--document-list-selection-line);
+    .document-list-folder__toggle path {
+      stroke: var(--document-list-selection-line);
+    }
     .document-list__doclist > &:first-child {
       border-top-left-radius: var(--document-list-radius);
       border-top-right-radius: var(--document-list-radius);
@@ -308,6 +318,12 @@ button {
   &[data-dnd-dragging] {
     opacity: 0.4;
   }
+  /* Spring-load: hovering a drag over this row opens the document after
+     SPRING_LOAD_MS (see item.tsx). The highlight only fades in for the second
+     half of the hold, so quick pass-overs never flash an animation. */
+  &[data-dnd-springload] {
+    animation: doclist-springload 0.75s ease-out 0.75s both;
+  }
   &[data-dnd-droplist-state]::before {
     content: "";
     position: absolute;
@@ -322,6 +338,19 @@ button {
   }
   &[data-dnd-droplist-state="below"]::before {
     bottom: -1px;
+  }
+}
+
+@keyframes doclist-springload {
+  from {
+    background: transparent;
+  }
+  to {
+    background: color-mix(
+      in oklch,
+      var(--document-list-primary),
+      transparent 40%
+    );
   }
 }
 
@@ -546,12 +575,8 @@ button {
 .popmenu__radio-item[data-highlighted],
 .popmenu__sub-trigger[data-highlighted] {
   outline: none;
-  background-color: color-mix(
-    in oklch,
-    var(--document-list-primary),
-    var(--document-list-widget-fill) 20%
-  );
-  color: var(--document-list-widget-line);
+  background-color: var(--document-list-selection-fill);
+  color: var(--document-list-selection-line);
 }
 @keyframes contentShow {
   from {
@@ -576,12 +601,32 @@ button {
 
 .popmenu__item--highlighted {
   outline: none;
-  background-color: color-mix(
-    in oklch,
-    var(--document-list-primary),
-    var(--document-list-widget-fill) 20%
-  );
-  color: var(--document-list-widget-line);
+  background-color: var(--document-list-selection-fill);
+  color: var(--document-list-selection-line);
+}
+
+.create-new-menu__content {
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--document-list-border-strong) var(--document-list-widget-fill);
+  scrollbar-width: thin;
+}
+
+.create-new-menu__content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.create-new-menu__content::-webkit-scrollbar-track {
+  background: var(--document-list-widget-fill);
+}
+
+.create-new-menu__content::-webkit-scrollbar-thumb {
+  background: var(--document-list-border-strong);
+  border: 2px solid var(--document-list-widget-fill);
+  border-radius: 999px;
+}
+
+.create-new-menu__content::-webkit-scrollbar-thumb:hover {
+  background: var(--document-list-muted);
 }
 
 .create-new-filter {
@@ -878,7 +923,7 @@ button {
   gap: 1rem;
   min-height: 4rem;
   background: var(--account-bar-fill);
-  color: var(--document-list-line);
+  color: var(--account-bar-line);
   border-top: 1px solid var(--document-list-divider);
   padding-block: 0.25rem;
   padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));

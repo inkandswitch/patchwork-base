@@ -197,12 +197,22 @@
 /* The draft editor is a cute.txt (CodeMirror) instance; box it like the old
    textarea. Its inner padding/font come from the injected cute.txt styles. */
 .comment-draft-editor {
+  height: 6rem;
   min-height: 6rem;
   border: 1px solid var(--comments-border);
   border-radius: 0.5rem;
   color: var(--comments-fg);
   background: var(--comments-bg);
   overflow: hidden;
+}
+
+.comment-draft-editor .cm-content {
+  box-sizing: border-box;
+  min-height: 100%;
+}
+
+.comment-draft-editor .cm-scroller {
+  height: 100%;
 }
 
 .comment-draft-editor:focus-within {

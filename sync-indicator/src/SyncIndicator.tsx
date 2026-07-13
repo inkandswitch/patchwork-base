@@ -9,7 +9,7 @@ import {
 import {
   useRepo,
   RepoContext,
-} from "@automerge/automerge-repo-solid-primitives";
+} from "solid-automerge";
 import {
   createSignal,
   createMemo,
@@ -120,6 +120,34 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
       return false; // doc not ready, or an undecodable head
     }
   };
+
+  /**
+   * Trim the sync server's advertised heads for display: drop heads we already
+   * hold in our history (most server sedimentree tips are interior commits we
+   * have), keeping our current frontier tip(s) plus any head we genuinely lack.
+   * Display only; the synced verdict still considers the full set.
+   */
+  function trimSeenServerHeads(
+    heads: UrlHeads | undefined
+  ): UrlHeads | undefined {
+    if (!heads) return heads;
+
+    let frontier: Set<string>;
+    try {
+      frontier = new Set<string>([...props.handle.heads()]);
+    } catch {
+      return heads;
+    }
+
+    return heads.filter((h) => {
+      if (frontier.has(h)) return true; // our latest shared tip — keep
+      try {
+        return !props.handle.containsHeads([h] as UrlHeads);
+      } catch {
+        return true; // can't decide → keep
+      }
+    }) as UrlHeads;
+  }
 
   // tick every second while popover is open (for relative times), and rebuild
   // the peer list from repo.peers each time it opens so every currently
@@ -382,6 +410,12 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
     return inSync ? "synced" : peer.heads ? "behind" : "unknown";
   };
 
+  const displayHeads = (peer: PeerSyncInfo) => {
+    if (peer.name !== "Sync Server") return peer.heads;
+    ownHeads(); // re-render the trimmed display when our frontier moves
+    return trimSeenServerHeads(peer.heads);
+  };
+
   const iconState = (): "synced" | "syncing" | "error" | "unknown" => {
     if (!connected()) return "error"; // no live link to the sync server
     if (!syncServerKnown()) return "unknown";
@@ -472,11 +506,13 @@ export function SyncIndicator(props: { handle: DocHandle<unknown> }) {
                         {peerStatusLabel(peer)}
                       </span>
                     </div>
-                    <Show when={peer.heads}>
-                      <div class="sync-peer-detail">
-                        heads:{" "}
-                        {JSON.stringify(peer.heads!.map((h) => h.slice(0, 6)))}
-                      </div>
+                    <Show when={displayHeads(peer)}>
+                      {(heads) => (
+                        <div class="sync-peer-detail">
+                          heads:{" "}
+                          {JSON.stringify(heads().map((h) => h.slice(0, 6)))}
+                        </div>
+                      )}
                     </Show>
                     <Show when={peer.lastSyncTimestamp}>
                       <div class="sync-peer-detail">

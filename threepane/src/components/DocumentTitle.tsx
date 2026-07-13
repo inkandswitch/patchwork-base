@@ -1,5 +1,5 @@
 import type { AutomergeUrl, Repo } from "@automerge/automerge-repo";
-import { useDocument } from "@automerge/automerge-repo-solid-primitives";
+import { useDocument } from "solid-automerge";
 import type { RepoProviderElement } from "@inkandswitch/patchwork-providers";
 import {
   getType,

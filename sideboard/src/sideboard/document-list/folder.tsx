@@ -5,7 +5,7 @@ import {
   type DocHandle,
 } from "@automerge/automerge-repo";
 import type { AutomergeRepoKeyhive } from "@automerge/automerge-repo-keyhive";
-import { useDocument } from "@automerge/automerge-repo-solid-primitives";
+import { useDocument } from "solid-automerge";
 import type {
   OpenDocumentEventDetail,
   PatchworkViewElement,
@@ -20,11 +20,9 @@ import {
   Suspense,
 } from "solid-js";
 import {
-  filter,
   filterMatches,
   setRenaming,
   setPendingNewDoc,
-  setFilter,
   autoExpandedFolders,
 } from "../state.ts";
 import { DocumentList } from "./document-list.tsx";
@@ -63,6 +61,8 @@ export default function Folder(props: {
   rootFolderHandle: DocHandle<FolderDoc>;
   parentFolderHandle?: DocHandle<FolderDoc>;
   itemIndex?: number;
+  filter: string;
+  clearFilter(): void;
 }) {
   const [expanded, setExpanded] = createSignal(false);
 
@@ -77,10 +77,14 @@ export default function Folder(props: {
   const folderDepthStyle = () => ({ "--depth": depth() });
 
   createEffect((last) => {
-    if (!last && filter() && filterMatches(folder()!?.title ?? props.name)) {
+    if (
+      !last &&
+      props.filter &&
+      filterMatches(props.filter, folder()!?.title ?? props.name)
+    ) {
       setExpanded(true);
     }
-    return filter();
+    return props.filter;
   });
 
   // Auto-expand when this folder lies on the path to a selected doc. The set is
@@ -129,19 +133,16 @@ export default function Folder(props: {
       folder.docs.push(freshy);
       newIndex = folder.docs.length - 1;
     });
-    setFilter("");
+    props.clearFilter();
     setExpanded(true);
     props.open(freshy);
     setRenaming(h.url + "/" + newIndex);
   }
 
-  async function handleDropIntoFolder(
-    event: DragEvent,
-    folderUrl: AutomergeUrl
-  ) {
-    log("Folder drop handler called for:", folderUrl);
+  async function handleDropIntoFolder(event: DragEvent) {
+    log("Folder drop handler called for:", props.url);
 
-    // Handle file drops from OS - add to beginning of folder
+    // Handle file drops from OS - insert at the front of this folder.
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
       await handleFilesDrop(
         event.dataTransfer.files,
@@ -160,14 +161,14 @@ export default function Folder(props: {
     }
 
     const { source, items } = payload;
-    log("Drop data:", { source, items, folderUrl });
+    log("Drop data:", { source, items, folderUrl: props.url });
 
     executeDrop(
       {
         draggedIds: items.map((i: any) => i.id),
         draggedUrls: items.map((i: any) => i.url),
         draggedItems: items,
-        targetId: folderUrl,
+        targetId: props.url,
         position: "inside",
         sourceToolId: source,
         copyMode: copyMode(),
@@ -235,10 +236,13 @@ export default function Folder(props: {
             const h = handle();
             if (h) {
               setExpanded(true);
-              setPendingNewDoc({ containerUrl: h.url, index: 0 });
+              setPendingNewDoc({
+                containerUrl: h.url,
+                index: 0,
+              });
             }
           } else {
-            handleDropIntoFolder(event, props.url);
+            handleDropIntoFolder(event);
           }
         }
         clearDropTarget();
@@ -297,7 +301,7 @@ export default function Folder(props: {
 
       <div
         class="document-list-folder__contents"
-        classList={{ "document-list-folder__contents--hidden": !expanded() && !filter() }}
+        classList={{ "document-list-folder__contents--hidden": !expanded() && !props.filter }}
         data-depth={depth()}
         style={depthStyle()}
       >
@@ -306,7 +310,7 @@ export default function Folder(props: {
             find() its entire subtree on mount, loading the whole tree at once
             and making the folder appear to suspend on its descendants rather
             than just its own handle. */}
-        <Show when={expanded() || !!filter()}>
+        <Show when={expanded() || !!props.filter}>
           <Suspense fallback={<LoadingRow depth={depth() + 1} />}>
             <DocumentList
               docs={folder()?.docs}
@@ -319,6 +323,8 @@ export default function Folder(props: {
               visitedFolders={nextVisitedFolders}
               element={props.element}
               rootFolderHandle={props.rootFolderHandle}
+              filter={props.filter}
+              clearFilter={props.clearFilter}
             />
           </Suspense>
         </Show>

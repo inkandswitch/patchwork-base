@@ -8,7 +8,7 @@ import {
   Show,
   type Accessor,
 } from "solid-js";
-import { createDocSignal } from "@automerge/automerge-repo-solid-primitives";
+import { createDocSignal } from "solid-automerge";
 import type {
   AutomergeUrl,
   DocHandle,
