@@ -25,4 +25,4 @@
   # Match the local toolchain. Netlify auto-detects pnpm from pnpm-lock.yaml;
   # pin PNPM_VERSION here too if you need an exact pnpm.
   NODE_VERSION = "22"
-  # PNPM_VERSION = "10"
+  PNPM_VERSION = "11.12.0"
