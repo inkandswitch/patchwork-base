@@ -31,6 +31,18 @@ export const plugins: Plugin<any>[] = [
     },
     unlisted: true,
   },
+  {
+    type: "patchwork:tool",
+    id: "drafts",
+    tags: ["context-tool"],
+    name: "Drafts",
+    icon: "GitBranch",
+    supportedDatatypes: ["account"],
+    async load() {
+      const { renderDraftsSidebar } = await import("./main");
+      return renderDraftsSidebar;
+    },
+  },
   // A `patchwork:component` that takes no document: the render function
   // ignores its handle (it reads everything off `element`), so we pass `null`
   // and it can be slotted in without an account doc.
@@ -43,32 +55,6 @@ export const plugins: Plugin<any>[] = [
       const { renderDraftsSidebar } = await import("./main");
       return (element: ToolElement) =>
         renderDraftsSidebar(null as never, element);
-    },
-  },
-  // Variant of the drafts sidebar that folds the change history into
-  // activity groups (split on a minute of inactivity) instead of listing
-  // each change individually.
-  {
-    type: "patchwork:tool",
-    id: "grouped-drafts",
-    tags: ["context-tool"],
-    name: "Grouped Drafts",
-    icon: "GitBranch",
-    supportedDatatypes: ["account"],
-    async load() {
-      const { renderGroupedDraftsSidebar } = await import("./main");
-      return renderGroupedDraftsSidebar;
-    },
-  },
-  {
-    type: "patchwork:component",
-    id: "grouped-drafts",
-    name: "Grouped Drafts",
-    tags: ["context-tool"],
-    async load() {
-      const { renderGroupedDraftsSidebar } = await import("./main");
-      return (element: ToolElement) =>
-        renderGroupedDraftsSidebar(null as never, element);
     },
   },
 ];
