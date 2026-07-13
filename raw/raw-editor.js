@@ -3,6 +3,8 @@ import {render} from "solid-js/web"
 import html from "solid-js/html"
 import * as Automerge from "@automerge/automerge"
 import {isValidAutomergeUrl, isImmutableString} from "@automerge/automerge-repo"
+import {EditorView, keymap} from "@codemirror/view"
+import {EditorState} from "@codemirror/state"
 
 const ROW_H = 24
 const OVERSCAN = 30
@@ -211,7 +213,7 @@ const STYLES = `
 .re-edit-ok svg { color: var(--re-ok); }
 .re-edit-cancel svg { color: var(--re-cancel); }
 .raw-editor-wrapper { position: relative; }
-.re-text-overlay {
+.re-cm-overlay {
   position: absolute;
   z-index: 9999;
   display: flex;
@@ -223,20 +225,19 @@ const STYLES = `
   border: 1px solid var(--re-input-border);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--re-line) 15%, transparent), 0 0 0 1px var(--re-border);
 }
-.re-text-overlay textarea {
+.re-cm-host {
+  min-width: 240px;
+  max-width: 80vw;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--re-input-bg);
+  border: 1px solid var(--re-input-border);
+}
+.re-cm-host .cm-editor {
+  background: transparent;
+  color: var(--re-input-color);
   font-family: inherit;
   font-size: inherit;
-  color: var(--re-input-color);
-  background: transparent;
-  border: none;
-  outline: none;
-  resize: both;
-  min-width: 200px;
-  min-height: 60px;
-  max-width: 80vw;
-  max-height: 60vh;
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 .re-text-overlay-buttons {
   display: flex;
@@ -660,47 +661,96 @@ function KeyEditor(props) {
   </span>`
 }
 
-// ── text overlay (portaled textarea for string editing) ─────────────────────
+// ── codemirror overlay (portaled, live-synced string editor) ────────────────
+// A "little codemirror guy" bound directly to the string at `path`. There's no
+// save/cancel: edits stream into the doc live (via Automerge.splice) exactly
+// like @automerge/automerge-codemirror's plugin — which we can't import here
+// because `raw` is bundleless and only @codemirror/{state,view} are on the
+// importmap. Multiline, wraps, and grows to fit its content.
 
-function TextOverlay(props) {
-  // props: value, path, handle, onDone (with _), anchorRect
-  let [text, setText] = createSignal(props.value)
-
-  function doSave() {
-    let newText = text()
-    if (newText !== props.value) {
-      props.handle.change(d => {
-        let target = walkToParent(d, props.path)
-        if (!target) return
-        let [node, key] = target
-        if (typeof node[key] === "string" && !isImmutableString(node[key])) {
-          Automerge.updateText(d, props.path, newText)
-        } else {
-          node[key] = newText
-        }
-      })
-    }
-    props.onDone(null)
+function stringAtPath(doc, path) {
+  let node = doc
+  for (let i = 0; i < path.length; i++) {
+    if (node == null) return null
+    node = node[path[i]]
   }
+  return typeof node === "string" ? node : null
+}
+
+function CodeMirrorOverlay(props) {
+  // props: value, path, handle, anchorRect, onDone (with _)
+  let view
+  let applyingRemote = false // guards the doc→editor path from looping back
+
+  // editor → doc: translate CodeMirror's changeset into Automerge splices.
+  // Apply end-first so each splice's offset stays valid as we go.
+  function pushToDoc(update) {
+    let edits = []
+    update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+      edits.push({from: fromA, del: toA - fromA, ins: inserted.toString()})
+    })
+    if (!edits.length) return
+    props.handle.change(d => {
+      for (let i = edits.length - 1; i >= 0; i--) {
+        let e = edits[i]
+        Automerge.splice(d, props.path, e.from, e.del, e.ins)
+      }
+    })
+  }
+
+  // doc → editor: reflect remote edits. Our own splices land here too, but the
+  // strings already match by then, so this no-ops and never loops.
+  function onDocChange() {
+    if (!view) return
+    let cur = stringAtPath(props.handle.doc(), props.path)
+    if (cur == null || cur === view.state.doc.toString()) return
+    applyingRemote = true
+    view.dispatch({changes: {from: 0, to: view.state.doc.length, insert: cur}})
+    applyingRemote = false
+  }
+
+  function mount(el) {
+    view = new EditorView({
+      parent: el,
+      state: EditorState.create({
+        doc: props.value,
+        extensions: [
+          EditorView.lineWrapping,
+          keymap.of([
+            {key: "Mod-Enter", run: () => (props.onDone(null), true)},
+          ]),
+          EditorView.updateListener.of(u => {
+            if (u.docChanged && !applyingRemote) pushToDoc(u)
+          }),
+          EditorView.theme({
+            "&": {maxHeight: "60vh", fontSize: "inherit"},
+            ".cm-scroller": {fontFamily: "inherit", overflow: "auto"},
+            ".cm-content": {padding: "6px 8px"},
+            "&.cm-focused": {outline: "none"},
+          }),
+        ],
+      }),
+    })
+    props.handle.on("change", onDocChange)
+    requestAnimationFrame(() => {
+      view.focus()
+      view.dispatch({selection: {anchor: view.state.doc.length}})
+    })
+  }
+
+  onCleanup(() => {
+    props.handle.off("change", onDocChange)
+    view?.destroy()
+  })
 
   let r = props.anchorRect
   let style = `top:${r.top}px;left:${r.left}px`
 
-  return html`<div class="re-text-overlay" style=${style}>
-    <textarea
-      rows=${Math.min(12, Math.max(3, props.value.split("\n").length + 1))}
-      cols=${Math.min(80, Math.max(30, props.value.length))}
-      onInput=${e => setText(e.target.value)}
-      onKeyDown=${e => {
-        if (e.key === "Escape") props.onDone(null)
-        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) doSave()
-      }}
-      ref=${el => { el.value = props.value; requestAnimationFrame(() => { el.focus(); el.setSelectionRange(el.value.length, el.value.length) }) }}
-    />
+  return html`<div class="re-cm-overlay" style=${style}>
+    <div class="re-cm-host" ref=${mount}></div>
     <div class="re-text-overlay-buttons">
-      <span style="font-size:0.7em;opacity:0.5">Cmd+Enter to save</span>
-      <span class="re-edit-btn re-edit-ok" onClick=${doSave}><span class="re-icon" innerHTML=${ICONS.check} /></span>
-      <span class="re-edit-btn re-edit-cancel" onClick=${props.onDone}><span class="re-icon" innerHTML=${ICONS.x} /></span>
+      <span style="font-size:0.7em;opacity:0.5">Live · Esc to close</span>
+      <span class="re-edit-btn re-edit-ok" onClick=${(_) => props.onDone(null)}><span class="re-icon" innerHTML=${ICONS.check} /></span>
     </div>
   </div>`
 }
@@ -802,10 +852,12 @@ function RawEditorApp(props) {
   onCleanup(() => document.removeEventListener("keydown", onKeyDown, true))
 
   // ── edit/add/delete ──
-  function startEdit(row, e) {
+  // Strings always open the codemirror overlay — pencil or double-click alike.
+  // `anchorEl` is the value element to float the editor over.
+  function startEdit(row, anchorEl) {
     setAdding(null)
-    if (typeof row.value === "string" && e) {
-      let el = e.currentTarget || e.target
+    if (typeof row.value === "string") {
+      let el = anchorEl || wrapperEl
       let valRect = el.getBoundingClientRect()
       let wrapRect = wrapperEl.getBoundingClientRect()
       let st = scrollEl ? scrollEl.scrollTop : 0
@@ -961,7 +1013,11 @@ function RawEditorApp(props) {
       let target = e.target.closest("[data-action]")
       if (!target) return
       let action = target.dataset.action
-      if (action === "edit") startEdit(row)
+      if (action === "edit") {
+        let rowEl = target.closest(".re-row")
+        let anchorEl = rowEl?.querySelector(".re-value, .re-automerge-url") || target
+        startEdit(row, anchorEl)
+      }
       else if (action === "add") startAdd(row)
       else if (action === "copy") copyValue(row.value)
       else if (action === "delete") deleteField(row)
@@ -1000,7 +1056,7 @@ function RawEditorApp(props) {
           return html`<span class="re-automerge-url" onClick=${() => openAmUrl(row.value)}>${row.value}</span>`
         }
         return html`<span class="re-value" style=${`color:${valueColor(row.value)}`}
-          on:dblclick=${(e) => startEdit(row, e)}>${valueText(row.value)}</span>`
+          on:dblclick=${(e) => startEdit(row, e.currentTarget)}>${valueText(row.value)}</span>`
       }}
       <span class="re-actions-row" onClick=${handleAction}>
         ${canEdit ? html`<span class="re-act" data-action="edit" title="Edit"
@@ -1054,7 +1110,7 @@ function RawEditorApp(props) {
     `}
     ${() => {
       let ed = editing()
-      return ed && ed.mode === "text" ? html`<${TextOverlay}
+      return ed && ed.mode === "text" ? html`<${CodeMirrorOverlay}
         value=${ed.value}
         path=${ed.path}
         handle=${handle}
