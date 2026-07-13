@@ -49,6 +49,11 @@
   gap: 0.25rem;
 }
 
+/* The panel-level actions row above the cards (the "New draft" button). */
+.drafts-actions--top {
+  align-items: stretch;
+}
+
 .drafts-hint {
   font-size: 0.75rem;
   font-style: italic;
@@ -214,6 +219,26 @@
    history stay at their natural height. */
 .draft-card[data-selected] .draft-card-changes {
   max-height: 32rem;
+}
+
+/* Card footer while the timeline is pinned: sits under the (scrollable)
+   changes area, so it stays reachable however long the history is. */
+.draft-card-return {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: none;
+  border-top: 1px solid var(--drafts-border);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--drafts-primary);
+  text-align: center;
+  cursor: pointer;
+}
+
+.draft-card-return:hover {
+  background: var(--drafts-hover-bg);
 }
 
 .draft-changes-empty {

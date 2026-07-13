@@ -40,7 +40,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.17";
+const DRAFTS_VERSION = "0.0.18";
 
 // Logged at module load so the console shows which build is running even
 // before the panel renders.
@@ -302,6 +302,27 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
         when={hostDoc()}
         fallback={<div class="drafts-empty">No document selected.</div>}
       >
+        <Show when={isMainSelected()}>
+          <div class="drafts-actions drafts-actions--top">
+            <button
+              class="drafts-btn drafts-btn--primary"
+              disabled={isFolder()}
+              onClick={onCreateDraft}
+              title={
+                isFolder()
+                  ? "Drafts aren't supported for folders yet"
+                  : "Create a new draft off this document"
+              }
+            >
+              New draft
+            </button>
+            <Show when={isFolder()}>
+              <span class="drafts-hint">
+                Drafts aren't supported for folders yet.
+              </span>
+            </Show>
+          </div>
+        </Show>
         <div class="drafts-list">
           <MainCard
             hostDocUrl={hostDocHandle()?.url}
@@ -317,6 +338,8 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
                 head ? { members: list().main.members, head } : null
               )
             }
+            hasCheckpoint={isMainSelected() && !!checkedOut()?.at}
+            onReturnToLatest={clearCheckpoint}
           />
           <For each={list().drafts}>
             {(summary) => (
@@ -337,6 +360,10 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
                     head ? { members: summary.members, head } : null
                   )
                 }
+                hasCheckpoint={
+                  selected() === summary.url && !!checkedOut()?.at
+                }
+                onReturnToLatest={clearCheckpoint}
               />
             )}
           </For>
@@ -367,34 +394,6 @@ export function GroupedDraftsSidebar(props: { element: HTMLElement }) {
             >
               Drop to fork a new draft from this version
             </div>
-          </Show>
-          <Show when={checkedOut()?.at}>
-            <button
-              class="drafts-btn drafts-btn--ghost"
-              onClick={clearCheckpoint}
-              title="Return to the latest version"
-            >
-              Return to latest
-            </button>
-          </Show>
-          <Show when={isMainSelected()}>
-            <button
-              class="drafts-btn drafts-btn--primary"
-              disabled={isFolder()}
-              onClick={onCreateDraft}
-              title={
-                isFolder()
-                  ? "Drafts aren't supported for folders yet"
-                  : "Create a new draft off this document"
-              }
-            >
-              New draft
-            </button>
-            <Show when={isFolder()}>
-              <span class="drafts-hint">
-                Drafts aren't supported for folders yet.
-              </span>
-            </Show>
           </Show>
           <Show when={!isMainSelected()}>
             <button
@@ -745,6 +744,8 @@ function MainCard(props: {
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
+  hasCheckpoint: boolean;
+  onReturnToLatest: () => void;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -774,6 +775,10 @@ function MainCard(props: {
           scrubber={props.scrubber}
           onDragVersion={props.onDragVersion}
         />
+        <ReturnToLatestButton
+          visible={props.hasCheckpoint}
+          onClick={props.onReturnToLatest}
+        />
       </Show>
     </div>
   );
@@ -790,6 +795,8 @@ function DraftCard(props: {
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
+  hasCheckpoint: boolean;
+  onReturnToLatest: () => void;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -818,8 +825,30 @@ function DraftCard(props: {
           scrubber={props.scrubber}
           onDragVersion={props.onDragVersion}
         />
+        <ReturnToLatestButton
+          visible={props.hasCheckpoint}
+          onClick={props.onReturnToLatest}
+        />
       </Show>
     </div>
+  );
+}
+
+// Card footer shown while the card's timeline is pinned to a checkpoint:
+// drops the time pin and returns the view to the live latest heads. Rendered
+// outside the scrollable changes area so it never scrolls out of reach.
+function ReturnToLatestButton(props: { visible: boolean; onClick: () => void }) {
+  return (
+    <Show when={props.visible}>
+      <button
+        type="button"
+        class="draft-card-return"
+        onClick={props.onClick}
+        title="Return to the latest version"
+      >
+        Return to latest
+      </button>
+    </Show>
   );
 }
 
