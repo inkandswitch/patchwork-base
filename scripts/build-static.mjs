@@ -37,6 +37,16 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
 
+// Pin npx's pnpm to the exact version the workspace pins in package.json
+// "packageManager" (sans integrity hash). A floating spec like `pnpm@11` can
+// resolve to a newer release than the pin, and pnpm 11.13+ hard-errors when
+// the running version disagrees with "packageManager" under corepack.
+const PNPM = (() => {
+  const pm = readPkg(ROOT)?.packageManager;
+  const match = typeof pm === "string" ? pm.match(/^pnpm@([^+]+)/) : null;
+  return match ? `pnpm@${match[1]}` : "pnpm@11";
+})();
+
 // Mirror bundle.mjs: directories that are never tools.
 const IGNORE_DIRS = new Set([
   "node_modules",
@@ -143,7 +153,7 @@ async function buildTools(tools, concurrency) {
     function launch(name) {
       remaining.delete(name);
       inFlight.add(name);
-      runBuffered("npx", ["pnpm@11", "build"], join(ROOT, name)).then(({ ok, output }) => {
+      runBuffered("npx", [PNPM, "build"], join(ROOT, name)).then(({ ok, output }) => {
         process.stdout.write(`\n── build ${name} ──\n${output}`);
         if (ok) built.push(name);
         else {
@@ -193,7 +203,7 @@ async function main() {
   // Workspace install once at the root — wires every tool + link: siblings.
   if (install) {
     console.log("\n── pnpm install (workspace) ──");
-    if (!run("npx", ["pnpm@11", "install"], ROOT)) {
+    if (!run("npx", [PNPM, "install"], ROOT)) {
       console.error("[fail]  root pnpm install");
       process.exit(1);
     }
