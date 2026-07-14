@@ -324,9 +324,9 @@ async function resolveSubDocUrlsOfDoc(
   return Array.from(refs);
 }
 
-// Targets that overlap `emphasisRefs` (selection ∪ highlight) render in the
-// solid secondary fill; the rest stay in a faint wash of it. Both keep their
-// text legible (see `commentTargetStyle`) and adapt to light/dark on their own.
+// Targets that overlap `emphasisRefs` (selection ∪ highlight) render in a
+// stronger secondary tint of the editor surface; the rest stay in a faint one.
+// Both keep the editor's own text legible (see `commentTargetStyle`).
 function buildCommentDecorations(
   targetRefs: DocHandle<unknown>[],
   emphasisRefs: DocHandle<unknown>[]
@@ -348,26 +348,19 @@ function buildCommentDecorations(
 }
 
 function commentTargetStyle(isEmphasised: boolean): string {
-  // The only guaranteed-legible pairing is --studio-secondary-fill (the solid
-  // surface) with --studio-secondary-line (its luminance-adaptive invert ink:
-  // black on light accents, white on dark). The -fill-offset ramp mixes the fill
-  // *toward* that ink, so pairing offset backgrounds with -line text collapses the
-  // contrast — that was the unreadable case. So we never use an offset here:
-  //
-  //   emphasised  -> solid fill + invert ink (max contrast, the strong state)
-  //   plain       -> a faint translucent wash of the fill over the editor
-  //                  background, leaving the editor's own text colour untouched so
-  //                  it keeps whatever contrast it already had.
-  if (isEmphasised) {
-    return `
-      color: var(--studio-secondary-line);
-      border-bottom: 2px solid var(--studio-secondary-line);
-      background-color: var(--studio-secondary-fill);
-    `;
-  }
+  // Highlighter-over-paper: tint the editor surface (--text-editor-fill) with the
+  // secondary accent and leave the text in the editor's own ink (--text-editor-line,
+  // inherited — we never set `color`). Because the background is anchored to the
+  // paper it can never be darker than the editor surface, so it stays readable and
+  // never a heavy dark block: a light tint on light themes, a dark one on dark
+  // themes, tracking the theme automatically. --text-editor-secondary-text is the
+  // secondary as ink on that surface, so the underline reads in both.
+  //   emphasised -> a stronger tint (the focused target)
+  //   plain      -> a faint tint
+  const paper = isEmphasised ? "56%" : "82%";
   return `
-    border-bottom: 2px solid var(--studio-secondary-line);
-    background-color: color-mix(in srgb, var(--studio-secondary-fill) 22%, transparent);
+    border-bottom: 2px solid var(--text-editor-secondary-text);
+    background-color: color-mix(in oklch, var(--studio-secondary), var(--text-editor-fill) ${paper});
   `;
 }
 
