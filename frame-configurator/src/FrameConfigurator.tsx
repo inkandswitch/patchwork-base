@@ -262,11 +262,16 @@ function ToolbarStrip(props: {
   const [dropIndex, setDropIndex] = createSignal<number | null>(null);
   let lastDropIndex: number | null = null;
 
-  const currentIds = createMemo(() => new Set(props.values ?? []));
-  const listedIds = createMemo(() => new Set(props.allOptions.map((o) => o.id)));
-  const listedValues = createMemo(() =>
-    (props.values ?? []).filter((id) => listedIds().has(id))
-  );
+  // The configured ids, verbatim. We deliberately do NOT filter these down to
+  // ids whose plugin is currently registered: the configurator's plugin host
+  // loads tools asynchronously, so early after mount `allOptions` is a partial
+  // set. Rebuilding the array from a registered-only subset on every mutation
+  // would silently drop not-yet-loaded tools — that was the "adding one tool
+  // wipes the rest / only one tool sticks" bug. Every edit rebuilds from the
+  // full list, so an unknown/still-loading id survives (shown by its raw id
+  // until its plugin registers).
+  const values = createMemo(() => props.values ?? []);
+  const currentIds = createMemo(() => new Set(values()));
   const available = createMemo(() =>
     props.allOptions.filter((o) => !currentIds().has(o.id))
   );
@@ -274,12 +279,11 @@ function ToolbarStrip(props: {
     props.allOptions.find((o) => o.id === id)?.name ?? id;
 
   const removeAt = (index: number) => {
-    const vals = listedValues();
-    props.setValues(vals.filter((_, i) => i !== index));
+    props.setValues(values().filter((_, i) => i !== index));
   };
 
   const add = (id: string) => {
-    props.setValues([...listedValues(), id]);
+    props.setValues([...values(), id]);
   };
 
   const updateDropIndex = (i: number) => {
@@ -294,7 +298,7 @@ function ToolbarStrip(props: {
     setDropIndex(null);
     lastDropIndex = null;
     if (from == null || to == null || from === to) return;
-    const arr = [...listedValues()];
+    const arr = [...values()];
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
     props.setValues(arr);
@@ -307,7 +311,7 @@ function ToolbarStrip(props: {
         class={`toolbar-strip${dragIndex() !== null ? " is-dragging" : ""}`}
         ref={nullSelectedDocRef}
       >
-        <For each={listedValues()}>
+        <For each={values()}>
           {(id, index) => (
             <div
               class={`toolbar-box${itemDragClass(index(), dragIndex(), dropIndex())}`}
@@ -352,7 +356,7 @@ function ToolbarStrip(props: {
           <button
             class="toolbar-add-btn"
             onClick={() => setShowAdd(!showAdd())}
-            aria-label="Add toolbar item"
+            aria-label="Add doc titlebar tool"
           >
             <PlusIcon />
           </button>
@@ -450,7 +454,7 @@ function FrameConfiguratorUI(props: {
           }
         >
           <ToolbarStrip
-            label="Toolbar"
+            label="Doc Titlebar"
             values={doctitleIds()}
             setValues={setDoctitle}
             allOptions={documentToolbarOptions()}
