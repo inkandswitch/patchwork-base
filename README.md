@@ -75,8 +75,8 @@ The tools can be deployed as a static HTTP bundle and loaded by any Patchwork
   (`ModuleWatcher` / `SiteConfig.defaultModules`), so a shell just needs to point
   its `defaultModules` at a tools host.
 
-A shell can point at any tools host via `VITE_DEFAULT_MODULES` (build time) or
-`localStorage.defaultToolsUrl` (runtime), so the same deployed shell can run
+A shell can point at any tools host via `PATCHWORK_SYSTEM_PACKAGE_LIST_URL` (build time) or
+`localStorage.systemPackageListURL` (runtime), so the same deployed shell can run
 against an `automerge:` module-settings doc, this static tools bundle, a PR
 preview, or a local tools server — no shell rebuild needed for the runtime
 override.
@@ -113,7 +113,7 @@ The preview is of the _tools bundle_, so to test a PR's tools in any shell,
 point it at the preview's manifest — no shell rebuild needed:
 
 ```js
-localStorage.defaultToolsUrl =
+localStorage.systemPackageListURL =
   "https://deploy-preview-123--<site>.netlify.app/modules.json";
 ```
 
@@ -127,7 +127,7 @@ you can always run a local webserver to host the JS and point your local shell a
 pnpm dev:tools
 
 # terminal 2 — shell (in patchwork-next)
-VITE_DEFAULT_MODULES=http://localhost:4455/modules.json \
+PATCHWORK_SYSTEM_PACKAGE_LIST_URL=http://localhost:4455/modules.json \
   pnpm --filter tiny-patchwork dev
 ```
 
@@ -135,7 +135,7 @@ At runtime you can also point an already-running/deployed shell at a tools host
 without a rebuild:
 
 ```js
-localStorage.defaultToolsUrl = "http://localhost:4455/modules.json";
+localStorage.systemPackageListURL = "http://localhost:4455/modules.json";
 ```
 
 ## Installing modules

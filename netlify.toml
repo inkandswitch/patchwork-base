@@ -1,6 +1,6 @@
 # Netlify config for the patchwork-base *tools bundle* (static-dist:
 # modules.json + tools/). The shell (site/) is deployed separately and points
-# at this site's modules.json via VITE_DEFAULT_MODULES / localStorage.
+# at this site's modules.json via PATCHWORK_SYSTEM_PACKAGE_LIST_URL / localStorage.
 #
 # The shell loads these cross-origin, so every response needs
 # `Access-Control-Allow-Origin: *`: the `modules.json` manifest, each tool's
