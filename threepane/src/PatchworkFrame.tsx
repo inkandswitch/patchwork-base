@@ -1,8 +1,5 @@
 import "@inkandswitch/patchwork-elements";
-import {
-  useDocHandle,
-  useDocument,
-} from "solid-automerge";
+import { useDocHandle, useDocument } from "solid-automerge";
 import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { subscribe } from "@inkandswitch/patchwork-providers";
 import type {
@@ -138,8 +135,13 @@ export function PatchworkFrame({
   );
 
   return (
-    <div class="frame">
-      {/*
+    <div class="frame-shell">
+      <aside class="frame-warning-banner">
+        research grade software. do not share links. sharing a doc is sharing
+        your account.
+      </aside>
+      <div class="frame">
+        {/*
         Outermost providers: wrap both sidebars and the main area so that
         `patchwork:open-document` events from anywhere (and the matching
         `patchwork:selected-doc` subscriptions) reach them. The comments and
@@ -148,30 +150,31 @@ export function PatchworkFrame({
         against the draft's clone. `patchwork-view` defaults to
         `display: contents`, so these wrappers are layout-neutral.
       */}
-      <patchwork-view
-        component="patchwork-selected-doc-provider"
-        ref={setSelectedDocProviderElement}
-      >
         <patchwork-view
-          component="patchwork-account-provider"
-          doc-url={accountDocUrl}
-          ref={setAccountProviderElement}
+          component="patchwork-selected-doc-provider"
+          ref={setSelectedDocProviderElement}
         >
           <patchwork-view
-            component="patchwork-tool-storage-provider"
+            component="patchwork-account-provider"
             doc-url={accountDocUrl}
-            ref={setToolStorageProviderElement}
+            ref={setAccountProviderElement}
           >
-            <Show when={areProvidersReady()}>
-              <PatchworkFrameInner
-                handle={handle}
-                repo={repo}
-                isolation={props.isolation}
-              />
-            </Show>
+            <patchwork-view
+              component="patchwork-tool-storage-provider"
+              doc-url={accountDocUrl}
+              ref={setToolStorageProviderElement}
+            >
+              <Show when={areProvidersReady()}>
+                <PatchworkFrameInner
+                  handle={handle}
+                  repo={repo}
+                  isolation={props.isolation}
+                />
+              </Show>
+            </patchwork-view>
           </patchwork-view>
         </patchwork-view>
-      </patchwork-view>
+      </div>
     </div>
   );
 }
@@ -559,9 +562,7 @@ function FrameLayout(props: {
       window.dispatchEvent(new CustomEvent(COLLAPSE_CONTEXT_SIDEBAR_EVENT));
     };
     el.addEventListener("patchwork:open-document", onOpen);
-    onCleanup(() =>
-      el.removeEventListener("patchwork:open-document", onOpen)
-    );
+    onCleanup(() => el.removeEventListener("patchwork:open-document", onOpen));
   });
   return (
     <>
@@ -718,7 +719,11 @@ export function renderPatchworkFrame(
   return (handle, element) => {
     return render(
       () => (
-        <PatchworkFrame handle={handle} repo={element.repo} isolation={isolation} />
+        <PatchworkFrame
+          handle={handle}
+          repo={element.repo}
+          isolation={isolation}
+        />
       ),
       element
     );
