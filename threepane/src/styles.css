@@ -493,12 +493,6 @@
   );
 }
 
-/* account / packages / settings footer, pinned to the sidebar bottom */
-.threepane-sidebar--has-tray .threepane-sidebar__footer {
-  flex: none;
-  margin-bottom: calc(var(--threepane-tray-height) + env(safe-area-inset-bottom, 0px));
-}
-
 /* The inlined account bar: avatar (account picker) + Packages + Settings. Ported
    from the sideboard `account-bar` tool onto threepane tokens so the frame owns
    the markup directly. */
