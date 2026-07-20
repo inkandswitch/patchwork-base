@@ -99,17 +99,6 @@ const MARKDOWN_STYLES: Record<string, any> = {
   ".codeblock": {
     background: "orange",
   },
-
-  // When deeply nested (3+ patchwork-views above), remove editor chrome
-  "patchwork-view patchwork-view patchwork-view & .cm-content": {
-    margin: "0",
-    padding: "1em",
-    maxWidth: "none",
-    borderRadius: "0",
-  },
-  "patchwork-view patchwork-view patchwork-view .p-4:has(&)": {
-    padding: "0",
-  },
 };
 
 const baseHeadingStyles = {
