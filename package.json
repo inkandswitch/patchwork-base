@@ -12,8 +12,7 @@
     "dev:tools": "pnpm build:static && pnpm serve:tools",
     "dev": "node scripts/serve-tools.mjs --port 2121",
     "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod",
-    "prepare": "pnpm build:static:fresh"
+    "pkg": "pnpm build:static:fresh && cp package.json static-dist && cd static-dist && pnpm publish"
   },
-  "packageManager": "pnpm@11.15.1",
-  "files": ["static-dist"]
+  "packageManager": "pnpm@11.15.1"
 }
