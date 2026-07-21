@@ -64,6 +64,7 @@ jobs:
           set -o pipefail
           out=$(pnpm --package=netlify-cli dlx netlify deploy \
             --dir=dist \
+            --no-build \
             --alias="$ALIAS" \
             --message="patchwork-base#${{ github.event.number }} @ ${{ github.event.pull_request.head.sha }}" \
             --json)
