@@ -1,4 +1,4 @@
-name: shell preview
+name: patchwork preview
 
 on:
   pull_request:
@@ -8,8 +8,8 @@ env:
   SHELL_REPO: inkandswitch/patchwork.inkandswitch.com
   NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
   NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-  ALIAS: shell-pr-${{ github.event.number }}
-  MARKER: "<!-- shell-preview -->"
+  ALIAS: pr-${{ github.event.number }}
+  MARKER: "<!-- patchwork-preview -->"
 
 jobs:
   preview:
@@ -49,11 +49,12 @@ jobs:
       - name: deploy
         id: deploy
         run: |
-          url=$(pnpm dlx netlify-cli deploy \
+          set -o pipefail
+          url=$(pnpm --package=netlify-cli dlx netlify deploy \
             --dir=dist \
             --alias="$ALIAS" \
-            --message="shell for patchwork-base#${{ github.event.number }} @ ${{ github.event.pull_request.head.sha }}" \
-            --json | jq -r .deploy_url)
+            --message="patchwork-base#${{ github.event.number }} @ ${{ github.event.pull_request.head.sha }}" \
+            --json | jq -er .deploy_url)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - uses: actions/github-script@v7
@@ -63,12 +64,19 @@ jobs:
         with:
           script: |
             const marker = process.env.MARKER
+            const sha = context.payload.pull_request.head.sha.slice(0, 7)
             const body = [
               marker,
-              `**Shell preview:** ${process.env.SHELL_URL}`,
+              `### 🪡 Patchwork preview`,
               ``,
-              `Built from \`${process.env.SHELL_REPO}\` against this PR's tools bundle:`,
-              `\`${process.env.MODULES_URL}\``,
+              `## ${process.env.SHELL_URL}`,
+              ``,
+              `Patchwork from \`${process.env.SHELL_REPO}\`, tools from this PR at \`${sha}\`.`,
+              `Point any other shell at the same tools with:`,
+              ``,
+              "```js",
+              `localStorage.systemPackageListURL = ${JSON.stringify(process.env.MODULES_URL)}`,
+              "```",
             ].join("\n")
             const {owner, repo} = context.repo
             const issue_number = context.issue.number
@@ -110,6 +118,6 @@ jobs:
             if (existing) {
               await github.rest.issues.updateComment({
                 owner, repo, comment_id: existing.id,
-                body: `${marker}\n**Shell preview:** torn down.`,
+                body: `${marker}\n### 🪡 Patchwork preview\n\nTorn down.`,
               })
             }
