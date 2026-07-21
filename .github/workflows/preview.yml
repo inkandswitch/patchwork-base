@@ -8,7 +8,7 @@ env:
   SHELL_REPO: inkandswitch/patchwork.inkandswitch.com
   NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
   NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-  ALIAS: pr-${{ github.event.number }}
+  ALIAS: patchwork-preview-${{ github.event.number }}
   MARKER: "<!-- patchwork-preview -->"
 
 jobs:
@@ -18,10 +18,18 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    defaults:
+      run:
+        working-directory: shell
     steps:
       - uses: actions/checkout@v4
         with:
+          path: base
+
+      - uses: actions/checkout@v4
+        with:
           repository: ${{ env.SHELL_REPO }}
+          path: shell
 
       - uses: pnpm/action-setup@v4
         with:
@@ -31,6 +39,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          cache-dependency-path: shell/pnpm-lock.yaml
 
       - name: resolve package list url
         id: bundle
@@ -45,6 +54,9 @@ jobs:
         env:
           PATCHWORK_SYSTEM_PACKAGE_LIST_URL: ${{ steps.bundle.outputs.url }}
         run: pnpm build
+
+      - name: free the alias
+        run: ../base/.github/scripts/netlify-purge-alias.sh
 
       - name: deploy
         id: deploy
@@ -77,7 +89,6 @@ jobs:
       - uses: actions/github-script@v7
         env:
           SHELL_URL: ${{ steps.deploy.outputs.url }}
-          PACKAGE_LIST_URL: ${{ steps.bundle.outputs.url }}
         with:
           script: |
             const marker = process.env.MARKER
@@ -104,20 +115,12 @@ jobs:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
     steps:
-      - name: delete alias deploys
-        run: |
-          api() { curl -sf -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "$@"; }
-          for page in 1 2 3 4 5; do
-            deploys=$(api "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=100&page=$page")
-            [ "$(echo "$deploys" | jq length)" = 0 ] && break
-            for id in $(echo "$deploys" | jq -r --arg a "$ALIAS" \
-              '.[] | select(.branch == $a or (.deploy_url // "" | contains("//" + $a + "--"))) | .id'); do
-              echo "deleting deploy $id"
-              api -X DELETE "https://api.netlify.com/api/v1/deploys/$id" -o /dev/null
-            done
-          done
+      - uses: actions/checkout@v4
+
+      - run: .github/scripts/netlify-purge-alias.sh
 
       - uses: actions/github-script@v7
         with:
