@@ -6,7 +6,7 @@
  * The manifest has the same shape as a Patchwork module-settings document
  * (`{ "@patchwork": { type: "patchwork:module-settings" }, modules: [...] }`)
  * but lives as a plain JSON file. Each module entry is a relative URL to a
- * tool's *directory* (`./tools/<name>/`), which serves that tool's
+ * tool's *directory* (`./packages/<name>/`), which serves that tool's
  * `package.json`. At load time the runtime fetches the package.json and
  * resolves its entry point itself (`exports["."]` under the
  * `patchwork`/`browser`/`import` conditions, falling back to `main`) — the same
@@ -95,10 +95,10 @@ function normalizeRel(p) {
 function main() {
   const { out } = parseArgs(process.argv.slice(2));
   const outDir = resolvePath(ROOT, out);
-  const toolsOutDir = join(outDir, "tools");
+  const packagesOutDir = join(outDir, "packages");
 
   rmSync(outDir, { recursive: true, force: true });
-  mkdirSync(toolsOutDir, { recursive: true });
+  mkdirSync(packagesOutDir, { recursive: true });
 
   // Copy dists and build manifest.
   const modules = [];
@@ -130,7 +130,7 @@ function main() {
       continue;
     }
 
-    const destDir = join(toolsOutDir, name);
+    const destDir = join(packagesOutDir, name);
     mkdirSync(destDir, { recursive: true });
 
     const entryTopDir = entryRel.includes("/") ? entryRel.split("/")[0] : null;
@@ -156,13 +156,13 @@ function main() {
     const examplePath = join(toolDir, "example.js");
     if (existsSync(examplePath)) {
       cpSync(examplePath, join(destDir, "example.js"));
-      examples.push(`./tools/${name}/example.js`);
+      examples.push(`./packages/${name}/example.js`);
     }
 
     // Point at the tool directory; the runtime fetches its package.json and
     // resolves the entry point (validated above) itself.
-    modules.push(`./tools/${name}/`);
-    console.log(`[ok]    ${name} -> ./tools/${name}/ (entry: ${entryRel})`);
+    modules.push(`./packages/${name}/`);
+    console.log(`[ok]    ${name} -> ./packages/${name}/ (entry: ${entryRel})`);
   }
 
   const manifest = {

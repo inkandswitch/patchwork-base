@@ -142,7 +142,7 @@ eq(
 );
 eq(
   packageDisplayName(
-    "https://patchwork-base.netlify.app/tools/comments-view/dist/index.js",
+    "https://patchwork-base.netlify.app/packages/comments-view/dist/index.js",
     undefined
   ),
   "comments-view",

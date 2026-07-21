@@ -54,7 +54,7 @@ There is no root workspace — these just run `pnpm` recursively over each tool
 directory. The filter (`--filter './*' --filter '!./static-dist/**'`) excludes
 the `static-dist/` output folder, so they're safe to run even when a previous
 bundle is still present. (A bare `pnpm -r build` would instead try to "build"
-the copied bundles under `static-dist/tools/*` and fail, since those have no
+the copied bundles under `static-dist/packages/*` and fail, since those have no
 `node_modules`.) Because `install` is a real script, plain `pnpm install` at the
 root installs all the tools too.
 
@@ -64,7 +64,7 @@ The tools can be deployed as a static HTTP bundle and loaded by any Patchwork
 **shell** (the boot runtime). The two halves are independent:
 
 - **Tools bundle** (lives here) — `static-dist/` (`modules.json` +
-  `tools/<tool>/dist/…`), produced by `scripts/bundle.mjs`. Deployed to
+  `packages/<tool>/dist/…`), produced by `scripts/bundle.mjs`. Deployed to
   Netlify (the repo is private, so GitHub Pages would need a paid plan).
   `bundle` also writes a `_headers` file granting
   `Access-Control-Allow-Origin: *`, which Netlify (and Cloudflare Pages) honour
@@ -97,7 +97,7 @@ pnpm deploy:tools     # bundle + netlify deploy --prod (static-dist/)
 A clean bundle from scratch is `pnpm install && pnpm build && pnpm bundle`
 (which is exactly what Netlify runs).
 
-`modules.json` uses relative `./tools/…` URLs that resolve against the
+`modules.json` uses relative `./packages/…` URLs that resolve against the
 manifest's own URL, so the bundle works at any host or base path.
 
 The first `pnpm deploy:tools` will prompt you to log in and link/create a

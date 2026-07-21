@@ -1,5 +1,5 @@
 {
-  "name": "patchwork-base",
+  "name": "@inkandswitch/patchwork-package-base",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,9 @@
     "serve:tools": "node scripts/serve-tools.mjs",
     "dev:tools": "pnpm build:static && pnpm serve:tools",
     "dev": "node scripts/serve-tools.mjs --port 2121",
-    "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod"
+    "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod",
+    "prepare": "pnpm build:static:fresh"
   },
-  "packageManager": "pnpm@11.15.1"
+  "packageManager": "pnpm@11.15.1",
+  "files": ["static-dist"]
 }
