@@ -1,6 +1,6 @@
 {
   "name": "@inkandswitch/patchwork-pkg-base",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Base packages for the Patchwork system",
   "private": true,
