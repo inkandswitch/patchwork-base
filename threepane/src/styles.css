@@ -1,15 +1,15 @@
 :root,
 :host,
 [theme] {
-  --threepane-bg: pink;
-  --threepane-sidebar-fill: lime;
-  --threepane-fg: yellow;
+  --threepane-bg: var(--studio-fill, white);
+  --threepane-sidebar-fill: var(--studio-chrome, var(--studio-fill, white));
+  --threepane-fg: var(--studio-line, black);
   /* ink for text sitting ON the sidebar/account-bar chrome surface. mirrors the
      toolbar/context-sidebar fg: it rides --studio-chrome-line (the chrome's own
      ink) so it tracks the chrome palette, not the content page. --threepane-fg
      is content ink and only belongs on --threepane-bg surfaces. */
-  --threepane-sidebar-fg: blue;
-  --threepane-muted: cyan;
+  --threepane-sidebar-fg: var(--studio-chrome-line, var(--studio-line, black));
+  --threepane-muted: var(--studio-line-offset-50, #999);
   --threepane-family: var(--studio-family-sans, system-ui, sans-serif);
   --threepane-family-code: var(--studio-family-code, ui-monospace, monospace);
 
