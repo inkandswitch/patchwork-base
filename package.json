@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Base packages for the Patchwork system",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkandswitch/patchwork-pkg-base.git"
+  },
   "scripts": {
     "build:static": "node scripts/build-static.mjs",
     "build:static:fresh": "node scripts/build-static.mjs --build",
