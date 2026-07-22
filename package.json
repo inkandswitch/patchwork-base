@@ -16,6 +16,7 @@
     "serve:tools": "node scripts/serve-tools.mjs",
     "dev:tools": "pnpm build:static && pnpm serve:tools",
     "dev": "node scripts/serve-tools.mjs --port 2121",
+    "watch": "node scripts/watch.mjs",
     "deploy:tools": "pnpm build:static && pnpm dlx netlify-cli deploy --dir=static-dist --prod"
   },
   "packageManager": "pnpm@11.15.1"
