@@ -1,5 +1,13 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, statSync, watch } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  watch,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,16 +18,27 @@ let bundleTimer;
 let stopping = false;
 
 function bundle() {
-  const result = spawnSync("node", ["scripts/bundle.mjs"], {
+  const next = join(root, "static-dist.next");
+  const previous = join(root, "static-dist.previous");
+  const current = join(root, "static-dist");
+  const result = spawnSync("node", ["scripts/bundle.mjs", "--out", next, "--strict"], {
     cwd: root,
     stdio: "inherit",
   });
-  if (result.status !== 0) stop(result.status ?? 1);
+  if (result.status !== 0) {
+    rmSync(next, { recursive: true, force: true });
+    return;
+  }
+  rmSync(previous, { recursive: true, force: true });
+  if (existsSync(current)) renameSync(current, previous);
+  renameSync(next, current);
+  writeFileSync(join(current, ".watch-ready"), `${Date.now()}\n`);
+  rmSync(previous, { recursive: true, force: true });
 }
 
 function schedule() {
   clearTimeout(bundleTimer);
-  bundleTimer = setTimeout(bundle, 1000);
+  bundleTimer = setTimeout(bundle, 500);
 }
 
 function watchOutput(path) {

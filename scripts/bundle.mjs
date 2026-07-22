@@ -47,16 +47,19 @@ const IGNORE_DIRS = new Set([
   "node_modules",
   "scripts",
   "static-dist",
+  "static-dist.next",
+  "static-dist.previous",
   "dist",
   ".git",
   ".pushwork",
 ]);
 
 function parseArgs(argv) {
-  const args = { out: "static-dist" };
+  const args = { out: "static-dist", strict: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out") args.out = argv[++i];
+    else if (a === "--strict") args.strict = true;
     else throw new Error(`Unknown argument: ${a}`);
   }
   return args;
@@ -93,7 +96,7 @@ function normalizeRel(p) {
 }
 
 function main() {
-  const { out } = parseArgs(process.argv.slice(2));
+  const { out, strict } = parseArgs(process.argv.slice(2));
   const outDir = resolvePath(ROOT, out);
   const packagesOutDir = join(outDir, "packages");
 
@@ -186,6 +189,7 @@ function main() {
     console.log(`Skipped ${skipped.length}:`);
     for (const s of skipped) console.log(`  - ${s}`);
   }
+  if (strict && skipped.length) process.exitCode = 1;
 }
 
 /**
