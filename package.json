@@ -11,7 +11,7 @@
   "scripts": {
     "build:static": "node scripts/build-static.mjs",
     "build:static:fresh": "node scripts/build-static.mjs --build",
-    "build:tools:ci": "node scripts/build-static.mjs --install",
+    "build:ci": "node scripts/build-static.mjs --install",
     "bundle": "node scripts/bundle.mjs",
     "serve:tools": "node scripts/serve-tools.mjs",
     "dev:tools": "pnpm build:static && pnpm serve:tools",

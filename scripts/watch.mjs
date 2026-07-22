@@ -17,17 +17,22 @@ function bundle() {
   if (result.status !== 0) stop(result.status ?? 1);
 }
 
-function schedule(filename) {
-  if (!filename) return;
-  const parts = filename.split(/[\\/]/);
-  if (
-    parts.includes("node_modules") ||
-    (parts[0] !== "dist" && !["package.json", "example.js", "index.js"].includes(filename))
-  ) {
-    return;
-  }
+function schedule() {
   clearTimeout(bundleTimer);
-  bundleTimer = setTimeout(bundle, 100);
+  bundleTimer = setTimeout(bundle, 1000);
+}
+
+function watchOutput(path) {
+  const watcher = watch(
+    path,
+    { recursive: statSync(path).isDirectory() },
+    schedule,
+  );
+  watcher.on("error", (error) => {
+    console.error(error.message);
+    stop(1);
+  });
+  watchers.push(watcher);
 }
 
 function stop(code = 0) {
@@ -40,12 +45,13 @@ function stop(code = 0) {
 }
 
 if (!existsSync(join(root, "static-dist", "modules.json"))) {
-  const initial = spawnSync(
-    "node",
-    ["scripts/build-static.mjs", "--build", "--strict"],
-    { cwd: root, stdio: "inherit" },
-  );
-  if (initial.status !== 0) process.exit(initial.status ?? 1);
+  for (const [command, args] of [
+    ["pnpm", ["-r", "--if-present", "build"]],
+    ["node", ["scripts/bundle.mjs"]],
+  ]) {
+    const initial = spawnSync(command, args, { cwd: root, stdio: "inherit" });
+    if (initial.status !== 0) process.exit(initial.status ?? 1);
+  }
 }
 
 for (const name of readdirSync(root)) {
@@ -53,7 +59,19 @@ for (const name of readdirSync(root)) {
   const directory = join(root, name);
   if (!statSync(directory).isDirectory()) continue;
   if (!existsSync(join(directory, "package.json"))) continue;
-  watchers.push(watch(directory, { recursive: true }, (_, filename) => schedule(filename)));
+  const dist = join(directory, "dist");
+  if (existsSync(dist)) watchOutput(dist);
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    if (
+      entry.name === "package.json" ||
+      entry.name === "example.js" ||
+      entry.name.endsWith(".js") ||
+      entry.name.endsWith(".mjs")
+    ) {
+      watchOutput(join(directory, entry.name));
+    }
+  }
 }
 
 const tools = spawn(
