@@ -683,6 +683,29 @@
 
 /* ---- broken modules ---- */
 
+.pw-package-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 0;
+}
+.pw-package-notice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  border: 1px solid var(--pw-packages-border-strong);
+  border-left: 3px solid var(--pw-packages-unknown);
+  border-radius: var(--studio-radius-md, 8px);
+  background: var(--pw-packages-unknown-fill);
+  padding: 0.625rem 0.75rem;
+  color: var(--pw-packages-unknown-text);
+  font-size: 0.8125rem;
+}
+.pw-package-notice__url {
+  max-width: 100%;
+}
+
 .pw-broken {
   display: flex;
   flex-direction: column;

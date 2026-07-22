@@ -29,7 +29,7 @@ import {
   pinnedModuleUrl,
   type Origin,
 } from "./origin.ts";
-import { systemModuleKeys } from "./settings-sources.ts";
+import { readSettingsSources } from "./settings-sources.ts";
 import { useDocHeadsMap } from "./doc-heads.ts";
 import {
   discoverPlugins,
@@ -189,9 +189,27 @@ export function Packages(props: {
   // Modules from the system/default settings doc(s) → "core"; an automerge
   // module in neither doc → "ephemeral". Re-read as plugins/manifests load.
   const viewedKey = createMemo(() => moduleKey(props.handle.url));
-  const systemKeys = createMemo(() => {
+  const settingsSources = createMemo(() => {
     snapshot();
-    return systemModuleKeys(viewedKey());
+    return readSettingsSources();
+  });
+  const systemKeys = createMemo(() => {
+    const keys = new Set<string>();
+    for (const source of settingsSources()) {
+      if (source.key === viewedKey()) continue;
+      for (const key of source.moduleKeys) keys.add(key);
+    }
+    return keys;
+  });
+  const systemPackageListUrl = createMemo(
+    () => settingsSources().find((source) => source.name === "system")?.url
+  );
+  const isCustomSystemPackageList = createMemo(
+    () => systemPackageListUrl() !== undefined && systemPackageListUrl() !== "/modules.json"
+  );
+  const isWatchedPackageList = createMemo(() => {
+    const key = viewedKey();
+    return !!key && settingsSources().some((source) => source.key === key);
   });
 
   // Current heads per automerge module, looked up live from the repo — the
@@ -762,6 +780,26 @@ export function Packages(props: {
           </div>
         </div>
       </header>
+
+      <Show when={isCustomSystemPackageList() || !isWatchedPackageList()}>
+        <div class="pw-package-notices">
+          <Show when={isCustomSystemPackageList()}>
+            <div class="pw-package-notice" role="status">
+              Using a custom system package list.
+              <Copyable
+                value={systemPackageListUrl()!}
+                class="pw-package-notice__url"
+                title="System package list URL — click to copy"
+              />
+            </div>
+          </Show>
+          <Show when={!isWatchedPackageList()}>
+            <div class="pw-package-notice" role="alert">
+              This package list is not being watched by this window.
+            </div>
+          </Show>
+        </div>
+      </Show>
 
       {/* ---- BROKEN MODULES (in your list, imported nothing) ---- */}
       <Show when={view() === "packages" && brokenModules().length > 0}>
