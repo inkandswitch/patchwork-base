@@ -14,7 +14,7 @@
 # automatic Deploy Previews for every PR. Also used by `pnpm deploy:tools` (CLI).
 [build]
   publish = "static-dist"
-  command = "pnpm build:tools:ci"
+  command = "pnpm build:ci"
 
 [[headers]]
   for = "/*"
