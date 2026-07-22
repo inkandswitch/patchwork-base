@@ -1,51 +1,37 @@
 import { spawn, spawnSync } from "node:child_process";
-import {
-  existsSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  statSync,
-  watch,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readdirSync, statSync, watch, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ignored = new Set(["node_modules", "scripts", "static-dist", ".git"]);
 const watchers = [];
+const pending = new Set();
 let bundleTimer;
 let stopping = false;
 
 function bundle() {
-  const next = join(root, "static-dist.next");
-  const previous = join(root, "static-dist.previous");
   const current = join(root, "static-dist");
-  const result = spawnSync("node", ["scripts/bundle.mjs", "--out", next, "--strict"], {
-    cwd: root,
-    stdio: "inherit",
-  });
-  if (result.status !== 0) {
-    rmSync(next, { recursive: true, force: true });
-    return;
-  }
-  rmSync(previous, { recursive: true, force: true });
-  if (existsSync(current)) renameSync(current, previous);
-  renameSync(next, current);
+  const names = [...pending];
+  pending.clear();
+  const args = ["scripts/bundle.mjs", "--strict"];
+  for (const name of names) args.push("--filter", name);
+  const result = spawnSync("node", args, { cwd: root, stdio: "inherit" });
+  if (result.status !== 0) return;
   writeFileSync(join(current, ".watch-ready"), `${Date.now()}\n`);
-  rmSync(previous, { recursive: true, force: true });
 }
 
-function schedule() {
+function schedule(name) {
+  pending.add(name);
   clearTimeout(bundleTimer);
   bundleTimer = setTimeout(bundle, 500);
 }
 
-function watchOutput(path) {
+function watchOutput(name, path) {
   const watcher = watch(
     path,
     { recursive: statSync(path).isDirectory() },
-    schedule,
+    () => schedule(name),
   );
   watcher.on("error", (error) => {
     console.error(error.message);
@@ -79,7 +65,7 @@ for (const name of readdirSync(root)) {
   if (!statSync(directory).isDirectory()) continue;
   if (!existsSync(join(directory, "package.json"))) continue;
   const dist = join(directory, "dist");
-  if (existsSync(dist)) watchOutput(dist);
+  if (existsSync(dist)) watchOutput(name, dist);
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
     if (
@@ -88,7 +74,7 @@ for (const name of readdirSync(root)) {
       entry.name.endsWith(".js") ||
       entry.name.endsWith(".mjs")
     ) {
-      watchOutput(join(directory, entry.name));
+      watchOutput(name, join(directory, entry.name));
     }
   }
 }

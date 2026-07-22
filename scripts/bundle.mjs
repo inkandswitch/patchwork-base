@@ -55,11 +55,12 @@ const IGNORE_DIRS = new Set([
 ]);
 
 function parseArgs(argv) {
-  const args = { out: "static-dist", strict: false };
+  const args = { out: "static-dist", strict: false, filters: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out") args.out = argv[++i];
     else if (a === "--strict") args.strict = true;
+    else if (a === "--filter") args.filters.push(argv[++i]);
     else throw new Error(`Unknown argument: ${a}`);
   }
   return args;
@@ -96,11 +97,12 @@ function normalizeRel(p) {
 }
 
 function main() {
-  const { out, strict } = parseArgs(process.argv.slice(2));
+  const { out, strict, filters } = parseArgs(process.argv.slice(2));
   const outDir = resolvePath(ROOT, out);
   const packagesOutDir = join(outDir, "packages");
+  const filtered = new Set(filters);
 
-  rmSync(outDir, { recursive: true, force: true });
+  if (!filtered.size) rmSync(outDir, { recursive: true, force: true });
   mkdirSync(packagesOutDir, { recursive: true });
 
   // Copy dists and build manifest.
@@ -116,6 +118,9 @@ function main() {
     const pkgPath = join(toolDir, "package.json");
     if (!existsSync(pkgPath)) {
       skipped.push(`${name} (no package.json)`);
+      if (filtered.has(name)) {
+        rmSync(join(packagesOutDir, name), { recursive: true, force: true });
+      }
       continue;
     }
 
@@ -124,24 +129,34 @@ function main() {
     const entry = resolveEntry(pkg);
     if (!entry) {
       skipped.push(`${name} (no resolvable entry point in package.json)`);
+      if (filtered.has(name)) {
+        rmSync(join(packagesOutDir, name), { recursive: true, force: true });
+      }
       continue;
     }
 
     const entryRel = normalizeRel(entry);
     if (!existsSync(join(toolDir, entryRel))) {
       skipped.push(`${name} (entry ${entryRel} not found)`);
+      if (filtered.has(name)) {
+        rmSync(join(packagesOutDir, name), { recursive: true, force: true });
+      }
       continue;
     }
 
     const destDir = join(packagesOutDir, name);
-    mkdirSync(destDir, { recursive: true });
+    const copy = !filtered.size || filtered.has(name);
+    if (copy) {
+      rmSync(destDir, { recursive: true, force: true });
+      mkdirSync(destDir, { recursive: true });
+    }
 
     const entryTopDir = entryRel.includes("/") ? entryRel.split("/")[0] : null;
-    if (entryTopDir) {
+    if (copy && entryTopDir) {
       // Entry is in a subdirectory (e.g. dist/index.js) — copy that dir + package.json.
       cpSync(join(toolDir, entryTopDir), join(destDir, entryTopDir), { recursive: true });
       cpSync(pkgPath, join(destDir, "package.json"));
-    } else {
+    } else if (copy) {
       // Entry is at root (e.g. index.js) — copy source files directly.
       const SKIP = new Set(["node_modules", ".git", "pnpm-lock.yaml", "pnpm-workspace.yaml"]);
       cpSync(toolDir, destDir, {
@@ -158,14 +173,16 @@ function main() {
     // copying again is harmless and covers the dist-only case.
     const examplePath = join(toolDir, "example.js");
     if (existsSync(examplePath)) {
-      cpSync(examplePath, join(destDir, "example.js"));
+      if (copy) cpSync(examplePath, join(destDir, "example.js"));
       examples.push(`./packages/${name}/example.js`);
     }
 
     // Point at the tool directory; the runtime fetches its package.json and
     // resolves the entry point (validated above) itself.
     modules.push(`./packages/${name}/`);
-    console.log(`[ok]    ${name} -> ./packages/${name}/ (entry: ${entryRel})`);
+    if (copy) {
+      console.log(`[ok]    ${name} -> ./packages/${name}/ (entry: ${entryRel})`);
+    }
   }
 
   const manifest = {
@@ -189,7 +206,10 @@ function main() {
     console.log(`Skipped ${skipped.length}:`);
     for (const s of skipped) console.log(`  - ${s}`);
   }
-  if (strict && skipped.length) process.exitCode = 1;
+  const failed = filtered.size
+    ? skipped.some((entry) => filtered.has(entry.split(" ", 1)[0]))
+    : skipped.length > 0;
+  if (strict && failed) process.exitCode = 1;
 }
 
 /**
