@@ -15,13 +15,7 @@
  * only reads `isLeftCollapsed` for top-bar layout.
  */
 
-import {
-  parseAutomergeUrl,
-  stringifyAutomergeUrl,
-  type AutomergeUrl,
-  type UrlHeads,
-} from "@automerge/automerge-repo";
-import { subscribeDoc } from "@inkandswitch/patchwork-providers-solid";
+import { type AutomergeUrl } from "@automerge/automerge-repo";
 import { makePersisted } from "@solid-primitives/storage";
 import {
   createEffect,
@@ -44,25 +38,6 @@ import { useSidebarResize } from "../hooks/useSidebarResize";
 import { FrameTopBar } from "./FrameTopBar";
 import { ContextSidebar } from "./ContextSidebar";
 import { MainDocumentView } from "./MainDocumentView";
-
-// Mirrors the drafts package's `CheckedOutDraft`/`DraftCheckpoint`: the small
-// writeable doc that holds the current selection plus an optional history pin.
-// Each member doc's original url maps to the heads to view it at (`to`, which the
-// frame reads to pin the doc) and to diff against (`from`, read by the drafts
-// provider to serve `draft:baseline`). A doc absent from the map stays live.
-type DocCheckpoint = {
-  from?: UrlHeads;
-  to?: UrlHeads;
-};
-
-type DraftCheckpoint = Record<AutomergeUrl, DocCheckpoint>;
-
-type CheckedOutDraft = {
-  // `null` represents "main" — i.e. the host doc itself, no draft overlay.
-  checkedOut: AutomergeUrl | null;
-  // Absent/null = live latest heads; set = a frozen, read-only history view.
-  at?: DraftCheckpoint | null;
-};
 
 const MIN_SIDEBAR_WIDTH = 180;
 const MAX_SIDEBAR_WIDTH = 720;
@@ -227,9 +202,10 @@ export function DocumentAreaRoot(props: DocumentAreaRootProps) {
 // Renders the main document inside the draft-overlay provider. The provider
 // mounts once and follows the checked-out draft itself (via the draft-list
 // provider's `draft:checked-out` doc), re-pointing live document handles in
-// place — so a draft switch remounts nothing here. Only checking a history
-// entry in or out remounts the main view (see `mainViewKey`), since nested
-// docs resolve their checkpoint pin once, at mount.
+// place — so neither a draft switch nor a history checkpoint move remounts
+// anything here. Checkpoint pins travel on the *backing* url inside the
+// streamed `repo:handle-descriptor` answers (see `DraftOverlayProvider`), so
+// the presented doc url the view is keyed on stays stable while scrubbing.
 //
 // The comments + focus providers and the context (right) sidebar live *inside*
 // the overlay so that, on a draft, comment threads / selection resolve against
@@ -252,10 +228,6 @@ function DraftDocumentArea(props: {
   selectedContextToolId: Accessor<string | undefined>;
   setSelectedContextToolId: (id: string) => void;
 }) {
-  const [checkedOut] = subscribeDoc<CheckedOutDraft>(props.host, {
-    type: "draft:checked-out",
-  });
-
   // Registry-driven: whether the context sidebar exists at all (any tabs) — no
   // longer depends on any per-account config, just on whether anything is
   // currently tagged `context-tool`. The system tray is separate host chrome in
@@ -263,28 +235,15 @@ function DraftDocumentArea(props: {
   const contextItems = useTaggedComponents("context-tool");
   const hasContext = () => contextItems().length > 0;
 
-  // When a history entry is checked out, view the selected doc at its pinned
-  // heads. The overlay reapplies these heads onto the draft's clone, yielding a
-  // fixed-heads (read-only) handle. No pin -> the live, canonical url. Keying
-  // the view on this url remounts the tool when entering/leaving a checkpoint.
-  const pinnedDocUrl = createMemo<AutomergeUrl | undefined>(() => {
-    const url = props.selectedDocUrl();
-    if (!url) return url;
-    const { documentId } = parseAutomergeUrl(url);
-    const heads = checkedOut()?.at?.[stringifyAutomergeUrl({ documentId })]?.to;
-    return heads ? stringifyAutomergeUrl({ documentId, heads }) : url;
-  });
-
-  // Remount key for the main view. Nested docs (embeds, folder entries) resolve
-  // their checkpoint pin once, at mount, via `repo:handle-descriptor`; they only
-  // re-resolve when the subtree remounts. `pinnedDocUrl` alone misses checkpoint
-  // moves that don't change the main doc's own heads (e.g. an entry that only
-  // pins an embedded doc), so fold the whole `at` map into the key.
-  const mainViewKey = createMemo<string | undefined>(() => {
-    const url = pinnedDocUrl();
-    if (!url) return url;
-    return `${url}|${JSON.stringify(checkedOut()?.at ?? null)}`;
-  });
+  // Remount key for the main view: just the selected doc. Checkpoint pins no
+  // longer ride on this url — the overlay provider streams them on the
+  // descriptors' *backing* urls and `OverlayRepo` swaps handle backings in
+  // place, so scrubbing history must not (and does not) change this key.
+  // Stamping heads here would also override the streamed pin: in
+  // `OverlayRepo`, heads on the presented url win over the backing's.
+  const mainViewKey = createMemo<string | undefined>(() =>
+    props.selectedDocUrl()
+  );
 
   const [draftOverlayProviderHost, setDraftOverlayProviderHost] =
     createSignal<HTMLElement>();
@@ -344,7 +303,7 @@ function DraftDocumentArea(props: {
                 <div class="main-area">
                   <MainDocumentView
                     viewKey={mainViewKey}
-                    selectedDocUrl={pinnedDocUrl}
+                    selectedDocUrl={props.selectedDocUrl}
                     toolId={props.selectedToolId}
                     // Always pass a function ref. Passing `ref={undefined}`
                     // (the isolated path, where no host ref is threaded)

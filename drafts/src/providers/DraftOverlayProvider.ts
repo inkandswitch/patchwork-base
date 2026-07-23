@@ -38,9 +38,11 @@ const CHECKED_OUT_SELECTOR = "draft:checked-out";
 // member doc to per-doc `to`/`from` heads, and the `to` heads are baked onto
 // the backing url (the clone on a draft, the original on main) so nested views
 // freeze with the doc they live in; `OverlayRepo` honors heads on the backing
-// url. The fork point lives in `DraftDoc.clones[url].clonedAt`; the draft-list
-// provider reads it to serve `draft:baseline` (this provider no longer answers
-// that).
+// url. Checkpoint moves (history scrubbing rewrites `at` without changing
+// `checkedOut`) also re-answer every live subscription, so pins update by
+// swapping backings in place — no remount. The fork point lives in
+// `DraftDoc.clones[url].clonedAt`; the draft-list provider reads it to serve
+// `draft:baseline` (this provider no longer answers that).
 //
 // A `url` attribute, when present, seeds the initial selection. That is how
 // the chat preview iframe (see chat's `preview-frame.ts`) pins a
@@ -63,9 +65,12 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
   // (pass-through descriptors, save for checkpoint pinning).
   let draftUrl: AutomergeUrl | null = null;
   let draftReady: Promise<DocHandle<DraftDoc>> | null = null;
-  // Bumped on every re-point so in-flight resolutions from a superseded
-  // selection can detect they lost the race and stay silent.
-  let switchEpoch = 0;
+  // Aborted and replaced on every descriptor refresh (draft re-point or
+  // checkpoint move), and aborted on dispose, so in-flight resolutions from a
+  // superseded state can detect they lost the race and stay silent. The
+  // signal only gates `respond` — it is never passed into the resolution
+  // work, which is shared across batches (see `cloneResolutions`).
+  let refresh = new AbortController();
 
   // One eager-clone resolution per original url; de-dupes concurrent requests.
   // Cleared on re-point (it is per-draft state).
@@ -98,9 +103,23 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
   // same doc carries the checkpoint (`at`), read at resolve time so
   // descriptors can pin a nested doc to its per-doc `to` heads — absent means
   // render live.
+  //
+  // A draft switch re-points via `applyDraft` (resets per-draft state); a
+  // checkpoint-only move (scrubbing rewrites `at` while `checkedOut` stays
+  // put) just re-answers live subscriptions with freshly pinned descriptors.
   let checkedOutHandle: DocHandle<CheckedOutDraft> | null = null;
+  let checkpointSignature = JSON.stringify(null);
   const onCheckedOutChange = () => {
-    void applyDraft(checkedOutHandle?.doc()?.checkedOut ?? null);
+    const doc = checkedOutHandle?.doc();
+    const nextDraft = doc?.checkedOut ?? null;
+    const nextSignature = JSON.stringify(doc?.at ?? null);
+    const checkpointMoved = nextSignature !== checkpointSignature;
+    checkpointSignature = nextSignature;
+    if (nextDraft !== draftUrl) {
+      void applyDraft(nextDraft);
+    } else if (checkpointMoved) {
+      refreshDescriptors();
+    }
   };
   const unsubscribeCheckedOut = subscribe<AutomergeUrl>(
     element,
@@ -129,12 +148,12 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
       accept<DocHandleDescriptor>(event, (respond) => {
         const subscriber: DescriptorSubscriber = { original, respond };
         descriptorSubscribers.add(subscriber);
-        const epoch = switchEpoch;
+        const { signal } = refresh;
         void resolveDescriptor(original)
           .then((descriptor) => {
             // A re-point raced this resolution; `applyDraft`'s refresh pass
             // answers this subscriber with the new mapping instead.
-            if (disposed || epoch !== switchEpoch) return;
+            if (signal.aborted) return;
             respond(descriptor);
           })
           .catch((err) => {
@@ -151,6 +170,7 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
   element.addEventListener("patchwork:subscribe", onSubscribe);
   return () => {
     disposed = true;
+    refresh.abort();
     element.removeEventListener("patchwork:subscribe", onSubscribe);
     unsubscribeCheckedOut();
     checkedOutHandle?.off("change", onCheckedOutChange);
@@ -166,7 +186,6 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
     if (next === draftUrl) return;
 
     draftUrl = next;
-    const epoch = ++switchEpoch;
     cloneResolutions.clear();
 
     // Reflect the selection for outside readers (e.g. the chat preview frame).
@@ -186,12 +205,20 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
       console.error(`[drafts] failed to load draft overlay for ${next}:`, err);
     });
 
-    // Re-answer every live descriptor subscription against the new selection.
-    // Each resolution is epoch-guarded so a rapid follow-up switch wins.
+    refreshDescriptors();
+  }
+
+  // Re-answer every live descriptor subscription against the current
+  // selection and checkpoint. Aborts the previous batch so slower, superseded
+  // resolutions (including initial answers racing this refresh) stay silent.
+  function refreshDescriptors(): void {
+    refresh.abort();
+    refresh = new AbortController();
+    const { signal } = refresh;
     for (const subscriber of [...descriptorSubscribers]) {
       void resolveDescriptor(subscriber.original)
         .then((descriptor) => {
-          if (disposed || epoch !== switchEpoch) return;
+          if (signal.aborted) return;
           subscriber.respond(descriptor);
         })
         .catch((err) => {
