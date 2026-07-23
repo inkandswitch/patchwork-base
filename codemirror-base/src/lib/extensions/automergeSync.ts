@@ -2,7 +2,7 @@ import { createEffect, onCleanup } from "solid-js";
 
 /** CodeMirror */
 import { EditorView } from "@codemirror/view";
-import { Compartment } from "@codemirror/state";
+import { Compartment, Transaction } from "@codemirror/state";
 
 /** Automerge */
 import type { Prop as AutomergeProp } from "@automerge/automerge";
@@ -38,6 +38,12 @@ export function createSyncExtension<T>(
   // instance is destroyed without seeing this transaction, so the full-doc
   // reset below is not echoed back into the automerge doc) and the fresh
   // plugin re-seeds its reconciled heads from the current doc.
+  //
+  // The reset is a synthetic remote transaction, not a user edit: it must not
+  // land on the undo stack (undoing it would restore a different timeline's
+  // text and write it back into the doc). Marking it also makes the history
+  // reset on `scopeReplaced` (see `createHistoryExtension`) order-independent
+  // across the two `change` listeners.
   const createReconfigureEffect = (view: EditorView) =>
     createEffect(() => {
       const rebuild = () => {
@@ -48,6 +54,10 @@ export function createSyncExtension<T>(
             to: view.state.doc.length,
             insert: initialDoc(),
           },
+          annotations: [
+            Transaction.addToHistory.of(false),
+            Transaction.remote.of(true),
+          ],
         });
       };
       // Runs inside the effect, so the `handle()`/`path()` reads are tracked

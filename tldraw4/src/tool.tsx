@@ -23,6 +23,7 @@ import {
 import {
   useAutomergeStore,
   useAutomergePresence,
+  useClearHistoryOnScopeSwap,
 } from "./lith/useAutomergeStore.ts";
 import type { TLDrawDoc } from "./datatype.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -293,8 +294,10 @@ function TldrawInner(props: {
 
   const editor = useEditor();
   const repo = useRepo();
+  const handle = useDocHandle<TLDrawDoc>(props.docUrl, { suspense: true });
 
   usePatchworkDrop(props.element);
+  useClearHistoryOnScopeSwap(handle);
 
   const onChange = useCallback(() => {
     if (!editor) return;

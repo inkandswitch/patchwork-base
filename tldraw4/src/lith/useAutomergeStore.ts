@@ -14,6 +14,7 @@ import {
   react,
   type TLStoreSnapshot,
   sortById,
+  useEditor,
 } from "@tldraw/tldraw";
 import { useEffect, useState } from "react";
 import {
@@ -155,6 +156,32 @@ export function useAutomergeStore({
   }, [handle, store, readOnly]);
 
   return storeWithStatus;
+}
+
+// A scope swap (a `change` event with `scopeReplaced: true` -- the draft
+// overlay re-pointing this handle at a different clone when scrubbing history
+// or switching drafts) invalidates the undo stack: its entries describe a
+// different timeline. The swapped-in records themselves are applied via
+// `mergeRemoteChanges` in `useAutomergeStore` above (so they are never
+// recorded); clearing the stale stack is all that's left to do.
+//
+// This can't live in `useAutomergeStore` directly: undo history is not a
+// store concern -- the `HistoryManager` belongs to the `Editor`, which tldraw
+// only creates internally once `<Tldraw store={...}>` mounts. The store hook
+// runs outside `<Tldraw>`, before any editor exists, so the history-clearing
+// half of the swap handling has to be a separate hook rendered *inside*
+// `<Tldraw>`, where `useEditor()` can reach the editor.
+export function useClearHistoryOnScopeSwap(handle: DocHandle<TLStoreSnapshot>) {
+  const editor = useEditor();
+
+  useEffect(() => {
+    if (!editor) return;
+    const onChange = (payload: DocHandleChangePayload<TLStoreSnapshot>) => {
+      if (payload.scopeReplaced) editor.clearHistory();
+    };
+    handle.on("change", onChange);
+    return () => void handle.off("change", onChange);
+  }, [editor, handle]);
 }
 
 export function useAutomergePresence({
