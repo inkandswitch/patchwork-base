@@ -5,8 +5,8 @@ import { AutomergeUrl } from "@automerge/automerge-repo";
  *
  * Scalar configuration (frame/sidebar/toolbar tool ids) is populated eagerly
  * by AccountDatatype.init. Subdocument URLs (rootFolderUrl, moduleSettingsUrl,
- * contactUrl) are optional and are lazily populated by the frame on first
- * mount via createDocOfDatatype2 of their respective datatypes.
+ * contactUrl) are optional for accounts created before system initialization
+ * owned them.
  */
 export type AccountDoc = {
   frameToolId: string;

@@ -2,7 +2,7 @@ import type { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { createDocOfDatatype2 } from "@inkandswitch/patchwork-plugins";
 import type { AccountDoc, ThreepaneConfigDoc, ToolRef, ToolSlot } from "../types";
 import { DEFAULT_TRAY_TOOLS } from "../datatypes";
-import { loadDatatypeWhenReady } from "./ensureSubdocs";
+import { loadDatatypeWhenReady } from "./loadDatatypeWhenReady";
 
 // Title + spacer are intrinsic to the frame's top bar, never configured tools.
 const INTRINSIC_DOCTITLE_TOOLS = new Set(["document-title", "spacer"]);
@@ -25,8 +25,7 @@ function defaultSidebarWidgets(rootFolderUrl?: AutomergeUrl): ToolRef[] {
  * for configs created before the field existed).
  *
  * Seeds the sidebar with a default document-list widget (pinned to the account's
- * root folder), so the left pane is never empty. Expects `rootFolderUrl` to be
- * populated already — call after `ensureAccountSubdocs`.
+ * root folder), so the left pane is never empty.
  *
  * Non-destructive: the old `documentToolbarToolIds` / `accountSidebarToolId`
  * fields are left untouched so older builds keep working and you can switch

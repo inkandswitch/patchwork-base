@@ -8,10 +8,7 @@ import type { AccountDoc, ThreepaneConfigDoc } from "./types";
  */
 export const DEFAULT_TRAY_TOOLS: string[] = ["theme-tray"];
 
-/**
- * Default scalar configuration for a fresh account. Subdoc URLs are intentionally
- * absent and are populated lazily by the frame on first mount.
- */
+/** Default scalar configuration for a fresh account. */
 export const AccountDatatype: DatatypeImplementation<AccountDoc> = {
   init(doc) {
     doc.frameToolId = "threepane";

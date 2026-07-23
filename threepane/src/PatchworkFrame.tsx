@@ -37,7 +37,6 @@ import {
 } from "solid-js";
 import { render } from "solid-js/web";
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
-import { ensureAccountSubdocs } from "./account/ensureSubdocs";
 import { ensureThreepaneConfig } from "./account/ensureThreepaneConfig";
 import { seedExampleDocuments } from "./account/seedExampleDocuments";
 import { ensureFrameStyles } from "./ensureFrameStyles";
@@ -194,10 +193,8 @@ function PatchworkFrameInner(props: {
   // Lazily populate subdoc fields (rootFolderUrl, moduleSettingsUrl, contactUrl)
   // on first mount, then create the threepane layout config doc and migrate the
   // legacy account arrays into it (non-destructive — old fields stay so older
-  // builds keep working). Ordered: the migration seeds the sidebar's default
-  // document-list widget against rootFolderUrl, so the subdocs must land first.
+  // builds keep working).
   void (async () => {
-    await ensureAccountSubdocs(props.handle, props.repo);
     await ensureThreepaneConfig(props.handle, props.repo);
     await seedExampleDocuments(props.handle, props.repo);
   })().catch((err) => {
