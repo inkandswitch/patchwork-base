@@ -17,10 +17,18 @@ const sessions = new Map()
 let currentDocUrl = null
 let unsubscribeView = null
 
-async function loadSelf() {
-	const accountDoc = window.accountDocHandle?.doc()
-	if (!accountDoc?.contactUrl) return
-	myContactUrl = accountDoc.contactUrl
+let loadingSelf = null
+function loadSelf() {
+	if (!loadingSelf) loadingSelf = loadSelfOnce()
+	return loadingSelf
+}
+
+async function loadSelfOnce() {
+	let contactUrl
+	while (!(contactUrl = window.accountDocHandle?.doc()?.contactUrl)) {
+		await new Promise(resolve => setTimeout(resolve, 250))
+	}
+	myContactUrl = contactUrl
 	const contactHandle = await window.repo.find(myContactUrl)
 	function refresh() {
 		const c = contactHandle.doc()
@@ -45,7 +53,6 @@ function broadcast(handle) {
 		color: s.color,
 		avatarUrl: s.avatarUrl,
 		focused: focused(),
-		ts: Date.now(),
 	})
 }
 
@@ -54,7 +61,6 @@ function sendGoodbye(handle) {
 	handle.broadcast({
 		type: "doc-presence-goodbye",
 		contactUrl: myContactUrl,
-		ts: Date.now(),
 	})
 }
 
@@ -75,7 +81,7 @@ function joinDoc(handle) {
 		}
 		if (msg.type !== "doc-presence") return
 		setPeers(m => {
-			m.set(msg.contactUrl, msg)
+			m.set(msg.contactUrl, {...msg, ts: Date.now()})
 			return m
 		})
 	}
@@ -137,7 +143,7 @@ async function onSelectedDocChange(newUrl) {
 	currentDocUrl = newUrl
 
 	if (newUrl && window.repo) {
-		await loadSelf()
+		loadSelf()
 		const handle = await window.repo.find(newUrl)
 		joinDoc(handle)
 	}
@@ -222,6 +228,7 @@ function DocPresence(handle, element) {
 	)
 
 	return () => {
+		leaveDoc(handle)
 		style.remove()
 		dispose()
 	}
