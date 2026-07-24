@@ -34,13 +34,53 @@ export type DraftDoc = {
   drafts: AutomergeUrl[];
   clones: Record<AutomergeUrl, CloneEntry>;
   mergedAt?: number;
+  // Points at this draft's ChangeGroupCacheDoc, holding the precomputed
+  // activity groups for its timeline. Stamped lazily by the fill engine the
+  // first time it touches the timeline (see change-group-cache.ts).
+  changeGroupCacheUrl?: AutomergeUrl;
+};
+
+// One cached burst of activity in a draft's timeline: consecutive changes
+// (interleaved across the draft's member docs) separated by no more than the
+// inactivity gap, aggregated down to what a timeline row renders. Computed
+// once per change by the fill engine and persisted, so the sidebar never has
+// to re-diff history.
+export type CachedGroup = {
+  id: string; // `tg-${newestHash}` — stable group identity
+  startTime: number; // span covered, seconds (automerge change time)
+  endTime: number;
+  // Anchor change (click-to-pin, drag-to-fork): which MEMBER doc owns the
+  // group's newest change, and its hash. Varies per group — a burst's last
+  // edit can land in any member (host doc or embedded doc).
+  newestMemberUrl: AutomergeUrl;
+  newestHash: string;
+  actors: string[]; // deduped authors, newest contributor first
+  additions: number; // summed across ALL member docs in the span
+  deletions: number;
+  changeCount: number; // for scrubber band geometry
+};
+
+// Self-contained: one cache doc per DraftDoc, holding that draft's timeline.
+export type ChangeGroupCacheDoc = {
+  "@patchwork": { type: "change-group-cache" };
+  version: number; // cache format; mismatch = rebuild
+  inactivityGapMs: number; // grouping param baked in; changed = rebuild
+  // Keyed by group id, ordered on read by endTime desc. A map (not array) so
+  // concurrent writers converge per-group instead of duplicating rows.
+  groups: Record<string, CachedGroup>;
+  // Per member: heads the grouping has consumed. getChangesMetaSince(doc,
+  // these) yields exactly the unconsumed tail — including late-syncing
+  // changes with old timestamps, which is what makes invalidation detectable.
+  computedThrough: Record<AutomergeUrl, UrlHeads>;
 };
 
 // One member doc's pinned view within a checkpoint. `to` is the heads to render
 // the doc at (a fixed-heads, read-only view); omit it to leave the doc live.
 // `from` is the diff baseline the consumer compares `to` (or live) against;
-// omit it for no diff. A doc whose pinned change is its first has no predecessor,
-// so `from` is `[]` (the whole doc reads as added).
+// omit it for no diff. `from` without `to` is the live-with-diff state (the
+// sidebar's eye toggled on while nothing is pinned: the doc stays writable and
+// diffs against its fork point). A `from` of `[]` diffs against the empty doc,
+// so the whole doc reads as added.
 export type DocCheckpoint = {
   from?: UrlHeads;
   to?: UrlHeads;
@@ -63,8 +103,10 @@ export type DraftCheckpoint = Record<AutomergeUrl, DocCheckpoint>;
 // itself, no draft overlay. The derived drafts list lives separately in the
 // read-only `draft:list` push (`DraftList`).
 //
-// `at` pins the checkout to a history entry: absent/null means the live latest
-// heads (the default), set means a frozen read-only view (see DraftCheckpoint).
+// `at` carries the checkout's checkpoint (see DraftCheckpoint): per-doc pinned
+// heads (`to`) and/or diff baselines (`from`). Absent/null means the live
+// latest heads with no diff (the default). Entries with only `from` leave the
+// docs live but diffing — the sidebar's eye toggle on an unpinned draft.
 export type CheckedOutDraft = {
   checkedOut: AutomergeUrl | null;
   at?: DraftCheckpoint | null;
@@ -72,9 +114,9 @@ export type CheckedOutDraft = {
 
 // Response shape for `draft:baseline { url }`, served by the draft-list provider
 // (see `currentBaseline`). `heads` is the doc's diff baseline: the checkpoint's
-// per-doc `from` when a history entry is pinned, otherwise the checked-out
-// draft's fork-point heads (`clones[url].clonedAt`) for a live draft view.
-// `heads` is `null` when there is no baseline (no clone yet, no pin on main).
+// per-doc `from`, written by the sidebar's eye toggle and scrubber. `heads` is
+// `null` when the checkpoint has no entry for the doc or the entry carries no
+// `from` — there is no implicit fork-point fallback; no baseline means no diff.
 // It is `null` rather than optional so the value is a valid structured-cloneable
 // `JSONValue` crossing the provider channel.
 export type Baseline = {
@@ -109,6 +151,10 @@ export type DraftSummary = {
   // User-given display name (`DraftDoc.name`); `null` (not optional, to stay
   // structured-cloneable) means unnamed — the card shows its default label.
   name: string | null;
+  // The draft's ChangeGroupCacheDoc url (`DraftDoc.changeGroupCacheUrl`);
+  // `null` until the fill engine stamps it. Cards read their timeline's
+  // cached groups straight from this doc.
+  changeGroupCacheUrl: AutomergeUrl | null;
 };
 
 // Response shape for `draft:list`: the host doc's `main` entry plus the flat,

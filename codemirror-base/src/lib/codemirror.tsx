@@ -12,6 +12,7 @@ import {
   createReadOnlyExtension,
   createDecorationsExtension,
   createDiffExtension,
+  createHistoryExtension,
   createScrollHighlightIntoViewExtension,
 } from "./extensions";
 
@@ -56,6 +57,12 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   const [readOnlyExtension, createEffectReconfigureReadOnly] =
     createReadOnlyExtension(() => !!props.readOnly);
 
+  // Undo/redo lives here (not in tool-supplied extensions) so the stack can
+  // be reset when the handle's backing is swapped in place -- see history.ts.
+  const [historyExtension, createEffectResetHistory] = createHistoryExtension(
+    () => props.handle
+  );
+
   const [decorationsExtension, createEffectReconfigureDecorations] =
     createDecorationsExtension(() => props.decorations?.());
 
@@ -90,6 +97,7 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
     // syncExtension must come before diffExtension so diff stays in sync with edits.
     syncExtension,
     diffExtension,
+    historyExtension,
     scrollHighlightIntoViewExtension,
     userExtensionsCompartment.of(props.extensions || []),
     readOnlyExtension,
@@ -111,6 +119,7 @@ export function CodeMirror<T>(props: CodeMirrorProps<T>) {
   createEffectReconfigureReadOnly(view);
   createEffectReconfigureDecorations?.(view);
   createEffectReconfigureDiff(view);
+  createEffectResetHistory(view);
   createEffectScrollHighlightIntoView(view);
 
   // Reconfigure user extensions when props.extensions changes

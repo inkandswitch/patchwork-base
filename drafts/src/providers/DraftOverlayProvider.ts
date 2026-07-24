@@ -9,16 +9,9 @@ import {
 import {
   accept,
   subscribe,
+  type DocHandleDescriptor,
   type SubscribeEvent,
 } from "@inkandswitch/patchwork-providers";
-
-// Shape of a `repo:handle-descriptor` answer. The one-shot host's
-// patchwork-providers (0.2.2) does not export this type, so it is declared
-// locally; it must stay in sync with the host's `OverlayRepo`.
-type DocHandleDescriptor = {
-  url: AutomergeUrl;
-  cloneUrl?: AutomergeUrl;
-};
 
 import type { CheckedOutDraft, DraftDoc } from "../draft-types.js";
 import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
@@ -26,41 +19,37 @@ import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
 const HANDLE_DESCRIPTOR_SELECTOR = "repo:handle-descriptor";
 const CHECKED_OUT_SELECTOR = "draft:checked-out";
 
-// Mounts on a draft URL and remaps documents resolved beneath it onto
-// per-draft clones, so edits stay inside the draft.
+// Remaps documents resolved beneath it onto per-draft clones, so edits stay
+// inside the checked-out draft — and re-points *live* in place when the
+// selection changes, without the host remounting anything.
 //
-// Under the new provider model the host `<patchwork-view>` wraps legacy tool
-// document resolution in an `OverlayRepo` that asks the provider tree for a
-// `repo:handle-descriptor` descriptor. This provider answers with
-// `{ url, cloneUrl }`: the clone is forked eagerly the first time a document is
-// requested in this draft (recorded in `DraftDoc.clones`), and the editor then
-// reads and writes the clone while still reporting the original url. The fork
-// point lives in `DraftDoc.clones[url].clonedAt`; the draft-list provider reads
-// it to serve `draft:baseline` (this provider no longer answers that).
+// The host `<patchwork-view>` wraps tool document resolution in an
+// `OverlayRepo` that opens a *streaming* `repo:handle-descriptor` subscription
+// per document. This provider always claims those subscriptions (even while
+// "main" is selected, where it answers a pass-through `{ url }`) and keeps the
+// `respond` callbacks registered. It follows the selection itself via the
+// ancestor draft-list provider's `draft:checked-out` doc: when
+// `CheckedOutDraft.checkedOut` changes, every live subscription is re-answered
+// with the new mapping — `{ url, cloneUrl }` on a draft (the clone is forked
+// eagerly on first resolution and recorded in `DraftDoc.clones`), `{ url }` on
+// main — and the `OverlayRepo` swaps handle backings in place.
 //
-// On "main" (empty `url`) there is no clone remapping, but the provider still
-// answers `repo:handle-descriptor` so that an active checkpoint can pin nested
-// docs: it returns the original url carrying the checkpoint's `to` heads when one
-// is set. Pinning also applies on a draft, baked onto the clone url. The per-doc
-// `to`/`from` heads live on the checked-out draft (`CheckedOutDraft.at`), read
-// here via the `draft:checked-out` subscription. A non-empty but invalid `url`
-// is a misconfiguration and disables the provider.
+// Descriptors also honor the active checkpoint: `CheckedOutDraft.at` maps each
+// member doc to per-doc `to`/`from` heads, and the `to` heads are baked onto
+// the backing url (the clone on a draft, the original on main) so nested views
+// freeze with the doc they live in; `OverlayRepo` honors heads on the backing
+// url. Checkpoint moves (history scrubbing rewrites `at` without changing
+// `checkedOut`) also re-answer every live subscription, so pins update by
+// swapping backings in place — no remount. The fork point lives in
+// `DraftDoc.clones[url].clonedAt`; the draft-list provider reads it to serve
+// `draft:baseline` (this provider no longer answers that).
+//
+// A `url` attribute, when present, seeds the initial selection. That is how
+// the chat preview iframe (see chat's `preview-frame.ts`) pins a
+// self-bootstrapped overlay to a specific draft in a realm that has no
+// draft-list provider to follow. The *current* selection is reflected onto the
+// (un-observed, so remount-free) `draft-url` attribute for outside readers.
 export const DraftOverlayProvider = (element: HTMLElement) => {
-  const rawUrl = element.getAttribute("url");
-  // Empty `url` = "main": no clone remapping, but we still answer
-  // `repo:handle-descriptor` so an active checkpoint can pin nested docs.
-  let draftUrl: AutomergeUrl | null = null;
-  if (rawUrl) {
-    if (!isValidAutomergeUrl(rawUrl)) {
-      console.warn(
-        `[drafts] <patchwork-view component="patchwork-draft-overlay-provider"> ` +
-          `has an invalid url attribute (got ${JSON.stringify(rawUrl)})`
-      );
-      return () => {};
-    }
-    draftUrl = rawUrl;
-  }
-
   const repo = "repo" in window ? window.repo : undefined;
   if (!repo) {
     console.warn(
@@ -72,33 +61,77 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
 
   let disposed = false;
 
+  // The checked-out draft this overlay currently maps onto. Null = "main"
+  // (pass-through descriptors, save for checkpoint pinning).
+  let draftUrl: AutomergeUrl | null = null;
+  let draftReady: Promise<DocHandle<DraftDoc>> | null = null;
+  // Aborted and replaced on every descriptor refresh (draft re-point or
+  // checkpoint move), and aborted on dispose, so in-flight resolutions from a
+  // superseded state can detect they lost the race and stay silent. The
+  // signal only gates `respond` — it is never passed into the resolution
+  // work, which is shared across batches (see `cloneResolutions`).
+  let refresh = new AbortController();
+
   // One eager-clone resolution per original url; de-dupes concurrent requests.
+  // Cleared on re-point (it is per-draft state).
   const cloneResolutions = new Map<AutomergeUrl, Promise<AutomergeUrl>>();
 
-  // The draft doc backing this overlay (clone bookkeeping). Null on "main".
-  const ready: Promise<DocHandle<DraftDoc>> | null = draftUrl
-    ? (async () => {
-        const handle = await liveRepo.find<DraftDoc>(draftUrl);
-        if (disposed) throw new Error("[drafts] provider disposed mid-load");
-        return handle;
-      })()
-    : null;
-  ready?.catch((err) => {
-    console.error(`[drafts] failed to load draft overlay for ${draftUrl}:`, err);
-  });
+  // Live `repo:handle-descriptor` subscriptions, kept so a re-point can push
+  // fresh descriptors to every consumer.
+  type DescriptorSubscriber = {
+    original: AutomergeUrl;
+    respond: (descriptor: DocHandleDescriptor) => void;
+  };
+  const descriptorSubscribers = new Set<DescriptorSubscriber>();
 
-  // Track the checked-out draft's checkpoint so descriptors can pin a nested doc
-  // to its per-doc `to` heads. The url is served by the ancestor draft-list
-  // provider; we read `at[original].to` live at resolve time (one-shot, so we
-  // never block on this — absent means render live).
+  // Seed the selection from the `url` attribute when present (the chat
+  // preview iframe mounts us with a pinned draft and no draft-list provider).
+  const rawSeed = element.getAttribute("url");
+  if (rawSeed) {
+    if (isValidAutomergeUrl(rawSeed)) {
+      void applyDraft(rawSeed);
+    } else {
+      console.warn(
+        `[drafts] <patchwork-view component="patchwork-draft-overlay-provider"> ` +
+          `has an invalid url attribute (got ${JSON.stringify(rawSeed)})`
+      );
+    }
+  }
+
+  // Follow the selection: the ancestor draft-list provider serves the
+  // ephemeral CheckedOutDraft doc url; we watch its `checkedOut` live. The
+  // same doc carries the checkpoint (`at`), read at resolve time so
+  // descriptors can pin a nested doc to its per-doc `to` heads — absent means
+  // render live.
+  //
+  // A draft switch re-points via `applyDraft` (resets per-draft state); a
+  // checkpoint-only move (scrubbing rewrites `at` while `checkedOut` stays
+  // put) just re-answers live subscriptions with freshly pinned descriptors.
   let checkedOutHandle: DocHandle<CheckedOutDraft> | null = null;
+  let checkpointSignature = JSON.stringify(null);
+  const onCheckedOutChange = () => {
+    const doc = checkedOutHandle?.doc();
+    const nextDraft = doc?.checkedOut ?? null;
+    const nextSignature = JSON.stringify(doc?.at ?? null);
+    const checkpointMoved = nextSignature !== checkpointSignature;
+    checkpointSignature = nextSignature;
+    if (nextDraft !== draftUrl) {
+      void applyDraft(nextDraft);
+    } else if (checkpointMoved) {
+      refreshDescriptors();
+    }
+  };
   const unsubscribeCheckedOut = subscribe<AutomergeUrl>(
     element,
     { type: CHECKED_OUT_SELECTOR },
     (url) => {
       if (disposed || !isValidAutomergeUrl(url)) return;
       void liveRepo.find<CheckedOutDraft>(url).then((handle) => {
-        if (!disposed) checkedOutHandle = handle;
+        if (disposed || checkedOutHandle === handle) return;
+        checkedOutHandle?.off("change", onCheckedOutChange);
+        checkedOutHandle = handle;
+        handle.on("change", onCheckedOutChange);
+        onCheckedOutChange();
       });
     }
   );
@@ -113,10 +146,22 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
       }
       const original = canonicalUrl(rawTarget);
       accept<DocHandleDescriptor>(event, (respond) => {
-        void resolveDescriptor(original).then((descriptor) => {
-          if (disposed) return;
-          respond(descriptor);
-        });
+        const subscriber: DescriptorSubscriber = { original, respond };
+        descriptorSubscribers.add(subscriber);
+        const { signal } = refresh;
+        void resolveDescriptor(original)
+          .then((descriptor) => {
+            // A re-point raced this resolution; `applyDraft`'s refresh pass
+            // answers this subscriber with the new mapping instead.
+            if (signal.aborted) return;
+            respond(descriptor);
+          })
+          .catch((err) => {
+            console.error(`[drafts] failed to resolve ${original}:`, err);
+          });
+        return () => {
+          descriptorSubscribers.delete(subscriber);
+        };
       });
       return;
     }
@@ -125,14 +170,70 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
   element.addEventListener("patchwork:subscribe", onSubscribe);
   return () => {
     disposed = true;
+    refresh.abort();
     element.removeEventListener("patchwork:subscribe", onSubscribe);
     unsubscribeCheckedOut();
+    checkedOutHandle?.off("change", onCheckedOutChange);
+    checkedOutHandle = null;
+    descriptorSubscribers.clear();
     cloneResolutions.clear();
   };
 
-  // Resolve a `repo:handle-descriptor` request. The backing url is pinned to the
-  // active checkpoint's `to` heads for this doc (if any) so nested views freeze
-  // with the doc they live in; `OverlayRepo` honors heads on the backing url.
+  // Re-point the overlay at a new selection in place: reset the per-draft
+  // state, then push fresh descriptors to every live subscriber.
+  async function applyDraft(next: AutomergeUrl | null): Promise<void> {
+    if (disposed) return;
+    if (next === draftUrl) return;
+
+    draftUrl = next;
+    cloneResolutions.clear();
+
+    // Reflect the selection for outside readers (e.g. the chat preview frame).
+    // `draft-url` is not observed by <patchwork-view>, so this never remounts.
+    element.setAttribute("draft-url", next ?? "");
+
+    draftReady = next
+      ? (async () => {
+          const handle = await liveRepo.find<DraftDoc>(next);
+          if (disposed) {
+            throw new Error("[drafts] provider disposed mid-load");
+          }
+          return handle;
+        })()
+      : null;
+    draftReady?.catch((err) => {
+      console.error(`[drafts] failed to load draft overlay for ${next}:`, err);
+    });
+
+    refreshDescriptors();
+  }
+
+  // Re-answer every live descriptor subscription against the current
+  // selection and checkpoint. Aborts the previous batch so slower, superseded
+  // resolutions (including initial answers racing this refresh) stay silent.
+  function refreshDescriptors(): void {
+    refresh.abort();
+    refresh = new AbortController();
+    const { signal } = refresh;
+    for (const subscriber of [...descriptorSubscribers]) {
+      void resolveDescriptor(subscriber.original)
+        .then((descriptor) => {
+          if (signal.aborted) return;
+          subscriber.respond(descriptor);
+        })
+        .catch((err) => {
+          console.error(
+            `[drafts] failed to re-map ${subscriber.original}:`,
+            err
+          );
+        });
+    }
+  }
+
+  // Resolve a `repo:handle-descriptor` request against the current selection.
+  // The backing url is pinned to the active checkpoint's `to` heads for this
+  // doc (if any) so nested views freeze with the doc they live in;
+  // `OverlayRepo` honors heads on the backing url.
   //  - On "main" (no draft): no clone, just the (maybe pinned) original.
   //  - Skipped docs (account, contacts): the real doc, never forked.
   //  - Everything else on a draft: the per-draft clone (pinned when checked out).
@@ -179,15 +280,18 @@ export const DraftOverlayProvider = (element: HTMLElement) => {
     }
   }
 
-  // Ensure a clone of `original` exists for this draft and return its url.
-  // Reuses an existing clone recorded in `DraftDoc.clones`; otherwise forks
-  // `original` at its current heads and records the fork point so the baseline
-  // and merge-back can find it.
+  // Ensure a clone of `original` exists for the current draft and return its
+  // url. Reuses an existing clone recorded in `DraftDoc.clones`; otherwise
+  // forks `original` at its current heads and records the fork point so the
+  // baseline and merge-back can find it.
   function resolveClone(original: AutomergeUrl): Promise<AutomergeUrl> {
     const cached = cloneResolutions.get(original);
     if (cached) return cached;
+    const ready = draftReady;
     const promise = (async () => {
-      if (!ready) throw new Error("[drafts] resolveClone called without a draft");
+      if (!ready) {
+        throw new Error("[drafts] resolveClone called without a draft");
+      }
       const handle = await ready;
       const existing = handle.doc()?.clones?.[original];
       if (existing) return canonicalUrl(existing.cloneUrl);

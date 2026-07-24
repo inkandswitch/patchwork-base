@@ -23,6 +23,11 @@ import type {
   HasDrafts,
 } from "../draft-types.js";
 import { SKIPPED_DATATYPES, canonicalUrl } from "../clone-policy.js";
+import {
+  createChangeGroupCacheFiller,
+  ensureMainDraft,
+  type TimelineSpec,
+} from "../change-group-cache.js";
 
 const ROOT_DOC_SELECTOR = "draft:root-doc";
 const CHECKED_OUT_SELECTOR = "draft:checked-out";
@@ -85,9 +90,8 @@ export const DraftListProvider = (element: HTMLElement) => {
 
   // `draft:baseline` subscribers, keyed by canonical target url. This provider
   // is the sole answerer (the overlay no longer claims it), serving the
-  // checkpoint's per-doc `from` when pinned and the checked-out draft's
-  // fork point otherwise (see `currentBaseline`). Re-emitted whenever the
-  // checkout doc or a tracked draft's clones change.
+  // checkpoint's per-doc `from` (see `currentBaseline`). Re-emitted whenever
+  // the checkout doc changes.
   const baselineSubscribers = new Map<
     AutomergeUrl,
     Set<(baseline: Baseline) => void>
@@ -98,9 +102,20 @@ export const DraftListProvider = (element: HTMLElement) => {
   const listSubscribers = new Set<(list: DraftList) => void>();
   let orderedDraftUrls: AutomergeUrl[] = [];
   let draftList: DraftList = {
-    main: { url: docUrl, members: [], childCount: 0, name: null },
+    main: {
+      url: docUrl,
+      members: [],
+      childCount: 0,
+      name: null,
+      changeGroupCacheUrl: null,
+    },
     drafts: [],
   };
+  // The write side of the change-group cache: keeps every timeline's
+  // ChangeGroupCacheDoc filled in background slices, whether or not the
+  // sidebar is open. Fed the current timelines after each list recompute;
+  // its own member-doc listeners drive incremental fills between recomputes.
+  const filler = createChangeGroupCacheFiller(repo);
   // Main-case membership: docs mounted beneath this provider, ref-counted so a
   // doc shown in several views is only dropped on its last unmount. Populated
   // even while a draft is selected (where it goes unused) so switching back to
@@ -115,12 +130,10 @@ export const DraftListProvider = (element: HTMLElement) => {
   let rewalkInFlight = false;
   let rewalkPending = false;
   // A tracked draft changing can mean either its sub-draft list moved (needs a
-  // rewalk) or its clone map grew (needs a list recompute), so do both. A new
-  // clone also gives a checked-out draft a fork-point baseline, so re-publish.
+  // rewalk) or its clone map grew (needs a list recompute), so do both.
   const onTrackedChange = () => {
     scheduleRewalk();
     recomputeList();
-    notifyBaselines();
   };
   const onHostDocChange = () => scheduleRewalk();
   // The checkout doc changed: its `at` checkpoint may have been set, cleared, or
@@ -153,6 +166,22 @@ export const DraftListProvider = (element: HTMLElement) => {
     const handle = await repo.find<HasDrafts>(docUrl);
     if (disposed) return;
     hostDocHandle = handle;
+
+    // Eagerly create the main draft (a real doc, not the virtual fallback) so
+    // its change-group cache has a persistent home even if the sidebar is
+    // never opened. Main's clones are identity mappings — nothing is forked;
+    // the only host-doc side effect is the `mainDraftUrl` scalar, which the
+    // timeline's `@patchwork` path skip filters out. App-global datatypes the
+    // draft machinery never treats as content are left alone.
+    const hostType = handle.doc()?.["@patchwork"]?.type;
+    if (hostType == null || !SKIPPED_DATATYPES.has(hostType)) {
+      try {
+        await ensureMainDraft(repo, handle);
+        if (disposed) return;
+      } catch (err) {
+        console.warn("[drafts] failed to eagerly create main draft:", err);
+      }
+    }
 
     // Eagerly create the ephemeral CheckedOutDraft so the sidebar can render
     // its "Main" card and write `checkedOut` even before any drafts exist on
@@ -211,8 +240,8 @@ export const DraftListProvider = (element: HTMLElement) => {
 
     if (type === BASELINE_SELECTOR) {
       // Sole answerer for `draft:baseline` (the overlay no longer claims it):
-      // serves the pinned checkpoint's `from` or the checked-out draft's fork
-      // point for `target` (see `currentBaseline`).
+      // serves the checkpoint's per-doc `from` for `target` (see
+      // `currentBaseline`).
       const rawTarget = (event.detail.selector as { url?: unknown }).url;
       if (typeof rawTarget !== "string" || !isValidAutomergeUrl(rawTarget)) {
         return;
@@ -239,6 +268,7 @@ export const DraftListProvider = (element: HTMLElement) => {
 
   return () => {
     disposed = true;
+    filler.dispose();
     element.removeEventListener("patchwork:subscribe", onSubscribe);
     element.removeEventListener("patchwork:mounted", onMounted);
     element.removeEventListener("patchwork:unmounted", onUnmounted);
@@ -311,13 +341,47 @@ export const DraftListProvider = (element: HTMLElement) => {
   }
 
   // Recompute the `draft:list` value and push it to subscribers when it
-  // actually changed.
+  // actually changed. The change-group cache filler follows the same
+  // recompute triggers, so its timeline set is reconciled here too.
   function recomputeList(): void {
     if (disposed) return;
+    syncFiller();
     const next = computeList();
     if (draftListsEqual(draftList, next)) return;
     draftList = next;
     for (const respond of listSubscribers) respond(next);
+  }
+
+  // Hand the filler the current timelines, priority-ordered: main first, then
+  // the checked-out draft, then the remaining drafts in tree order. Main's
+  // timeline reads the main draft's identity clones (not the mounted-docs
+  // fallback) — membership reaches them via `syncMainDraftClones`.
+  function syncFiller(): void {
+    if (disposed) return;
+    const specs: TimelineSpec[] = [];
+    if (mainDraftHandle) {
+      specs.push({
+        draftHandle: mainDraftHandle,
+        members: clonesToMembers(mainDraftHandle.doc()?.clones ?? {}),
+        rootDocUrl: docUrl,
+      });
+    }
+    const selected = checkedOutHandle?.doc()?.checkedOut ?? null;
+    const ordered =
+      selected && orderedDraftUrls.includes(selected)
+        ? [selected, ...orderedDraftUrls.filter((u) => u !== selected)]
+        : orderedDraftUrls;
+    for (const url of ordered) {
+      const handle = trackedDrafts.get(url);
+      const doc = handle?.doc();
+      if (!handle || !doc || doc.mergedAt !== undefined) continue;
+      specs.push({
+        draftHandle: handle,
+        members: clonesToMembers(doc.clones),
+        rootDocUrl: docUrl,
+      });
+    }
+    filler.sync(specs);
   }
 
   // The full read-only list: the main entry plus one summary per non-merged
@@ -332,6 +396,7 @@ export const DraftListProvider = (element: HTMLElement) => {
         members: clonesToMembers(doc.clones),
         childCount: doc.drafts.length,
         name: doc.name ?? null,
+        changeGroupCacheUrl: doc.changeGroupCacheUrl ?? null,
       });
     }
     return { main: computeMainSummary(), drafts };
@@ -345,35 +410,35 @@ export const DraftListProvider = (element: HTMLElement) => {
     const url = mainDraftHandle?.url ?? docUrl;
     const childCount = mainDraftHandle?.doc()?.drafts.length ?? 0;
     const name = mainDraftHandle?.doc()?.name ?? null;
+    const changeGroupCacheUrl =
+      mainDraftHandle?.doc()?.changeGroupCacheUrl ?? null;
 
     const mainClones = mainDraftHandle?.doc()?.clones;
     if (mainClones && Object.keys(mainClones).length > 0) {
-      return { url, members: clonesToMembers(mainClones), childCount, name };
+      return {
+        url,
+        members: clonesToMembers(mainClones),
+        childCount,
+        name,
+        changeGroupCacheUrl,
+      };
     }
 
     const members = [...mountCounts.keys()]
       .filter((u) => skipVerdicts.get(u) !== true)
       .map((u) => ({ url: u, cloneUrl: null, clonedAt: null }))
       .sort(byMemberUrl);
-    return { url, members, childCount, name };
+    return { url, members, childCount, name, changeGroupCacheUrl };
   }
 
-  // The diff baseline for `target`, authoritative for both main and drafts:
-  //  - a pinned checkpoint honors that doc's `from` exactly (`null` = no diff);
-  //  - otherwise, on a draft, the doc diffs against its clone's fork point;
-  //  - otherwise (main, no pin) there is no baseline.
+  // The diff baseline for `target`: the checkpoint's per-doc `from`, written
+  // by the sidebar (its eye toggle and scrubber). `null` — no entry, or an
+  // entry without `from` — means no diff. There is deliberately no implicit
+  // fork-point fallback: baselines exist only when explicitly written into
+  // the checkpoint, so "diffs hidden" is simply their absence.
   function currentBaseline(target: AutomergeUrl): Baseline {
-    const doc = checkedOutHandle?.doc();
-    const entry = doc?.at?.[target];
-    if (entry) return { heads: entry.from ?? null };
-
-    const checkedOut = doc?.checkedOut;
-    if (checkedOut) {
-      const clonedAt = trackedDrafts.get(checkedOut)?.doc()?.clones?.[target]
-        ?.clonedAt;
-      return { heads: clonedAt ?? null };
-    }
-    return { heads: null };
+    const entry = checkedOutHandle?.doc()?.at?.[target];
+    return { heads: entry?.from ?? null };
   }
 
   function notifyBaselines(): void {
@@ -504,6 +569,7 @@ function summariesEqual(a: DraftSummary, b: DraftSummary): boolean {
     a.url === b.url &&
     a.childCount === b.childCount &&
     a.name === b.name &&
+    a.changeGroupCacheUrl === b.changeGroupCacheUrl &&
     memberListsEqual(a.members, b.members)
   );
 }
