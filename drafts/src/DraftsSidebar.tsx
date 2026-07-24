@@ -40,7 +40,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.18";
+const DRAFTS_VERSION = "0.0.20";
 
 // Logged at module load so the console shows which build is running even
 // before the panel renders.
@@ -351,7 +351,9 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 name={summary.name}
                 onRename={(name) => void onRename(summary.url, name)}
                 onSelect={selectDraft}
-                onScrub={(scrub) => onScrub(summary.url, summary.members, scrub)}
+                onScrub={(scrub) =>
+                  onScrub(summary.url, summary.members, scrub)
+                }
                 scrubber={() =>
                   selected() === summary.url ? scrubber() : null
                 }
@@ -360,9 +362,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                     head ? { members: summary.members, head } : null
                   )
                 }
-                hasCheckpoint={
-                  selected() === summary.url && !!checkedOut()?.at
-                }
+                hasCheckpoint={selected() === summary.url && !!checkedOut()?.at}
                 onReturnToLatest={clearCheckpoint}
               />
             )}
@@ -487,10 +487,7 @@ function cloneAtVersion(
   }
 
   const bundle = Automerge.saveBundle(doc, [...closure]);
-  const pinned = Automerge.loadIncremental(
-    Automerge.init<unknown>(),
-    bundle
-  );
+  const pinned = Automerge.loadIncremental(Automerge.init<unknown>(), bundle);
 
   const gotHeads = [...Automerge.getHeads(pinned)].sort();
   const wantHeads = [...pinHeads].sort();
@@ -670,8 +667,7 @@ function collectForkDiagnostic(
         level: f.level,
         head: f.head,
         memberCount: f.members.length,
-        topoRange:
-          min <= max ? ([min, max] as [number, number]) : null,
+        topoRange: min <= max ? ([min, max] as [number, number]) : null,
         containsPin,
       };
     });
@@ -762,8 +758,22 @@ function MainCard(props: {
             fallback="Main"
             onRename={props.onRename}
           />
-          <Show when={props.isSelected}>
-            <span class="draft-badge">current</span>
+          {/* Shown in the title (where the "current" badge used to sit) while
+              the timeline is pinned: drops the pin and returns to the live
+              latest heads. It lives inside the clickable header, so the click
+              is stopped from also re-selecting the card. */}
+          <Show when={props.hasCheckpoint}>
+            <button
+              type="button"
+              class="draft-card-return"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onReturnToLatest();
+              }}
+              title="Return to the latest version"
+            >
+              Return to latest
+            </button>
           </Show>
         </div>
       </div>
@@ -774,10 +784,7 @@ function MainCard(props: {
           onScrub={props.onScrub}
           scrubber={props.scrubber}
           onDragVersion={props.onDragVersion}
-        />
-        <ReturnToLatestButton
-          visible={props.hasCheckpoint}
-          onClick={props.onReturnToLatest}
+          onReturnToLatest={props.onReturnToLatest}
         />
       </Show>
     </div>
@@ -812,8 +819,19 @@ function DraftCard(props: {
             fallback="Draft"
             onRename={props.onRename}
           />
-          <Show when={props.isSelected}>
-            <span class="draft-badge">current</span>
+          {/* See MainCard: pinned-only "return to latest" control in the title. */}
+          <Show when={props.hasCheckpoint}>
+            <button
+              type="button"
+              class="draft-card-return"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onReturnToLatest();
+              }}
+              title="Return to the latest version"
+            >
+              Return to latest
+            </button>
           </Show>
         </div>
       </div>
@@ -824,31 +842,10 @@ function DraftCard(props: {
           onScrub={props.onScrub}
           scrubber={props.scrubber}
           onDragVersion={props.onDragVersion}
-        />
-        <ReturnToLatestButton
-          visible={props.hasCheckpoint}
-          onClick={props.onReturnToLatest}
+          onReturnToLatest={props.onReturnToLatest}
         />
       </Show>
     </div>
-  );
-}
-
-// Card footer shown while the card's timeline is pinned to a checkpoint:
-// drops the time pin and returns the view to the live latest heads. Rendered
-// outside the scrollable changes area so it never scrolls out of reach.
-function ReturnToLatestButton(props: { visible: boolean; onClick: () => void }) {
-  return (
-    <Show when={props.visible}>
-      <button
-        type="button"
-        class="draft-card-return"
-        onClick={props.onClick}
-        title="Return to the latest version"
-      >
-        Return to latest
-      </button>
-    </Show>
   );
 }
 
@@ -953,19 +950,21 @@ function changeRef(change: DraftChange): ChangeRef {
 // Renders a draft's (or main's) changes as a timeline of activity groups:
 // every member doc's changes interleaved newest first, then split wherever
 // the editing paused for INACTIVITY_GAP (see `groupChanges`). A gutter on
-// the left spans the whole history (top = latest change, bottom = first);
+// the left spans the whole history (top = latest version, bottom = first);
 // the indicator — a calendar-style dot + line — marks the version being
-// looked at. Its line paints *under* the (semi-transparent) group rows;
-// dragging starts only from its handles in the gutter. While pinned, a
-// sticker overlays the row at the head with the exact change the line sits
-// on. The member set is passed in (from the card's `DraftSummary`); the
-// effect below keeps the timeline live as those docs edit.
+// looked at and paints *on top* of everything in the changes area.
+// Dragging starts only from its handles in the gutter; dragging it all the
+// way to the top returns to the latest version (`onReturnToLatest`). While
+// pinned, a sticker overlays the row at the head with the exact change the
+// line sits on. The member set is passed in (from the card's `DraftSummary`);
+// the effect below keeps the timeline live as those docs edit.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
   mainDocUrl: AutomergeUrl | undefined;
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
+  onReturnToLatest: () => void;
 }) {
   const [changes, setChanges] = createSignal<DraftChange[]>([]);
 
@@ -1157,7 +1156,9 @@ function DraftChangesList(props: {
   // the indicator was grabbed). Scrubbing starts only from the indicator's
   // own handles (dot, line) — the bare gutter and the rows don't scrub.
   // Every position snaps to an individual change, so the indicator can rest
-  // anywhere in history — between groups or in the middle of one.
+  // anywhere in history — between groups or in the middle of one. Dragging
+  // all the way to the top (the newest change) means "return to the latest
+  // version": it drops the pin rather than freezing at the newest change.
   const beginDrag = (ev: PointerEvent) => {
     if (!trackEl || visibleChanges().length === 0) return;
     ev.preventDefault();
@@ -1169,7 +1170,8 @@ function DraftChangesList(props: {
       const head = indexForY(yInTrack(e) - grabOffset);
       if (head === last) return;
       last = head;
-      scrubTo(head);
+      if (head === 0) props.onReturnToLatest();
+      else scrubTo(head);
     };
 
     const target = ev.currentTarget as HTMLElement;
@@ -1235,20 +1237,19 @@ function DraftChangesList(props: {
           <Show when={tokenGeometry()}>
             <div
               class="draft-scrubber-token"
-              data-live={headIndex() === null ? "" : undefined}
               style={{ top: `${tokenGeometry()!.top}px` }}
             >
-              {/* The head line, painted under the group rows. */}
+              {/* The head line, painted on top of the group rows. */}
               <div class="draft-scrubber-line" />
               {/* Grab handle, confined to the gutter. */}
               <div
                 class="draft-scrubber-edge"
-                title="Drag to scrub through history"
+                title="Drag to scrub through history — drop at the top to return to the latest version"
                 onPointerDown={beginDrag}
               />
               <div
                 class="draft-scrubber-dot"
-                title="Drag to scrub through history"
+                title="Drag to scrub through history — drop at the top to return to the latest version"
                 onPointerDown={beginDrag}
               />
               {/* Pinned inside a group: overlay the row with the exact

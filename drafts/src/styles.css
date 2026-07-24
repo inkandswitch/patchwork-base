@@ -184,16 +184,6 @@
   outline: none;
 }
 
-.draft-badge {
-  flex-shrink: 0;
-  font-size: 0.625rem;
-  line-height: 1;
-  padding: 0.125rem 0.375rem;
-  border-radius: var(--studio-radius-round, 9999px);
-  background: var(--drafts-primary);
-  color: var(--drafts-primary-fg);
-}
-
 .draft-card-url {
   font-size: 0.75rem;
   font-family: var(--drafts-mono);
@@ -222,19 +212,19 @@
   max-height: 32rem;
 }
 
-/* Card footer while the timeline is pinned: sits under the (scrollable)
-   changes area, so it stays reachable however long the history is. */
+/* Sits in the card title (where the "current" badge used to be) while the
+   timeline is pinned; drops the pin and returns to the latest version. */
 .draft-card-return {
-  display: block;
-  width: 100%;
-  padding: 0.375rem 0.5rem;
-  border: none;
-  border-top: 1px solid var(--drafts-border);
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--drafts-border);
+  border-radius: var(--studio-radius-round, 9999px);
   background: transparent;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
+  line-height: 1.2;
   color: var(--drafts-primary);
-  text-align: center;
   cursor: pointer;
 }
 
@@ -332,8 +322,8 @@
   cursor: pointer;
 }
 
-/* Group backgrounds stay semi-transparent so the scrubber lines painted
-   underneath the rows remain visible through them. */
+/* Group backgrounds stay lightly translucent so the row highlight reads as a
+   soft wash rather than a hard block. */
 .draft-group-row:hover {
   background: color-mix(in srgb, var(--drafts-hover-bg) 60%, transparent);
 }
@@ -385,8 +375,8 @@
 /* Two-column body inside the scrollable changes area: gutter + group rows,
    with the indicator overlaid across both. Positioned so the rows'
    offsetTop measurements (used to map changes onto the gutter) are relative
-   to this box. Isolated so the indicator's negative-z lines paint above the
-   card background yet below the rows (instead of escaping behind the card). */
+   to this box, and isolated so the indicator's own stacking context stays
+   contained to this card. */
 .draft-changes-body {
   position: relative;
   isolation: isolate;
@@ -413,23 +403,17 @@
 }
 
 /* The indicator sits at the head like a calendar's now-line: a dot in the
-   gutter plus a line across the rows (the version being looked at). The line
-   paints *under* the group rows (negative z-index; the rows' backgrounds are
-   semi-transparent), while the handles and the sticker paint above. The box
-   itself ignores pointer events so rows stay clickable; the handles
-   re-enable them. */
+   gutter plus a line across the rows (the version being looked at). It paints
+   on top of everything else in the changes area (high z-index), always drawn
+   in the foreground color. The box itself ignores pointer events so rows stay
+   clickable; the handles re-enable them. */
 .draft-scrubber-token {
-  --scrub-color: var(--studio-danger, #dc2626);
+  --scrub-color: var(--drafts-fg);
   position: absolute;
   left: 0;
   right: 0;
+  z-index: 20;
   pointer-events: none;
-}
-
-/* Nothing pinned: the indicator idles at the top (live latest), drawn
-   muted. */
-.draft-scrubber-token[data-live] {
-  --scrub-color: var(--drafts-faint-fg);
 }
 
 .draft-scrubber-dot {
@@ -449,7 +433,7 @@
   cursor: grabbing;
 }
 
-/* The visible head line, spanning into the rows but painted behind them. */
+/* The visible head line, spanning across the rows on top of them. */
 .draft-scrubber-line {
   position: absolute;
   top: 0;
@@ -459,7 +443,6 @@
   margin-top: -1px;
   border-radius: 1px;
   background: var(--scrub-color);
-  z-index: -1;
 }
 
 /* Invisible grab strip over the line's gutter end; dragging only starts
