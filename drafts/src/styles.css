@@ -14,8 +14,14 @@
   --drafts-primary: var(--studio-primary-fill, var(--studio-primary, #3b82f6));
   --drafts-primary-line: var(--studio-primary-line, var(--studio-fill, white));
   --drafts-primary-fg: var(--drafts-primary-line);
+  /* The accent used as ink on the ambient background (accent-coloured text,
+     not a filled surface); contrast-tuned separately from the fill. */
+  --drafts-primary-text: var(--studio-primary-text, #2563eb);
   --drafts-warning: var(--studio-warning-fill, var(--studio-warning, #f59e0b));
   --drafts-warning-fg: var(--studio-warning-line, var(--studio-fill, white));
+  /* Diff edit-size colors, from the theme's diff palette. */
+  --drafts-added: var(--studio-added, #16a34a);
+  --drafts-deleted: var(--studio-deleted, #dc2626);
   --drafts-radius: var(--studio-radius-md, 0.5rem);
   --drafts-radius-sm: var(--studio-radius-sm, 0.25rem);
   --drafts-shadow-sm: var(--studio-shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
@@ -70,12 +76,12 @@
   border: 1.5px dashed var(--drafts-primary);
   border-radius: var(--drafts-radius-sm);
   font-size: 0.75rem;
-  color: var(--drafts-primary);
+  color: var(--drafts-primary-text);
   text-align: center;
 }
 
 .drafts-dropzone[data-over] {
-  background: color-mix(in srgb, var(--drafts-primary) 12%, transparent);
+  background: color-mix(in oklch, var(--drafts-primary) 12%, transparent);
 }
 
 .drafts-btn {
@@ -120,8 +126,8 @@
   box-shadow: var(--drafts-shadow-sm);
   overflow: hidden;
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    border-color var(--studio-transition, 0.15s ease),
+    box-shadow var(--studio-transition, 0.15s ease);
 }
 
 .draft-card[data-selected] {
@@ -145,7 +151,7 @@
   cursor: pointer;
   font-family: inherit;
   color: inherit;
-  transition: background 0.15s ease;
+  transition: background var(--studio-transition, 0.15s ease);
 }
 
 .draft-card-header:hover {
@@ -224,7 +230,7 @@
   font-family: inherit;
   font-size: 0.6875rem;
   line-height: 1.2;
-  color: var(--drafts-primary);
+  color: var(--drafts-primary-text);
   cursor: pointer;
 }
 
@@ -325,11 +331,11 @@
 /* Group backgrounds stay lightly translucent so the row highlight reads as a
    soft wash rather than a hard block. */
 .draft-group-row:hover {
-  background: color-mix(in srgb, var(--drafts-hover-bg) 60%, transparent);
+  background: color-mix(in oklch, var(--drafts-hover-bg) 60%, transparent);
 }
 
 .draft-group-row[data-selected] {
-  background: color-mix(in srgb, var(--drafts-selected-bg) 60%, transparent);
+  background: color-mix(in oklch, var(--drafts-selected-bg) 60%, transparent);
   box-shadow: inset 0 0 0 1px var(--drafts-primary);
 }
 
@@ -520,11 +526,11 @@
 }
 
 .draft-count--add {
-  color: var(--studio-success, #16a34a);
+  color: var(--drafts-added);
 }
 
 .draft-count--del {
-  color: var(--studio-danger, #dc2626);
+  color: var(--drafts-deleted);
 }
 
 .drafts-version {

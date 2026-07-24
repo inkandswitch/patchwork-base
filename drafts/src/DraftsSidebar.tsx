@@ -23,6 +23,8 @@ import {
   subscribeDoc,
 } from "@inkandswitch/patchwork-providers-solid";
 import type {
+  CachedGroup,
+  ChangeGroupCacheDoc,
   CheckedOutDraft,
   CloneEntry,
   DraftCheckpoint,
@@ -31,25 +33,31 @@ import type {
   DraftMemberDoc,
   HasDrafts,
 } from "./draft-types";
+import {
+  computeEditCounts,
+  ensureMainDraft,
+  getDocCreationTime,
+} from "./change-group-cache";
 
 // Seed for the read-only `draft:list` subscription until the provider answers.
 // `main.url` is a placeholder; the Main card displays the host doc url instead.
 const EMPTY_DRAFT_LIST: DraftList = {
-  main: { url: "" as AutomergeUrl, members: [], childCount: 0, name: null },
+  main: {
+    url: "" as AutomergeUrl,
+    members: [],
+    childCount: 0,
+    name: null,
+    changeGroupCacheUrl: null,
+  },
   drafts: [],
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.20";
+const DRAFTS_VERSION = "0.0.23";
 
 // Logged at module load so the console shows which build is running even
 // before the panel renders.
 console.log(`[drafts] DraftsSidebar v${DRAFTS_VERSION} loaded`);
-
-// A pause between consecutive changes longer than this starts a new group:
-// bursts of continuous editing read as a single row, however long they run,
-// and any minute-plus lull splits the timeline.
-const INACTIVITY_GAP = 60 * 1000;
 
 export function DraftsSidebar(props: { element: HTMLElement }) {
   const [hostDoc, hostDocHandle] = subscribeDoc<HasDrafts>(props.element, {
@@ -178,34 +186,6 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     selectDraft(draft.url);
   };
 
-  // Resolve the host doc's single main draft, creating it (and pointing
-  // `@patchwork.mainDraftUrl` at it) the first time. The main draft is
-  // bookkeeping only: the list provider seeds its identity `clones`, and its
-  // `drafts` holds the top-level draft list.
-  const ensureMainDraft = async (
-    repo: Repo,
-    docHandle: DocHandle<HasDrafts>
-  ): Promise<DocHandle<DraftDoc>> => {
-    const existingUrl = docHandle.doc()?.["@patchwork"]?.mainDraftUrl;
-    if (existingUrl) return repo.find<DraftDoc>(existingUrl);
-
-    const mainDraft = repo.create<DraftDoc>({
-      "@patchwork": { type: "draft" },
-      isMain: true,
-      parent: docHandle.url,
-      drafts: [],
-      clones: {},
-    });
-    docHandle.change((d) => {
-      // Mutate `@patchwork` in place. Spreading it into a fresh object and
-      // reassigning would carry over references to existing document objects,
-      // which Automerge rejects ("Cannot create a reference to an existing
-      // document object").
-      d["@patchwork"]!.mainDraftUrl = mainDraft.url;
-    });
-    return mainDraft;
-  };
-
   // Fork a new top-level draft off a historical version: every member doc is
   // cloned at the heads it had as of `head` (the dragged-out change), not at
   // the live latest. Pre-populating `DraftDoc.clones` here means the overlay's
@@ -328,6 +308,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             hostDocUrl={hostDocHandle()?.url}
             isSelected={isMainSelected()}
             members={() => list().main.members}
+            changeGroupCacheUrl={list().main.changeGroupCacheUrl}
             name={list().main.name}
             onRename={(name) => void onRename(null, name)}
             onSelect={() => selectDraft(null)}
@@ -346,6 +327,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
               <DraftCard
                 url={summary.url}
                 members={summary.members}
+                changeGroupCacheUrl={summary.changeGroupCacheUrl}
                 mainDocUrl={hostDocHandle()?.url}
                 isSelected={selected() === summary.url}
                 name={summary.name}
@@ -734,6 +716,7 @@ function MainCard(props: {
   hostDocUrl: AutomergeUrl | undefined;
   isSelected: boolean;
   members: Accessor<DraftMemberDoc[]>;
+  changeGroupCacheUrl: AutomergeUrl | null;
   name: string | null;
   onRename: (name: string | null) => void;
   onSelect: () => void;
@@ -780,6 +763,7 @@ function MainCard(props: {
       <Show when={props.isSelected}>
         <DraftChangesList
           members={props.members}
+          changeGroupCacheUrl={props.changeGroupCacheUrl}
           mainDocUrl={props.hostDocUrl}
           onScrub={props.onScrub}
           scrubber={props.scrubber}
@@ -794,6 +778,7 @@ function MainCard(props: {
 function DraftCard(props: {
   url: AutomergeUrl;
   members: DraftMemberDoc[];
+  changeGroupCacheUrl: AutomergeUrl | null;
   mainDocUrl: AutomergeUrl | undefined;
   isSelected: boolean;
   name: string | null;
@@ -838,6 +823,7 @@ function DraftCard(props: {
       <Show when={props.isSelected}>
         <DraftChangesList
           members={() => props.members}
+          changeGroupCacheUrl={props.changeGroupCacheUrl}
           mainDocUrl={props.mainDocUrl}
           onScrub={props.onScrub}
           scrubber={props.scrubber}
@@ -894,38 +880,6 @@ function DraftName(props: {
   );
 }
 
-// One change in the interleaved timeline. `docUrl` is the original member url
-// (used for labelling and as the checkpoint anchor), never the per-draft clone
-// the change was read from. `title` is the source document's display title.
-// `seq` is the change's per-document causal index, used only to break
-// timestamp ties (see `collectInterleavedChanges`). `additions`/`deletions`
-// are the change's rough edit magnitude, aggregated for the group +/- counts.
-type DraftChange = {
-  docUrl: AutomergeUrl;
-  title: string;
-  hash: string;
-  // Automerge change time, in SECONDS (multiply by 1000 for a JS Date).
-  time: number;
-  actor: string;
-  message: string | null;
-  seq: number;
-  additions: number;
-  deletions: number;
-};
-
-// One burst of activity: consecutive changes separated by no more than
-// INACTIVITY_GAP, regardless of author or document. Rendered as a single
-// non-expandable row. Clicking it parks the scrubber at `newest`.
-type TimeGroup = {
-  id: string;
-  endTime: number;
-  actors: string[];
-  additions: number;
-  deletions: number;
-  newest: DraftChange;
-  changes: DraftChange[];
-};
-
 // A reference to one change in the interleaved timeline, by document and
 // hash. `time` steers how the *other* member docs' heads are resolved around
 // it (see `computeCheckpoint`).
@@ -935,122 +889,214 @@ type ChangeRef = {
   time: number;
 };
 
-// Where the scrubber sits: the change whose heads the view displays. The
-// head is anchored by change identity rather than index so a recomputed
-// timeline doesn't move the token.
+// Where the scrubber sits: the change whose heads the view displays,
+// anchored to its cached group. `offset` is the change's position within the
+// group, 0 = the group's newest change (what the scrubber geometry snaps
+// to); `head` identifies the exact change for the checkpoint machinery.
 type ScrubberState = {
+  groupId: string;
+  offset: number;
   head: ChangeRef;
 };
 
-// Strip a timeline change down to the fields that identify it for scrubbing.
-function changeRef(change: DraftChange): ChangeRef {
-  return { docUrl: change.docUrl, hash: change.hash, time: change.time };
-}
+// One change recovered by the on-demand scrub-resolution scan. `doc` is the
+// member doc it was read from (kept so the sticker can diff it on demand);
+// `seq` is the change's per-document causal index, used only to break
+// same-second timestamp ties — matching the fill engine's interleave order.
+type ScanChange = {
+  docUrl: AutomergeUrl;
+  doc: Automerge.Doc<unknown>;
+  hash: string;
+  time: number;
+  deps: string[];
+  seq: number;
+};
 
-// Renders a draft's (or main's) changes as a timeline of activity groups:
-// every member doc's changes interleaved newest first, then split wherever
-// the editing paused for INACTIVITY_GAP (see `groupChanges`). A gutter on
+// Renders a draft's (or main's) timeline straight from its change-group
+// cache doc: the provider's fill engine computes and persists the activity
+// groups (newest first, older history backfilling), and this component is a
+// pure reader — it paints from the cache before the member docs even load,
+// and live edits arrive through the cache doc's change signal. A gutter on
 // the left spans the whole history (top = latest version, bottom = first);
 // the indicator — a calendar-style dot + line — marks the version being
 // looked at and paints *on top* of everything in the changes area.
 // Dragging starts only from its handles in the gutter; dragging it all the
 // way to the top returns to the latest version (`onReturnToLatest`). While
 // pinned, a sticker overlays the row at the head with the exact change the
-// line sits on. The member set is passed in (from the card's `DraftSummary`);
-// the effect below keeps the timeline live as those docs edit.
+// line sits on. Individual changes are NOT cached: scrub positions resolve
+// on demand by scanning the member docs' change metadata inside the group's
+// time span (no diffs), memoized per group so dragging stays snappy.
 function DraftChangesList(props: {
   members: Accessor<DraftMemberDoc[]>;
+  changeGroupCacheUrl: AutomergeUrl | null;
   mainDocUrl: AutomergeUrl | undefined;
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
   onReturnToLatest: () => void;
 }) {
-  const [changes, setChanges] = createSignal<DraftChange[]>([]);
+  const repo = "repo" in window ? window.repo : undefined;
 
-  // Whenever the member set changes, resolve a handle per member, listen for
-  // edits so the timeline stays live, and recompute. A `disposed` flag guards
-  // against the async resolution landing after the effect was torn down.
+  // The cache doc, resolved from the summary's changeGroupCacheUrl and read
+  // live: the fill engine's background writes stream in as timeline rows.
+  const [cacheHandle, setCacheHandle] =
+    createSignal<DocHandle<ChangeGroupCacheDoc>>();
+  createEffect(() => {
+    const url = props.changeGroupCacheUrl;
+    setCacheHandle(undefined);
+    if (!url || !repo) return;
+    let disposed = false;
+    void repo.find<ChangeGroupCacheDoc>(url).then(
+      (handle) => {
+        if (!disposed) setCacheHandle(handle);
+      },
+      (err) => {
+        console.warn("[drafts] failed to load change-group cache:", url, err);
+      }
+    );
+    onCleanup(() => {
+      disposed = true;
+    });
+  });
+  const cacheDoc = createDocSignal(cacheHandle);
+
+  // The rendered rows: cached groups newest-first. Groups whose changes
+  // carry no edits (metadata-only churn — zero +/- counts) are stored in the
+  // cache (the fill engine needs the newest one to extend) but filtered here.
+  const timeGroups = createMemo<CachedGroup[]>(() =>
+    Object.values(cacheDoc()?.groups ?? {})
+      .filter((g) => g.additions > 0 || g.deletions > 0)
+      .sort((a, b) => b.endTime - a.endTime || (a.id < b.id ? -1 : 1))
+  );
+
+  // Member doc handles (plus the creation-time cutoff), resolved once per
+  // member set — only needed to *scrub*, never to render the rows.
+  type MemberSource = { member: DraftMemberDoc; handle: DocHandle<unknown> };
+  const [sources, setSources] = createSignal<MemberSource[] | null>(null);
+  const [createdAt, setCreatedAt] = createSignal<number | undefined>(
+    undefined
+  );
   createEffect(() => {
     const list = props.members();
     const mainDocUrl = props.mainDocUrl;
-    const repo = "repo" in window ? window.repo : undefined;
     if (!repo) return;
-
     let disposed = false;
-    const listeners: { handle: DocHandle<unknown>; onChange: () => void }[] =
-      [];
-
-    const recompute = async () => {
-      const next = await collectInterleavedChanges(repo, list, mainDocUrl);
-      if (!disposed) setChanges(next);
-    };
-
+    setSources(null);
     void (async () => {
+      const next: MemberSource[] = [];
       for (const member of list) {
-        const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
-        if (disposed) return;
-        const onChange = () => void recompute();
-        handle.on("change", onChange);
-        listeners.push({ handle, onChange });
+        try {
+          const handle = await repo.find<unknown>(
+            member.cloneUrl ?? member.url
+          );
+          next.push({ member, handle });
+        } catch (err) {
+          console.warn(
+            "[drafts] failed to resolve member for scrubbing:",
+            member,
+            err
+          );
+        }
       }
-      void recompute();
+      const created = await getDocCreationTime(repo, mainDocUrl);
+      if (disposed) return;
+      setCreatedAt(created);
+      setSources(next);
     })();
-
     onCleanup(() => {
       disposed = true;
-      for (const { handle, onChange } of listeners) {
-        handle.off("change", onChange);
-      }
     });
   });
 
-  // The flat, newest-first history folded into activity groups for rendering.
-  // Groups whose changes carry no edits (metadata-only churn — zero +/-
-  // counts) are dropped from the timeline entirely.
-  const timeGroups = createMemo(() =>
-    groupChanges(changes()).filter((g) => g.additions > 0 || g.deletions > 0)
-  );
-
-  // The scrubbable timeline: the visible groups' changes flattened
-  // newest-first. All scrubber indices refer to this list, so it must stay
-  // consistent with the rendered rows (not the raw, unfiltered history).
-  const visibleChanges = createMemo(() =>
-    timeGroups().flatMap((g) => g.changes)
-  );
-
-  // Scrub so the head sits at the timeline change at `headIndex` (global,
-  // 0 = newest).
-  const scrubTo = (headIndex: number) => {
-    const head = visibleChanges()[headIndex];
-    if (!head) return;
-    props.onScrub({ head: changeRef(head) });
+  // Recover a group's member changes on demand: scan each member's post-fork
+  // change metadata filtered to the group's span (spans are disjoint — groups
+  // are separated by >gap lulls, so time containment recovers exactly the
+  // group's changes) and interleave with the same ordering the fill engine
+  // uses. Metadata only, no diffs. Memoized per group identity so dragging
+  // stays snappy; returns null until the member handles resolve. Must apply
+  // the same filters as the fill (notably the pre-creation cutoff), or the
+  // scrubber's index math drifts from the cached changeCount.
+  const scanCache = new Map<string, ScanChange[]>();
+  const resolveGroupChanges = (group: CachedGroup): ScanChange[] | null => {
+    const key = `${group.id}:${group.changeCount}`;
+    const hit = scanCache.get(key);
+    if (hit) return hit;
+    const srcs = sources();
+    if (!srcs) return null;
+    const cutoff = createdAt();
+    const rows: ScanChange[] = [];
+    for (const { member, handle } of srcs) {
+      const doc = handle.doc() as Automerge.Doc<unknown> | undefined;
+      if (!doc) continue;
+      try {
+        const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
+        const metas = Automerge.getChangesMetaSince(doc, since);
+        metas.forEach((meta, seq) => {
+          if (cutoff !== undefined && meta.time && meta.time < cutoff) return;
+          if (meta.time < group.startTime || meta.time > group.endTime) return;
+          rows.push({
+            docUrl: member.url,
+            doc,
+            hash: meta.hash,
+            time: meta.time,
+            deps: meta.deps,
+            seq,
+          });
+        });
+      } catch (err) {
+        console.warn(
+          "[drafts] failed to scan changes for member:",
+          member,
+          err
+        );
+      }
+    }
+    rows.sort((a, b) => b.time - a.time || b.seq - a.seq);
+    scanCache.set(key, rows);
+    return rows;
   };
 
-  // Jump the scrubber to a group: head at the group's newest change.
-  const scrubToGroup = (group: TimeGroup) => {
-    props.onScrub({ head: changeRef(group.newest) });
+  // Scrub so the head sits at `offset` within `group` (0 = the group's
+  // newest change, which the cache anchors directly; deeper offsets resolve
+  // through the on-demand scan).
+  const scrubTo = (group: CachedGroup, offset: number) => {
+    if (offset <= 0) {
+      props.onScrub({
+        groupId: group.id,
+        offset: 0,
+        head: {
+          docUrl: group.newestMemberUrl,
+          hash: group.newestHash,
+          time: group.endTime,
+        },
+      });
+      return;
+    }
+    const rows = resolveGroupChanges(group);
+    if (!rows || rows.length === 0) return;
+    const row = rows[Math.min(offset, rows.length - 1)];
+    props.onScrub({
+      groupId: group.id,
+      offset,
+      head: { docUrl: row.docUrl, hash: row.hash, time: row.time },
+    });
   };
 
-  // Where the scrubber head sits in the flat timeline; null when nothing is
-  // pinned (live latest) or the anchored change vanished from a recompute.
-  const headIndex = createMemo<number | null>(() => {
-    const s = props.scrubber();
-    if (!s) return null;
-    const idx = visibleChanges().findIndex(
-      (c) => c.hash === s.head.hash && c.docUrl === s.head.docUrl
-    );
-    return idx >= 0 ? idx : null;
-  });
+  // The group the scrubber head sits in: by group identity when it still
+  // exists, falling back to span containment (an extended group gets a new
+  // id, but its span still covers the pinned change).
+  const groupForScrub = (s: ScrubberState): CachedGroup | null =>
+    timeGroups().find((g) => g.id === s.groupId) ??
+    timeGroups().find(
+      (g) => s.head.time >= g.startTime && s.head.time <= g.endTime
+    ) ??
+    null;
 
-  const groupContainsHead = (group: TimeGroup): boolean => {
+  const groupContainsHead = (group: CachedGroup): boolean => {
     const s = props.scrubber();
-    return (
-      !!s &&
-      group.changes.some(
-        (c) => c.hash === s.head.hash && c.docUrl === s.head.docUrl
-      )
-    );
+    if (!s) return false;
+    if (s.groupId === group.id) return true;
+    return s.head.time >= group.startTime && s.head.time <= group.endTime;
   };
 
   // --- Scrubber geometry ---------------------------------------------------
@@ -1079,59 +1125,53 @@ function DraftChangesList(props: {
   });
 
   type Band = {
-    startIndex: number;
-    count: number;
+    group: CachedGroup;
     top: number;
     height: number;
   };
   const bands = createMemo<Band[]>(() => {
     measureTick();
     const out: Band[] = [];
-    let index = 0;
     for (const group of timeGroups()) {
       const el = rowEls.get(group.id);
       if (el) {
-        out.push({
-          startIndex: index,
-          count: group.changes.length,
-          top: el.offsetTop,
-          height: el.offsetHeight,
-        });
+        out.push({ group, top: el.offsetTop, height: el.offsetHeight });
       }
-      index += group.changes.length;
     }
     return out;
   });
 
-  // Map a global change index to a y offset in the track. Indices interpolate
-  // across their group's band; an index past the oldest change maps to the
-  // very bottom.
-  const yForIndex = (index: number): number => {
-    const bs = bands();
-    if (bs.length === 0) return 0;
-    for (const b of bs) {
-      if (index < b.startIndex + b.count) {
-        return b.top + ((index - b.startIndex) / b.count) * b.height;
-      }
-    }
-    const last = bs[bs.length - 1];
-    return last.top + last.height;
+  // A scrub position's y in the track: offsets interpolate across their
+  // group's band, sized by the cached changeCount (the flat change list is
+  // never materialized).
+  const yForPosition = (band: Band, offset: number): number => {
+    const count = Math.max(1, band.group.changeCount);
+    return band.top + (Math.min(offset, count - 1) / count) * band.height;
   };
 
-  // Inverse: the change index nearest a pointer y (in track coordinates).
-  const indexForY = (y: number): number => {
+  // Inverse: the (group, offset) position nearest a pointer y (in track
+  // coordinates).
+  const positionForY = (
+    y: number
+  ): { group: CachedGroup; offset: number } | null => {
     const bs = bands();
-    if (bs.length === 0) return 0;
+    if (bs.length === 0) return null;
     for (const b of bs) {
-      if (y < b.top) return b.startIndex;
+      if (y < b.top) return { group: b.group, offset: 0 };
       if (y < b.top + b.height) {
-        const idx =
-          b.startIndex + Math.round(((y - b.top) / b.height) * b.count);
-        return Math.min(idx, b.startIndex + b.count - 1);
+        const count = Math.max(1, b.group.changeCount);
+        const offset = Math.min(
+          Math.round(((y - b.top) / b.height) * count),
+          count - 1
+        );
+        return { group: b.group, offset };
       }
     }
     const last = bs[bs.length - 1];
-    return Math.max(0, last.startIndex + last.count - 1);
+    return {
+      group: last.group,
+      offset: Math.max(0, last.group.changeCount - 1),
+    };
   };
 
   // The indicator's pixel position: the head line's y in the track. The
@@ -1139,8 +1179,14 @@ function DraftChangesList(props: {
   // grabbable. With nothing pinned it idles at the very top — you're looking
   // at the live latest.
   const tokenGeometry = createMemo(() => {
-    if (visibleChanges().length === 0 || bands().length === 0) return null;
-    return { top: yForIndex(headIndex() ?? 0) };
+    const bs = bands();
+    if (bs.length === 0) return null;
+    const s = props.scrubber();
+    if (!s) return { top: bs[0].top };
+    const group = groupForScrub(s);
+    const band = group ? bs.find((b) => b.group.id === group.id) : undefined;
+    if (!band) return { top: bs[0].top };
+    return { top: yForPosition(band, s.offset) };
   });
 
   let trackEl: HTMLDivElement | undefined;
@@ -1160,18 +1206,25 @@ function DraftChangesList(props: {
   // all the way to the top (the newest change) means "return to the latest
   // version": it drops the pin rather than freezing at the newest change.
   const beginDrag = (ev: PointerEvent) => {
-    if (!trackEl || visibleChanges().length === 0) return;
+    if (!trackEl || bands().length === 0) return;
     ev.preventDefault();
     ev.stopPropagation();
-    const grabOffset = yInTrack(ev) - yForIndex(headIndex() ?? 0);
+    const grabOffset = yInTrack(ev) - (tokenGeometry()?.top ?? 0);
 
-    let last = headIndex() ?? 0;
+    const s = props.scrubber();
+    let last = s ? `${s.groupId}:${s.offset}` : null;
     const onMove = (e: PointerEvent) => {
-      const head = indexForY(yInTrack(e) - grabOffset);
-      if (head === last) return;
-      last = head;
-      if (head === 0) props.onReturnToLatest();
-      else scrubTo(head);
+      const pos = positionForY(yInTrack(e) - grabOffset);
+      if (!pos) return;
+      const key = `${pos.group.id}:${pos.offset}`;
+      if (key === last) return;
+      last = key;
+      const first = bands()[0];
+      if (first && pos.group.id === first.group.id && pos.offset === 0) {
+        props.onReturnToLatest();
+      } else {
+        scrubTo(pos.group, pos.offset);
+      }
     };
 
     const target = ev.currentTarget as HTMLElement;
@@ -1196,19 +1249,49 @@ function DraftChangesList(props: {
     props.onDragVersion(head);
   };
 
-  // The exact change the scrubber head sits on; feeds the sticker that
-  // overlays the group row with the version being looked at. It is
-  // suppressed when the head sits exactly on a group's newest change (the
-  // row already shows that version).
-  const headChange = createMemo<DraftChange | null>(() => {
-    const idx = headIndex();
-    const change = idx === null ? null : (visibleChanges()[idx] ?? null);
-    if (!change) return null;
-    const atGroupStart = timeGroups().some(
-      (g) => g.newest.hash === change.hash && g.newest.docUrl === change.docUrl
+  // The exact change the scrubber head sits on, recovered through the
+  // on-demand scan; feeds the sticker that overlays the group row with the
+  // version being looked at. It is suppressed when the head sits exactly on
+  // a group's newest change (the row already shows that version).
+  const headChange = createMemo<ScanChange | null>(() => {
+    const s = props.scrubber();
+    if (!s || s.offset === 0) return null;
+    const group = groupForScrub(s);
+    if (!group || s.head.hash === group.newestHash) return null;
+    const rows = resolveGroupChanges(group);
+    if (!rows || rows.length === 0) return null;
+    return (
+      rows.find(
+        (r) => r.hash === s.head.hash && r.docUrl === s.head.docUrl
+      ) ??
+      rows[Math.min(s.offset, rows.length - 1)] ??
+      null
     );
-    return atGroupStart ? null : change;
   });
+
+  // The sticker's per-change +/- counts: one on-demand diff of the single
+  // change under the head (the cache stores only group aggregates).
+  const headCounts = createMemo(() => {
+    const change = headChange();
+    if (!change) return null;
+    return computeEditCounts(change.doc, change.hash, change.deps);
+  });
+
+  // The sticker's title, resolved lazily per member doc and cached.
+  const [titles, setTitles] = createSignal<Record<string, string>>({});
+  createEffect(() => {
+    const change = headChange();
+    if (!change) return;
+    if (titles()[change.docUrl] !== undefined) return;
+    void resolveDocTitle(change.doc, change.docUrl).then((title) => {
+      setTitles((t) => ({ ...t, [change.docUrl]: title }));
+    });
+  });
+  const headTitle = (): string => {
+    const change = headChange();
+    if (!change) return "";
+    return titles()[change.docUrl] ?? shortUrl(change.docUrl);
+  };
 
   return (
     <div class="draft-card-changes">
@@ -1225,9 +1308,13 @@ function DraftChangesList(props: {
                   group={group}
                   rowRef={(el) => rowEls.set(group.id, el)}
                   isSelected={groupContainsHead(group)}
-                  onSelect={() => scrubToGroup(group)}
+                  onSelect={() => scrubTo(group, 0)}
                   onVersionDragStart={(e) =>
-                    beginVersionDrag(e, changeRef(group.newest))
+                    beginVersionDrag(e, {
+                      docUrl: group.newestMemberUrl,
+                      hash: group.newestHash,
+                      time: group.endTime,
+                    })
                   }
                   onVersionDragEnd={() => props.onDragVersion(null)}
                 />
@@ -1262,18 +1349,22 @@ function DraftChangesList(props: {
                     draggable={true}
                     title="Drag out to fork a new draft from this version"
                     onDragStart={(e) =>
-                      beginVersionDrag(e, changeRef(change()))
+                      beginVersionDrag(e, {
+                        docUrl: change().docUrl,
+                        hash: change().hash,
+                        time: change().time,
+                      })
                     }
                     onDragEnd={() => props.onDragVersion(null)}
                   >
                     <span class="draft-sticker-time">
                       {formatTime(change().time)}
                     </span>
-                    <span class="draft-sticker-title">{change().title}</span>
+                    <span class="draft-sticker-title">{headTitle()}</span>
                     <span class="draft-sticker-spacer" />
                     <EditCounts
-                      additions={change().additions}
-                      deletions={change().deletions}
+                      additions={headCounts()?.additions ?? 0}
+                      deletions={headCounts()?.deletions ?? 0}
                     />
                   </div>
                 )}
@@ -1294,7 +1385,7 @@ function DraftChangesList(props: {
 // dragstart only fires past the movement threshold, so click-to-select is
 // unaffected.
 function TimeGroupRow(props: {
-  group: TimeGroup;
+  group: CachedGroup;
   rowRef: (el: HTMLElement) => void;
   isSelected: boolean;
   onSelect: () => void;
@@ -1366,58 +1457,6 @@ function EditCounts(props: { additions: number; deletions: number }) {
   );
 }
 
-// Fold a flat, newest-first list of changes into activity groups. Consecutive
-// changes stay in the same group while the pause between them is at most
-// INACTIVITY_GAP; a longer lull starts a new group. A group can span any
-// stretch of continuous editing — only inactivity splits it.
-function groupChanges(changes: DraftChange[]): TimeGroup[] {
-  const timeGroups: TimeGroup[] = [];
-  let window: DraftChange[] = [];
-  let prevTimeMs: number | null = null;
-
-  const flush = () => {
-    if (window.length > 0) {
-      timeGroups.push(buildTimeGroup(window));
-      window = [];
-    }
-  };
-
-  for (const change of changes) {
-    const timeMs = change.time * 1000;
-    // Rows arrive newest-first, so the previous row is this change's newer
-    // neighbour; a gap larger than the threshold between them is a lull.
-    if (prevTimeMs !== null && prevTimeMs - timeMs > INACTIVITY_GAP) flush();
-    window.push(change);
-    prevTimeMs = timeMs;
-  }
-  flush();
-
-  return timeGroups;
-}
-
-// Build one group from a window of newest-first changes: dedupe the authors
-// (newest contributor first) and aggregate the +/- counts.
-function buildTimeGroup(windowNewestFirst: DraftChange[]): TimeGroup {
-  const actors: string[] = [];
-  let additions = 0;
-  let deletions = 0;
-  for (const c of windowNewestFirst) {
-    if (!actors.includes(c.actor)) actors.push(c.actor);
-    additions += c.additions;
-    deletions += c.deletions;
-  }
-  const newest = windowNewestFirst[0];
-  return {
-    id: `tg-${newest.hash}`,
-    endTime: newest.time,
-    actors,
-    additions,
-    deletions,
-    newest,
-    changes: windowNewestFirst,
-  };
-}
-
 // Build the checkpoint map for a scrub position. Each member's displayed
 // version (`to`) is its heads as of `head`: the doc that owns that change is
 // pinned exactly to it, every other member to its latest change at or before
@@ -1470,134 +1509,6 @@ async function computeCheckpoint(
     }
   }
   return checkpoint;
-}
-
-// Collect every member doc's post-fork changes into one interleaved timeline,
-// newest first. `getChangesMetaSince` returns each doc's changes in topological
-// (causal, oldest-first) order, so we stamp each change with its per-document
-// `seq` index and sort by time with `seq` as the tie-break: `meta.time` is only
-// second-resolution, so changes sharing a timestamp fall back to their
-// document's own change order rather than being shuffled. On a draft `clonedAt`
-// is set, so reading the clone since that fork point yields exactly the draft's
-// own changes; on main both clone fields are null, so we read the original doc
-// since `[]` for its full history. Members with no changes are omitted.
-//
-// Changes that predate the root document's creation are dropped: a member doc
-// dragged in after the fact (e.g. a tldraw with its own prior edit history)
-// would otherwise contribute changes from before this document even existed,
-// which reads as noise. When the cutoff can't be resolved we keep everything.
-async function collectInterleavedChanges(
-  repo: Repo,
-  members: DraftMemberDoc[],
-  mainDocUrl: AutomergeUrl | undefined
-): Promise<DraftChange[]> {
-  const rows: DraftChange[] = [];
-  const createdAt = await getDocCreationTime(repo, mainDocUrl);
-  for (const member of members) {
-    try {
-      const handle = await repo.find<unknown>(member.cloneUrl ?? member.url);
-      const doc = handle.doc();
-      if (!doc) continue;
-      const since = member.clonedAt ? decodeHeads(member.clonedAt) : [];
-      const metas = Automerge.getChangesMetaSince(doc, since);
-      if (metas.length === 0) continue;
-      const title = await resolveDocTitle(doc, member.url);
-      metas.forEach((meta, seq) => {
-        // Hide anything from before the root document was created. `seq` still
-        // reflects the change's true per-document position, so dropping rows
-        // here doesn't disturb the tie-break ordering.
-        if (createdAt !== undefined && meta.time && meta.time < createdAt) {
-          return;
-        }
-        const { additions, deletions } = computeEditCounts(
-          doc as Automerge.Doc<unknown>,
-          meta.hash,
-          meta.deps
-        );
-        rows.push({
-          docUrl: member.url,
-          title,
-          hash: meta.hash,
-          time: meta.time,
-          actor: meta.actor,
-          message: meta.message,
-          seq,
-          additions,
-          deletions,
-        });
-      });
-    } catch (err) {
-      // A member doc that can't be resolved (or whose fork point is missing)
-      // is simply omitted rather than failing the whole list.
-      console.warn("[drafts] failed to read changes for member:", member, err);
-    }
-  }
-  // Newest first by timestamp. On a tie (meta.time is only second-resolution),
-  // fall back to each document's own change order, also newest-first: `seq` is
-  // the per-document causal index (oldest = 0), so the higher (later) seq sorts
-  // first. This keeps same-second changes consistent with the newest-first
-  // intent instead of flipping that run to oldest-first.
-  rows.sort((a, b) => b.time - a.time || b.seq - a.seq);
-  return rows;
-}
-
-// Work out one change's rough edit magnitude by diffing it against its parents
-// and counting its patches: splice lengths and insert counts as additions, del
-// lengths as deletions, everything else (put / inc / mark / …) as one addition.
-// `@patchwork` metadata paths are ignored. Feeds the group +/- counts.
-function computeEditCounts(
-  doc: Automerge.Doc<unknown>,
-  hash: string,
-  deps: string[]
-): { additions: number; deletions: number } {
-  let additions = 0;
-  let deletions = 0;
-  try {
-    const patches = Automerge.diff(
-      doc,
-      deps as unknown as Automerge.Heads,
-      [hash] as unknown as Automerge.Heads
-    );
-    for (const patch of patches) {
-      if (patch.path[0] === "@patchwork") continue;
-      if (patch.action === "splice") {
-        additions += (patch.value as string).length;
-      } else if (patch.action === "insert") {
-        additions += Array.isArray((patch as { values?: unknown[] }).values)
-          ? (patch as { values: unknown[] }).values.length
-          : 1;
-      } else if (patch.action === "del") {
-        deletions += (patch as { length?: number }).length ?? 1;
-      } else {
-        additions += 1;
-      }
-    }
-  } catch (err) {
-    console.warn("[drafts] failed to diff change for edit counts:", hash, err);
-  }
-  return { additions, deletions };
-}
-
-// When was a document created, as a Unix SECONDS timestamp? Reads the doc's
-// full history and returns its first change's time (the creation change).
-// Returns undefined when the doc, its history, or that time can't be resolved,
-// in which case callers skip the "before creation" filter rather than hiding
-// everything.
-async function getDocCreationTime(
-  repo: Repo,
-  url: AutomergeUrl | undefined
-): Promise<number | undefined> {
-  if (!url) return undefined;
-  try {
-    const handle = await repo.find<unknown>(url);
-    const doc = handle.doc();
-    if (!doc) return undefined;
-    const metas = Automerge.getChangesMetaSince(doc, []);
-    return metas[0]?.time || undefined;
-  } catch (err) {
-    console.warn("[drafts] failed to resolve creation time for:", url, err);
-    return undefined;
-  }
 }
 
 // Resolve a document's display title: prefer its cached `@patchwork.title`,
