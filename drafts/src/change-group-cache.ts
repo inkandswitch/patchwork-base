@@ -22,9 +22,9 @@ export const CHANGE_GROUP_CACHE_VERSION = 1;
 
 // A pause between consecutive changes longer than this starts a new group:
 // bursts of continuous editing read as a single row, however long they run,
-// and any minute-plus lull splits the timeline. Baked into the cache doc —
-// changing it invalidates and rebuilds every cache.
-export const INACTIVITY_GAP_MS = 60 * 1000;
+// and any ten-minute-plus lull splits the timeline. Baked into the cache
+// doc — changing it invalidates and rebuilds every cache.
+export const INACTIVITY_GAP_MS = 10 * 60 * 1000;
 
 // How long a fill may hold the main thread before yielding to idle time.
 const SLICE_BUDGET_MS = 8;

@@ -130,9 +130,10 @@
     box-shadow var(--studio-transition, 0.15s ease);
 }
 
+/* Selection reads as a soft accent-tinted border, no extra ring — the open
+   changes list already sets the selected card apart. */
 .draft-card[data-selected] {
-  border-color: var(--drafts-primary-line);
-  box-shadow: 0 0 0 1px var(--drafts-primary-line);
+  border-color: color-mix(in oklch, var(--drafts-primary) 35%, var(--drafts-border));
 }
 
 .draft-card-header {
@@ -159,7 +160,7 @@
 }
 
 .draft-card[data-selected] .draft-card-header {
-  background: var(--drafts-selected-bg);
+  background: color-mix(in oklch, var(--drafts-selected-bg) 60%, transparent);
 }
 
 .draft-card-title {
@@ -253,7 +254,7 @@
   cursor: pointer;
 }
 
-.draft-card-eye:hover:not(:disabled) {
+.draft-card-eye:hover:not([data-disabled]) {
   background: var(--drafts-hover-bg);
   color: var(--drafts-primary-text);
 }
@@ -262,7 +263,9 @@
   color: var(--drafts-primary-text);
 }
 
-.draft-card-eye:disabled {
+/* Kept hoverable while disabled (aria-disabled, not the attribute) so the
+   explanatory tooltip shows; clicks are ignored in the handler. */
+.draft-card-eye[data-disabled] {
   opacity: 0.35;
   cursor: default;
 }
@@ -363,11 +366,6 @@
   background: color-mix(in oklch, var(--drafts-hover-bg) 60%, transparent);
 }
 
-.draft-group-row[data-selected] {
-  background: color-mix(in oklch, var(--drafts-selected-bg) 60%, transparent);
-  box-shadow: inset 0 0 0 1px var(--drafts-primary);
-}
-
 .draft-group-spacer {
   flex: 1 1 auto;
 }
@@ -413,6 +411,10 @@
    to this box, and isolated so the indicator's own stacking context stays
    contained to this card. */
 .draft-changes-body {
+  /* One softened ink for every scrubber mark (head, baseline, connector,
+     sticker border): mixed toward the background so the lines read as
+     annotations, not hard rules. Defined here so all of them share it. */
+  --scrub-color: color-mix(in oklch, var(--drafts-fg) 55%, var(--drafts-bg));
   position: relative;
   isolation: isolate;
   display: flex;
@@ -443,7 +445,6 @@
    in the foreground color. The box itself ignores pointer events so rows stay
    clickable; the handles re-enable them. */
 .draft-scrubber-token {
-  --scrub-color: var(--drafts-fg);
   position: absolute;
   left: 0;
   right: 0;
@@ -480,6 +481,12 @@
   background: var(--scrub-color);
 }
 
+/* The baseline's line reads fainter than the head's, so the version being
+   viewed stays the dominant mark. */
+.draft-scrubber-token--baseline .draft-scrubber-line {
+  opacity: 0.55;
+}
+
 /* Invisible grab strip over the line's gutter end; dragging only starts
    from this (or the dot), never from the rows or the bare gutter. */
 .draft-scrubber-edge {
@@ -491,6 +498,40 @@
   pointer-events: auto;
   cursor: grab;
   touch-action: none;
+}
+
+/* The diff baseline handle: a hollow circle (vs the head's solid dot) in the
+   gutter, sharing the head's line style across the rows. Only rendered with
+   the eye open and a version pinned. */
+.draft-scrubber-baseline {
+  position: absolute;
+  top: -5px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 2px solid var(--scrub-color);
+  border-radius: 50%;
+  background: var(--studio-fill, white);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.draft-scrubber-baseline:active {
+  cursor: grabbing;
+}
+
+/* Joins the head and baseline handles down the gutter so the two read as one
+   diff range. Above the rows, below the handles. */
+.draft-scrubber-connector {
+  position: absolute;
+  left: 7px;
+  width: 2px;
+  z-index: 10;
+  background: var(--scrub-color);
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* While pinned, a chip anchored to the head line overlays the group row's

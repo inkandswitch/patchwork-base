@@ -53,7 +53,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.24";
+const DRAFTS_VERSION = "0.0.28";
 
 // Logged at module load so the console shows which build is running even
 // before the panel renders.
@@ -100,6 +100,13 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   // survives).
   const [scrubber, setScrubber] = createSignal<ScrubberState | null>(null);
 
+  // Where the diff baseline handle sits: an absolute point in history the
+  // diff is measured from, independent of the head (`scrubber`). Ephemeral
+  // like the head — resets on reload, while the persisted `from` keeps
+  // driving the editor diff. Non-null only while the eye is open and a
+  // version is pinned; that is also exactly when the handle renders.
+  const [baseliner, setBaseliner] = createSignal<BaselineState | null>(null);
+
   // A version being dragged out of a history timeline (from a group row or
   // the scrubber sticker). While set, the actions area shows a drop zone
   // that forks a new draft at that version; cleared on drop or dragend.
@@ -128,6 +135,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     const handle = checkedOutHandle();
     if (!handle) return;
     setScrubber(null);
+    setBaseliner(null);
     handle.change((d) => {
       d.checkedOut = url;
       // Switching drafts (or to main) returns to the live latest heads.
@@ -142,32 +150,27 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   // scrub position (a drag fires one recompute per snapped change).
   let scrubSeq = 0;
 
-  // Apply a scrubber position: freeze every member doc at its heads as of the
-  // scrub head. The token and row highlight update immediately; the
-  // checkpoint follows async. `draftUrl` is `null` for main. With the eye
-  // open, the diff baseline anchors at the scrubbed group's start — it stays
-  // put while scrubbing within the group, and re-anchors when the head
-  // crosses into another group.
-  const onScrub = (
+  // Recompute and persist the checkpoint from the current head (`scrubber`)
+  // and baseline (`baseliner`) signals: `to`s follow the head, `from`s follow
+  // the baseline (absolute, independent of the head). With the eye closed the
+  // baseline is null and no `from` is written. The token and row highlight
+  // update immediately from the signals; the checkpoint follows async.
+  // `draftUrl` is `null` for main. Guarded by `scrubSeq` so a slower
+  // computation can't clobber a newer drag.
+  const applyPins = (
     draftUrl: AutomergeUrl | null,
-    members: DraftMemberDoc[],
-    scrub: ScrubberState
+    members: DraftMemberDoc[]
   ) => {
     const handle = checkedOutHandle();
     const repo = getRepo();
     if (!handle || !repo) return;
-    setScrubber(scrub);
-    const base: CheckpointBase = eyeOpen()
-      ? { groupStartTime: scrub.groupStartTime }
-      : "none";
+    const head = scrubber();
+    if (!head) return;
+    const bl = baseliner();
+    const base: CheckpointBase = bl ? { beforeTime: bl.time } : "none";
     const seq = ++scrubSeq;
     void (async () => {
-      const checkpoint = await computeCheckpoint(
-        repo,
-        members,
-        scrub.head,
-        base
-      );
+      const checkpoint = await computeCheckpoint(repo, members, head.head, base);
       // A newer scrub landed while this one was computing; drop it.
       if (seq !== scrubSeq) return;
       handle.change((d) => {
@@ -175,6 +178,27 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
         d.at = checkpoint;
       });
     })();
+  };
+
+  // Move the head (the version being viewed); the baseline stays where it is.
+  const onScrub = (
+    draftUrl: AutomergeUrl | null,
+    members: DraftMemberDoc[],
+    scrub: ScrubberState
+  ) => {
+    setScrubber(scrub);
+    applyPins(draftUrl, members);
+  };
+
+  // Move the diff baseline; the head stays where it is. Only reachable while
+  // the eye is open and pinned (that is when the handle renders).
+  const onBaselineScrub = (
+    draftUrl: AutomergeUrl | null,
+    members: DraftMemberDoc[],
+    base: BaselineState
+  ) => {
+    setBaseliner(base);
+    applyPins(draftUrl, members);
   };
 
   // The member docs of the current selection (`null` = main), for the eye
@@ -202,6 +226,8 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     const handle = checkedOutHandle();
     if (!handle) return;
     setScrubber(null);
+    // Unpinned: the baseline handle only shows while pinned, so drop it.
+    setBaseliner(null);
     const draftUrl = selected();
     const baselines = eyeOpen() && draftUrl ? forkBaselines(draftUrl) : null;
     handle.change((d) => {
@@ -222,6 +248,7 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     if (eyeOpen()) {
       // Close: strip the baselines; a pin (`to`) stays untouched. Baseline-
       // only entries disappear entirely, so a live view's `at` goes to null.
+      setBaseliner(null);
       handle.change((d) => {
         if (!d.at) return;
         const urls = Object.keys(d.at) as AutomergeUrl[];
@@ -242,13 +269,20 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     const draftUrl = selected();
     const s = scrubber();
     if (isPinned() && s) {
-      // Pinned with a known scrub position: recompute the checkpoint with
-      // the baseline anchored at the scrubbed group's start.
+      // Pinned with a known scrub position: seed the baseline handle at the
+      // scrubbed group's start and recompute the checkpoint against it. The
+      // handle's exact offset is resolved by the changes list, which knows
+      // the group's size (BASELINE_GROUP_START).
+      setBaseliner({
+        groupId: s.groupId,
+        offset: BASELINE_GROUP_START,
+        time: s.groupStartTime,
+      });
       const members = membersFor(draftUrl);
       const seq = ++scrubSeq;
       void (async () => {
         const checkpoint = await computeCheckpoint(repo, members, s.head, {
-          groupStartTime: s.groupStartTime,
+          beforeTime: s.groupStartTime,
         });
         if (seq !== scrubSeq) return;
         handle.change((d) => {
@@ -465,6 +499,10 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
             onSelect={() => selectDraft(null)}
             onScrub={(scrub) => onScrub(null, list().main.members, scrub)}
             scrubber={() => (isMainSelected() ? scrubber() : null)}
+            onBaselineScrub={(base) =>
+              onBaselineScrub(null, list().main.members, base)
+            }
+            baseliner={() => (isMainSelected() ? baseliner() : null)}
             onDragVersion={(head) =>
               setDragVersion(
                 head ? { members: list().main.members, head } : null
@@ -492,6 +530,12 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 }
                 scrubber={() =>
                   selected() === summary.url ? scrubber() : null
+                }
+                onBaselineScrub={(base) =>
+                  onBaselineScrub(summary.url, summary.members, base)
+                }
+                baseliner={() =>
+                  selected() === summary.url ? baseliner() : null
                 }
                 onDragVersion={(head) =>
                   setDragVersion(
@@ -879,6 +923,8 @@ function MainCard(props: {
   onSelect: () => void;
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
+  onBaselineScrub: (base: BaselineState) => void;
+  baseliner: Accessor<BaselineState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
   hasCheckpoint: boolean;
   onReturnToLatest: () => void;
@@ -934,6 +980,9 @@ function MainCard(props: {
           mainDocUrl={props.hostDocUrl}
           onScrub={props.onScrub}
           scrubber={props.scrubber}
+          onBaselineScrub={props.onBaselineScrub}
+          baseliner={props.baseliner}
+          eyeOpen={() => props.eyeOpen}
           onDragVersion={props.onDragVersion}
           onReturnToLatest={props.onReturnToLatest}
         />
@@ -953,6 +1002,8 @@ function DraftCard(props: {
   onSelect: (url: AutomergeUrl) => void;
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
+  onBaselineScrub: (base: BaselineState) => void;
+  baseliner: Accessor<BaselineState | null>;
   onDragVersion: (head: ChangeRef | null) => void;
   hasCheckpoint: boolean;
   onReturnToLatest: () => void;
@@ -1004,6 +1055,9 @@ function DraftCard(props: {
           mainDocUrl={props.mainDocUrl}
           onScrub={props.onScrub}
           scrubber={props.scrubber}
+          onBaselineScrub={props.onBaselineScrub}
+          baseliner={props.baseliner}
+          eyeOpen={() => props.eyeOpen}
           onDragVersion={props.onDragVersion}
           onReturnToLatest={props.onReturnToLatest}
         />
@@ -1060,7 +1114,9 @@ function DraftName(props: {
 // The diff toggle in a card title, right-aligned. Open = diff highlighting
 // showing. It holds no state: open/closed is derived from the checkpoint's
 // baselines and toggling rewrites them (see `toggleEye`). Disabled on a live
-// main view, where there is nothing to diff against.
+// main view, where there is nothing to diff against — via aria-disabled
+// rather than the disabled attribute, so the explanatory tooltip still shows
+// on hover (browsers don't reliably show titles on disabled buttons).
 function EyeToggle(props: {
   open: boolean;
   disabled: boolean;
@@ -1071,14 +1127,16 @@ function EyeToggle(props: {
       type="button"
       class="draft-card-eye"
       data-active={props.open ? "" : undefined}
-      disabled={props.disabled}
+      data-disabled={props.disabled ? "" : undefined}
+      aria-disabled={props.disabled}
       onClick={(e) => {
         e.stopPropagation();
+        if (props.disabled) return;
         props.onToggle();
       }}
       title={
         props.disabled
-          ? "Nothing to diff against — pin a version first"
+          ? "Nothing to compare yet — select a version in the timeline first"
           : props.open
             ? "Hide changes"
             : "Show what changed"
@@ -1149,6 +1207,23 @@ type ScrubberState = {
   groupStartTime: number;
 };
 
+// Where the diff baseline handle sits: an absolute point in history the diff
+// is measured from, independent of the head. `time` resolves each member's
+// `from` (see `computeCheckpoint`); `groupId`/`offset` place the handle in the
+// track (same geometry as the head). `offset` of `BASELINE_GROUP_START` means
+// "the start of the group" — the changes list resolves it to the group's
+// oldest change once it knows the group's size. Ephemeral like `ScrubberState`.
+type BaselineState = {
+  groupId: string;
+  offset: number;
+  time: number;
+};
+
+// Sentinel `BaselineState.offset` meaning "the group's start" (its oldest
+// change / the bottom of its band), used when the eye seeds the handle before
+// the group's change count is known.
+const BASELINE_GROUP_START = -1;
+
 // One change recovered by the on-demand scrub-resolution scan. `doc` is the
 // member doc it was read from (kept so the sticker can diff it on demand);
 // `seq` is the change's per-document causal index, used only to break
@@ -1182,6 +1257,9 @@ function DraftChangesList(props: {
   mainDocUrl: AutomergeUrl | undefined;
   onScrub: (scrub: ScrubberState) => void;
   scrubber: Accessor<ScrubberState | null>;
+  onBaselineScrub: (base: BaselineState) => void;
+  baseliner: Accessor<BaselineState | null>;
+  eyeOpen: Accessor<boolean>;
   onDragVersion: (head: ChangeRef | null) => void;
   onReturnToLatest: () => void;
 }) {
@@ -1306,12 +1384,15 @@ function DraftChangesList(props: {
     return rows;
   };
 
-  // Scrub so the head sits at `offset` within `group` (0 = the group's
+  // Build the head scrub state for `offset` within `group` (0 = the group's
   // newest change, which the cache anchors directly; deeper offsets resolve
-  // through the on-demand scan).
-  const scrubTo = (group: CachedGroup, offset: number) => {
+  // through the on-demand scan). Null while the scan is still resolving.
+  const buildHead = (
+    group: CachedGroup,
+    offset: number
+  ): ScrubberState | null => {
     if (offset <= 0) {
-      props.onScrub({
+      return {
         groupId: group.id,
         offset: 0,
         head: {
@@ -1320,17 +1401,107 @@ function DraftChangesList(props: {
           time: group.endTime,
         },
         groupStartTime: group.startTime,
-      });
-      return;
+      };
     }
     const rows = resolveGroupChanges(group);
-    if (!rows || rows.length === 0) return;
+    if (!rows || rows.length === 0) return null;
     const row = rows[Math.min(offset, rows.length - 1)];
-    props.onScrub({
+    return {
       groupId: group.id,
       offset,
       head: { docUrl: row.docUrl, hash: row.hash, time: row.time },
       groupStartTime: group.startTime,
+    };
+  };
+
+  // Expand the BASELINE_GROUP_START sentinel to the group's oldest change.
+  const resolveOffset = (group: CachedGroup, offset: number): number =>
+    offset === BASELINE_GROUP_START
+      ? Math.max(0, group.changeCount - 1)
+      : offset;
+
+  // The change time at `offset` within `group` (0 = the group's newest
+  // change). Used to resolve the baseline handle's `from` time.
+  const timeAt = (group: CachedGroup, offset: number): number => {
+    const resolved = resolveOffset(group, offset);
+    if (resolved <= 0) return group.endTime;
+    const rows = resolveGroupChanges(group);
+    if (!rows || rows.length === 0) return group.startTime;
+    return rows[Math.min(resolved, rows.length - 1)].time;
+  };
+
+  // A position's rank in the flat change order (higher = older), so the head
+  // and baseline can be compared for clamping. Offsets are resolved (sentinel
+  // -> group start) and clamped within their group.
+  const linearIndex = (groupId: string, offset: number): number => {
+    let acc = 0;
+    for (const b of bands()) {
+      const count = Math.max(1, b.group.changeCount);
+      if (b.group.id === groupId) {
+        return acc + Math.min(Math.max(0, resolveOffset(b.group, offset)), count - 1);
+      }
+      acc += count;
+    }
+    return acc + Math.max(0, offset);
+  };
+
+  // Move the head to `offset` within `group`. With the eye open the baseline
+  // stays put (absolute), except that dragging the head older than the
+  // baseline pushes the baseline down with it — they can meet but not cross.
+  // The baseline is pushed first so the diff never momentarily inverts.
+  const scrubTo = (group: CachedGroup, offset: number) => {
+    const head = buildHead(group, offset);
+    if (!head) return;
+    if (props.eyeOpen()) {
+      const bl = props.baseliner();
+      if (
+        bl &&
+        linearIndex(head.groupId, head.offset) >
+          linearIndex(bl.groupId, bl.offset)
+      ) {
+        props.onBaselineScrub({
+          groupId: group.id,
+          offset: head.offset,
+          time: head.head.time,
+        });
+      }
+    }
+    props.onScrub(head);
+  };
+
+  // Select a group (click on its row): the head pins to the group's newest
+  // change, and — with the eye open — the baseline re-anchors to the group's
+  // start, so the diff reads "everything this group changed". Dragging the
+  // head, by contrast, leaves the baseline where it is (see `scrubTo`).
+  const selectGroup = (group: CachedGroup) => {
+    if (props.eyeOpen()) {
+      props.onBaselineScrub({
+        groupId: group.id,
+        offset: BASELINE_GROUP_START,
+        time: group.startTime,
+      });
+    }
+    scrubTo(group, 0);
+  };
+
+  // Move the baseline to `offset` within `group`, clamped so it never crosses
+  // above (newer than) the head — the diff always reads old -> new. When the
+  // clamp bites, the baseline snaps to the head (an empty diff).
+  const baselineScrubTo = (group: CachedGroup, offset: number) => {
+    const head = props.scrubber();
+    if (!head) return;
+    if (linearIndex(group.id, offset) < linearIndex(head.groupId, head.offset)) {
+      props.onBaselineScrub({
+        groupId: head.groupId,
+        offset: head.offset,
+        time: head.head.time,
+      });
+      return;
+    }
+    props.onBaselineScrub({
+      groupId: group.id,
+      offset,
+      time: timeAt(group, offset),
     });
   };
 
@@ -1343,13 +1514,6 @@ function DraftChangesList(props: {
       (g) => s.head.time >= g.startTime && s.head.time <= g.endTime
     ) ??
     null;
-
-  const groupContainsHead = (group: CachedGroup): boolean => {
-    const s = props.scrubber();
-    if (!s) return false;
-    if (s.groupId === group.id) return true;
-    return s.head.time >= group.startTime && s.head.time <= group.endTime;
-  };
 
   // --- Scrubber geometry ---------------------------------------------------
   // The track mirrors the rows column: each group row is one vertical band,
@@ -1441,6 +1605,21 @@ function DraftChangesList(props: {
     return { top: yForPosition(band, s.offset) };
   });
 
+  // The baseline handle's y in the track, or null when it should not show:
+  // only while the eye is open and a version is pinned (a head is set). Idle
+  // on the latest version there is no baseline to drag.
+  const baselineGeometry = createMemo(() => {
+    if (!props.eyeOpen() || !props.scrubber()) return null;
+    const b = props.baseliner();
+    if (!b) return null;
+    const bs = bands();
+    const band =
+      bs.find((x) => x.group.id === b.groupId) ??
+      bs.find((x) => b.time >= x.group.startTime && b.time <= x.group.endTime);
+    if (!band) return null;
+    return { top: yForPosition(band, resolveOffset(band.group, b.offset)) };
+  });
+
   let trackEl: HTMLDivElement | undefined;
 
   // Pointer y relative to the track's top edge. The rect is re-read per event
@@ -1477,6 +1656,38 @@ function DraftChangesList(props: {
       } else {
         scrubTo(pos.group, pos.offset);
       }
+    };
+
+    const target = ev.currentTarget as HTMLElement;
+    target.setPointerCapture(ev.pointerId);
+    const onUp = () => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+      target.removeEventListener("pointercancel", onUp);
+    };
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+    target.addEventListener("pointercancel", onUp);
+  };
+
+  // Begin a baseline-handle drag: the baseline follows the pointer, clamped so
+  // it never crosses above the head (see `baselineScrubTo`). Unlike the head,
+  // it has no return-to-latest gesture — the baseline is only meaningful while
+  // pinned, so there is nowhere at the top to drop it.
+  const beginBaselineDrag = (ev: PointerEvent) => {
+    if (!trackEl || bands().length === 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const grabOffset = yInTrack(ev) - (baselineGeometry()?.top ?? 0);
+
+    let last: string | null = null;
+    const onMove = (e: PointerEvent) => {
+      const pos = positionForY(yInTrack(e) - grabOffset);
+      if (!pos) return;
+      const key = `${pos.group.id}:${pos.offset}`;
+      if (key === last) return;
+      last = key;
+      baselineScrubTo(pos.group, pos.offset);
     };
 
     const target = ev.currentTarget as HTMLElement;
@@ -1559,8 +1770,7 @@ function DraftChangesList(props: {
                 <TimeGroupRow
                   group={group}
                   rowRef={(el) => rowEls.set(group.id, el)}
-                  isSelected={groupContainsHead(group)}
-                  onSelect={() => scrubTo(group, 0)}
+                  onSelect={() => selectGroup(group)}
                   onVersionDragStart={(e) =>
                     beginVersionDrag(e, {
                       docUrl: group.newestMemberUrl,
@@ -1623,6 +1833,35 @@ function DraftChangesList(props: {
               </Show>
             </div>
           </Show>
+          {/* The diff baseline: a second handle (line + hollow circle) shown
+              only with the eye open and a version pinned. Independent of the
+              head — dragging it re-anchors the diff's older bound — and joined
+              to the head by a connector so the two read as one range. */}
+          <Show when={baselineGeometry()}>
+            <div
+              class="draft-scrubber-connector"
+              style={{
+                top: `${Math.min(tokenGeometry()?.top ?? 0, baselineGeometry()!.top)}px`,
+                height: `${Math.abs((tokenGeometry()?.top ?? 0) - baselineGeometry()!.top)}px`,
+              }}
+            />
+            <div
+              class="draft-scrubber-token draft-scrubber-token--baseline"
+              style={{ top: `${baselineGeometry()!.top}px` }}
+            >
+              <div class="draft-scrubber-line" />
+              <div
+                class="draft-scrubber-edge"
+                title="Drag to move the diff baseline"
+                onPointerDown={beginBaselineDrag}
+              />
+              <div
+                class="draft-scrubber-baseline"
+                title="Drag to move the diff baseline"
+                onPointerDown={beginBaselineDrag}
+              />
+            </div>
+          </Show>
         </div>
       </Show>
     </div>
@@ -1631,15 +1870,14 @@ function DraftChangesList(props: {
 
 // One time group, rendered as a single non-expandable row: author avatars,
 // the group's newest timestamp, and the aggregated +/- counts. Clicking the
-// row parks the scrubber at the top of the group. The row highlights while
-// the scrubber head sits inside the group. Dragging the row out forks a new
-// draft at the group's newest change (the same version clicking pins);
-// dragstart only fires past the movement threshold, so click-to-select is
-// unaffected.
+// row parks the scrubber at the top of the group (the scrubber token is the
+// selection indicator — the row itself doesn't highlight). Dragging the row
+// out forks a new draft at the group's newest change (the same version
+// clicking pins); dragstart only fires past the movement threshold, so
+// click-to-select is unaffected.
 function TimeGroupRow(props: {
   group: CachedGroup;
   rowRef: (el: HTMLElement) => void;
-  isSelected: boolean;
   onSelect: () => void;
   onVersionDragStart: (e: DragEvent) => void;
   onVersionDragEnd: () => void;
@@ -1649,7 +1887,6 @@ function TimeGroupRow(props: {
       type="button"
       class="draft-group-row"
       ref={props.rowRef}
-      data-selected={props.isSelected ? "" : undefined}
       title="View the draft as of this group — drag out to fork a draft from it"
       onClick={props.onSelect}
       draggable={true}
@@ -1710,19 +1947,22 @@ function EditCounts(props: { additions: number; deletions: number }) {
 }
 
 // Diff baseline mode for a checkpoint. `"none"` writes no `from` (no diff);
-// `{ groupStartTime }` anchors each member's `from` at its state just before
-// the scrubbed group began, so the whole group reads as the diff.
-type CheckpointBase = "none" | { groupStartTime: number };
+// `{ beforeTime }` anchors each member's `from` at its state just before that
+// absolute time — the draggable baseline handle's position — so everything
+// from there up to the head reads as the diff. The baseline is independent of
+// the head (see `onScrub`/`onBaselineScrub`): the two are resolved separately
+// and only clamped so the baseline stays at or older than the head.
+type CheckpointBase = "none" | { beforeTime: number };
 
 // Build the checkpoint map for a scrub position. Each member's displayed
 // version (`to`) is its heads as of `head`: the doc that owns that change is
 // pinned exactly to it, every other member to its latest change at or before
 // it (approximate but good enough). The diff baseline (`from`) follows
-// `base`: omitted for `"none"`, or the member's heads just before the
-// group's start (falling back to the fork point — empty heads on main — when
-// no post-fork change precedes the group). Members with no change at or
-// before `head` are omitted entirely: they didn't exist yet, so they fall
-// through to live.
+// `base`: omitted for `"none"`, or the member's heads just before
+// `beforeTime` (falling back to the fork point — empty heads on main — when
+// no post-fork change precedes it). Members with no change at or before
+// `head` are omitted entirely: they didn't exist yet, so they fall through to
+// live.
 async function computeCheckpoint(
   repo: Repo,
   members: DraftMemberDoc[],
@@ -1763,14 +2003,14 @@ async function computeCheckpoint(
         continue;
       }
 
-      // Diff baseline: the member's newest change strictly before the group
-      // began. None post-fork means the group starts the member's history in
-      // this timeline, so diff against the fork point (empty heads on main —
-      // the whole doc reads as added).
+      // Diff baseline: the member's newest change strictly before the
+      // baseline's time. None post-fork means the baseline sits at or before
+      // the start of the member's history in this timeline, so diff against
+      // the fork point (empty heads on main — the whole doc reads as added).
       let fromIndex = -1;
       let fromTime = -Infinity;
       metas.forEach((m, i) => {
-        if (m.time < base.groupStartTime && m.time >= fromTime) {
+        if (m.time < base.beforeTime && m.time >= fromTime) {
           fromTime = m.time;
           fromIndex = i;
         }
@@ -1846,19 +2086,41 @@ function getInitials(authorId: string): string {
   return authorId.slice(0, 2).toUpperCase();
 }
 
-// Format an Automerge change time (Unix SECONDS) as a short local timestamp.
+// Ticks so relative timestamps ("5 minutes ago") stay fresh while the panel
+// is open. Module-level: one timer serves every row of every card, and it
+// lives as long as the module does.
+const [nowMs, setNowMs] = createSignal(Date.now());
+setInterval(() => setNowMs(Date.now()), 30_000);
+
+// `numeric: "auto"` gives GitHub's phrasing: "yesterday" and "last week"
+// instead of "1 day ago" and "1 week ago".
+const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, {
+  numeric: "auto",
+});
+
+// Format an Automerge change time (Unix SECONDS) the way GitHub's
+// <relative-time> element formats timeline times: relative while recent
+// ("now", "5 minutes ago", "5 hours ago", "yesterday", "last week"), and
+// past 30 days an absolute short date ("Jun 13"), with the year appended
+// only once it differs from the current one ("Jun 13, 2025").
 function formatTime(timeSeconds: number): string {
   if (!timeSeconds) return "";
   const date = new Date(timeSeconds * 1000);
-  const datePart = date.toLocaleDateString(undefined, {
+  const seconds = Math.max(0, Math.floor((nowMs() - date.getTime()) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (minutes < 1) return "now";
+  if (hours < 1) return RELATIVE_TIME.format(-minutes, "minute");
+  if (days < 1) return RELATIVE_TIME.format(-hours, "hour");
+  if (days < 7) return RELATIVE_TIME.format(-days, "day");
+  if (days < 30) return RELATIVE_TIME.format(-Math.floor(days / 7), "week");
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
+    year:
+      date.getFullYear() === new Date(nowMs()).getFullYear()
+        ? undefined
+        : "numeric",
   });
-  const timePart = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-  return `${datePart}, ${timePart}`;
 }
