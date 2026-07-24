@@ -218,11 +218,10 @@
   max-height: 32rem;
 }
 
-/* Sits in the card title (where the "current" badge used to be) while the
+/* Sits in the card title, left-aligned right after the name, while the
    timeline is pinned; drops the pin and returns to the latest version. */
 .draft-card-return {
   flex-shrink: 0;
-  margin-left: auto;
   padding: 0.125rem 0.5rem;
   border: 1px solid var(--drafts-border);
   border-radius: var(--studio-radius-round, 9999px);
@@ -236,6 +235,36 @@
 
 .draft-card-return:hover {
   background: var(--drafts-hover-bg);
+}
+
+/* The diff toggle (eye), right-aligned in the card title. Active = diff
+   highlighting showing (the checkpoint carries baselines). */
+.draft-card-eye {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: none;
+  border-radius: var(--studio-radius, 0.25rem);
+  background: transparent;
+  color: var(--drafts-faint-fg);
+  cursor: pointer;
+}
+
+.draft-card-eye:hover:not(:disabled) {
+  background: var(--drafts-hover-bg);
+  color: var(--drafts-primary-text);
+}
+
+.draft-card-eye[data-active] {
+  color: var(--drafts-primary-text);
+}
+
+.draft-card-eye:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .draft-changes-empty {

@@ -53,7 +53,7 @@ const EMPTY_DRAFT_LIST: DraftList = {
 };
 
 // Bump on each deploy to eyeball whether the latest build has synced.
-const DRAFTS_VERSION = "0.0.23";
+const DRAFTS_VERSION = "0.0.24";
 
 // Logged at module load so the console shows which build is running even
 // before the panel renders.
@@ -77,6 +77,21 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
   const selected = createMemo<AutomergeUrl | null>(
     () => checkedOut()?.checkedOut ?? null
   );
+
+  // The eye toggle's state, derived from the checkpoint itself (no separate
+  // flag): the eye is open — diffs showing — iff the current checkpoint
+  // carries any diff baseline (`from`).
+  const eyeOpen = createMemo<boolean>(() => {
+    const at = checkedOut()?.at;
+    return !!at && Object.values(at).some((e) => e.from !== undefined);
+  });
+
+  // Whether the view is actually pinned to history (any member has a `to`),
+  // as opposed to live-with-baseline (eye open, nothing pinned).
+  const isPinned = createMemo<boolean>(() => {
+    const at = checkedOut()?.at;
+    return !!at && Object.values(at).some((e) => e.to !== undefined);
+  });
 
   // Where the scrubber sits: the change whose heads are displayed. Ephemeral,
   // client-only state: the stored checkpoint (`checkedOut.at`) is what
@@ -129,7 +144,10 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
 
   // Apply a scrubber position: freeze every member doc at its heads as of the
   // scrub head. The token and row highlight update immediately; the
-  // checkpoint follows async. `draftUrl` is `null` for main.
+  // checkpoint follows async. `draftUrl` is `null` for main. With the eye
+  // open, the diff baseline anchors at the scrubbed group's start — it stays
+  // put while scrubbing within the group, and re-anchors when the head
+  // crosses into another group.
   const onScrub = (
     draftUrl: AutomergeUrl | null,
     members: DraftMemberDoc[],
@@ -139,9 +157,17 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     const repo = getRepo();
     if (!handle || !repo) return;
     setScrubber(scrub);
+    const base: CheckpointBase = eyeOpen()
+      ? { groupStartTime: scrub.groupStartTime }
+      : "none";
     const seq = ++scrubSeq;
     void (async () => {
-      const checkpoint = await computeCheckpoint(repo, members, scrub.head);
+      const checkpoint = await computeCheckpoint(
+        repo,
+        members,
+        scrub.head,
+        base
+      );
       // A newer scrub landed while this one was computing; drop it.
       if (seq !== scrubSeq) return;
       handle.change((d) => {
@@ -151,15 +177,139 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
     })();
   };
 
+  // The member docs of the current selection (`null` = main), for the eye
+  // and checkpoint handlers below.
+  const membersFor = (draftUrl: AutomergeUrl | null): DraftMemberDoc[] =>
+    draftUrl
+      ? (list().drafts.find((s) => s.url === draftUrl)?.members ?? [])
+      : list().main.members;
+
+  // The eye-open checkpoint for a live (unpinned) draft: every cloned member
+  // diffs against its fork point, nothing pinned.
+  const forkBaselines = (draftUrl: AutomergeUrl): DraftCheckpoint => {
+    const at: DraftCheckpoint = {};
+    for (const member of membersFor(draftUrl)) {
+      if (member.clonedAt) at[member.url] = { from: member.clonedAt };
+    }
+    return at;
+  };
+
   // Drop the time pin but stay on the same draft: back to live latest heads.
+  // With the eye open on a draft the diff baselines survive — the view goes
+  // live but keeps showing what changed since the fork point. (A live main
+  // has nothing to diff against, so there the eye closes with the pin.)
   const clearCheckpoint = () => {
     const handle = checkedOutHandle();
     if (!handle) return;
     setScrubber(null);
+    const draftUrl = selected();
+    const baselines = eyeOpen() && draftUrl ? forkBaselines(draftUrl) : null;
     handle.change((d) => {
-      d.at = null;
+      d.at =
+        baselines && Object.keys(baselines).length > 0 ? baselines : null;
     });
   };
+
+  // The eye toggle: show or hide diff highlighting. The eye holds no state of
+  // its own — it rewrites the checkpoint's per-member `from`s (which the
+  // provider serves as `draft:baseline`), and its open/closed state is read
+  // back off the checkpoint (`eyeOpen`).
+  const toggleEye = () => {
+    const handle = checkedOutHandle();
+    const repo = getRepo();
+    if (!handle || !repo) return;
+
+    if (eyeOpen()) {
+      // Close: strip the baselines; a pin (`to`) stays untouched. Baseline-
+      // only entries disappear entirely, so a live view's `at` goes to null.
+      handle.change((d) => {
+        if (!d.at) return;
+        const urls = Object.keys(d.at) as AutomergeUrl[];
+        if (!urls.some((u) => d.at?.[u]?.to !== undefined)) {
+          d.at = null;
+          return;
+        }
+        for (const url of urls) {
+          const entry = d.at[url];
+          if (!entry) continue;
+          if (entry.to === undefined) delete d.at[url];
+          else delete entry.from;
+        }
+      });
+      return;
+    }
+
+    const draftUrl = selected();
+    const s = scrubber();
+    if (isPinned() && s) {
+      // Pinned with a known scrub position: recompute the checkpoint with
+      // the baseline anchored at the scrubbed group's start.
+      const members = membersFor(draftUrl);
+      const seq = ++scrubSeq;
+      void (async () => {
+        const checkpoint = await computeCheckpoint(repo, members, s.head, {
+          groupStartTime: s.groupStartTime,
+        });
+        if (seq !== scrubSeq) return;
+        handle.change((d) => {
+          d.at = checkpoint;
+        });
+      })();
+      return;
+    }
+
+    if (isPinned()) {
+      // Pinned but the scrub position is unknown (the sidebar remounted
+      // while the pin survived): fall back to diffing the pinned view
+      // against the fork point.
+      const clonedAt = new Map(
+        membersFor(draftUrl).map((m) => [m.url, m.clonedAt])
+      );
+      handle.change((d) => {
+        if (!d.at) return;
+        for (const url of Object.keys(d.at) as AutomergeUrl[]) {
+          const entry = d.at[url];
+          if (!entry) continue;
+          entry.from = clonedAt.get(url) ?? encodeHeads([]);
+        }
+      });
+      return;
+    }
+
+    // Live on a draft: show what changed since the fork point. (Live on
+    // main the button is disabled — there is no baseline to diff against.)
+    if (!draftUrl) return;
+    const baselines = forkBaselines(draftUrl);
+    if (Object.keys(baselines).length === 0) return;
+    handle.change((d) => {
+      d.at = baselines;
+    });
+  };
+
+  // While the eye is open on a live (unpinned) draft, keep the baseline map
+  // in step with the member list: a doc forked after the eye was opened gets
+  // its fork-point baseline added here. (The provider serves baselines only
+  // from the checkpoint — there is no implicit fallback to cover it.)
+  createEffect(() => {
+    const at = checkedOut()?.at;
+    const draftUrl = selected();
+    const handle = checkedOutHandle();
+    if (!at || !draftUrl || !handle) return;
+    const entries = Object.values(at);
+    if (entries.length === 0) return;
+    if (entries.some((e) => e.to !== undefined)) return; // pinned: onScrub owns it
+    if (!entries.some((e) => e.from !== undefined)) return; // eye closed
+    const missing = membersFor(draftUrl).filter(
+      (m) => m.clonedAt !== null && !at[m.url]
+    );
+    if (missing.length === 0) return;
+    handle.change((d) => {
+      if (!d.at) return;
+      for (const m of missing) {
+        if (m.clonedAt) d.at[m.url] = { from: m.clonedAt };
+      }
+    });
+  });
 
   const onCreateDraft = async () => {
     if (isFolder()) return;
@@ -206,8 +356,9 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
       return;
     }
 
-    // Reuse the scrub machinery to resolve per-doc heads at this version.
-    const checkpoint = await computeCheckpoint(repo, members, head);
+    // Reuse the scrub machinery to resolve per-doc heads at this version
+    // (only the `to`s are read, so no diff baseline).
+    const checkpoint = await computeCheckpoint(repo, members, head, "none");
 
     const clones: Record<AutomergeUrl, CloneEntry> = {};
     for (const member of members) {
@@ -319,8 +470,11 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                 head ? { members: list().main.members, head } : null
               )
             }
-            hasCheckpoint={isMainSelected() && !!checkedOut()?.at}
+            hasCheckpoint={isMainSelected() && isPinned()}
             onReturnToLatest={clearCheckpoint}
+            eyeOpen={isMainSelected() && eyeOpen()}
+            eyeDisabled={!isPinned()}
+            onToggleEye={toggleEye}
           />
           <For each={list().drafts}>
             {(summary) => (
@@ -344,8 +498,11 @@ export function DraftsSidebar(props: { element: HTMLElement }) {
                     head ? { members: summary.members, head } : null
                   )
                 }
-                hasCheckpoint={selected() === summary.url && !!checkedOut()?.at}
+                hasCheckpoint={selected() === summary.url && isPinned()}
                 onReturnToLatest={clearCheckpoint}
+                eyeOpen={selected() === summary.url && eyeOpen()}
+                eyeDisabled={false}
+                onToggleEye={toggleEye}
               />
             )}
           </For>
@@ -725,6 +882,9 @@ function MainCard(props: {
   onDragVersion: (head: ChangeRef | null) => void;
   hasCheckpoint: boolean;
   onReturnToLatest: () => void;
+  eyeOpen: boolean;
+  eyeDisabled: boolean;
+  onToggleEye: () => void;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -741,10 +901,10 @@ function MainCard(props: {
             fallback="Main"
             onRename={props.onRename}
           />
-          {/* Shown in the title (where the "current" badge used to sit) while
-              the timeline is pinned: drops the pin and returns to the live
-              latest heads. It lives inside the clickable header, so the click
-              is stopped from also re-selecting the card. */}
+          {/* Shown left of the eye while the timeline is pinned: drops the
+              pin and returns to the live latest heads. It lives inside the
+              clickable header, so the click is stopped from also
+              re-selecting the card. */}
           <Show when={props.hasCheckpoint}>
             <button
               type="button"
@@ -757,6 +917,13 @@ function MainCard(props: {
             >
               Return to latest
             </button>
+          </Show>
+          <Show when={props.isSelected}>
+            <EyeToggle
+              open={props.eyeOpen}
+              disabled={props.eyeDisabled}
+              onToggle={props.onToggleEye}
+            />
           </Show>
         </div>
       </div>
@@ -789,6 +956,9 @@ function DraftCard(props: {
   onDragVersion: (head: ChangeRef | null) => void;
   hasCheckpoint: boolean;
   onReturnToLatest: () => void;
+  eyeOpen: boolean;
+  eyeDisabled: boolean;
+  onToggleEye: () => void;
 }) {
   return (
     <div class="draft-card" data-selected={props.isSelected ? "" : undefined}>
@@ -817,6 +987,13 @@ function DraftCard(props: {
             >
               Return to latest
             </button>
+          </Show>
+          <Show when={props.isSelected}>
+            <EyeToggle
+              open={props.eyeOpen}
+              disabled={props.eyeDisabled}
+              onToggle={props.onToggleEye}
+            />
           </Show>
         </div>
       </div>
@@ -880,6 +1057,76 @@ function DraftName(props: {
   );
 }
 
+// The diff toggle in a card title, right-aligned. Open = diff highlighting
+// showing. It holds no state: open/closed is derived from the checkpoint's
+// baselines and toggling rewrites them (see `toggleEye`). Disabled on a live
+// main view, where there is nothing to diff against.
+function EyeToggle(props: {
+  open: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      class="draft-card-eye"
+      data-active={props.open ? "" : undefined}
+      disabled={props.disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onToggle();
+      }}
+      title={
+        props.disabled
+          ? "Nothing to diff against — pin a version first"
+          : props.open
+            ? "Hide changes"
+            : "Show what changed"
+      }
+    >
+      <Show when={props.open} fallback={<EyeOffIcon />}>
+        <EyeIcon />
+      </Show>
+    </button>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
 // A reference to one change in the interleaved timeline, by document and
 // hash. `time` steers how the *other* member docs' heads are resolved around
 // it (see `computeCheckpoint`).
@@ -893,10 +1140,13 @@ type ChangeRef = {
 // anchored to its cached group. `offset` is the change's position within the
 // group, 0 = the group's newest change (what the scrubber geometry snaps
 // to); `head` identifies the exact change for the checkpoint machinery.
+// `groupStartTime` is the group's span start, carried so the checkpoint's
+// diff baseline can anchor at the group's beginning while the eye is on.
 type ScrubberState = {
   groupId: string;
   offset: number;
   head: ChangeRef;
+  groupStartTime: number;
 };
 
 // One change recovered by the on-demand scrub-resolution scan. `doc` is the
@@ -1069,6 +1319,7 @@ function DraftChangesList(props: {
           hash: group.newestHash,
           time: group.endTime,
         },
+        groupStartTime: group.startTime,
       });
       return;
     }
@@ -1079,6 +1330,7 @@ function DraftChangesList(props: {
       groupId: group.id,
       offset,
       head: { docUrl: row.docUrl, hash: row.hash, time: row.time },
+      groupStartTime: group.startTime,
     });
   };
 
@@ -1457,18 +1709,25 @@ function EditCounts(props: { additions: number; deletions: number }) {
   );
 }
 
+// Diff baseline mode for a checkpoint. `"none"` writes no `from` (no diff);
+// `{ groupStartTime }` anchors each member's `from` at its state just before
+// the scrubbed group began, so the whole group reads as the diff.
+type CheckpointBase = "none" | { groupStartTime: number };
+
 // Build the checkpoint map for a scrub position. Each member's displayed
 // version (`to`) is its heads as of `head`: the doc that owns that change is
 // pinned exactly to it, every other member to its latest change at or before
-// it (approximate but good enough). The diff baseline (`from`) is always the
-// displayed heads themselves (no diff) — set explicitly (rather than
-// omitted) so a draft doesn't fall back to its fork-point baseline and light
-// up the whole draft diff. Members with no change at or before `head` are
-// omitted entirely: they didn't exist yet, so they fall through to live.
+// it (approximate but good enough). The diff baseline (`from`) follows
+// `base`: omitted for `"none"`, or the member's heads just before the
+// group's start (falling back to the fork point — empty heads on main — when
+// no post-fork change precedes the group). Members with no change at or
+// before `head` are omitted entirely: they didn't exist yet, so they fall
+// through to live.
 async function computeCheckpoint(
   repo: Repo,
   members: DraftMemberDoc[],
-  head: ChangeRef
+  head: ChangeRef,
+  base: CheckpointBase
 ): Promise<DraftCheckpoint> {
   const checkpoint: DraftCheckpoint = {};
   for (const member of members) {
@@ -1499,7 +1758,28 @@ async function computeCheckpoint(
         to = encodeHeads([metas[pinnedIndex].hash]);
       }
 
-      checkpoint[member.url] = { from: to, to };
+      if (base === "none") {
+        checkpoint[member.url] = { to };
+        continue;
+      }
+
+      // Diff baseline: the member's newest change strictly before the group
+      // began. None post-fork means the group starts the member's history in
+      // this timeline, so diff against the fork point (empty heads on main —
+      // the whole doc reads as added).
+      let fromIndex = -1;
+      let fromTime = -Infinity;
+      metas.forEach((m, i) => {
+        if (m.time < base.groupStartTime && m.time >= fromTime) {
+          fromTime = m.time;
+          fromIndex = i;
+        }
+      });
+      const from =
+        fromIndex >= 0
+          ? encodeHeads([metas[fromIndex].hash])
+          : (member.clonedAt ?? encodeHeads([]));
+      checkpoint[member.url] = { from, to };
     } catch (err) {
       console.warn(
         "[drafts] failed to compute checkpoint for member:",
